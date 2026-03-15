@@ -7,7 +7,7 @@ import type {
     UseApiReturn,
     ApiRequestConfig,
 } from "./types";
-import { useApiConfig } from "./plugin"; // <--- INJECTION
+import { useApiConfig } from "./plugin";
 import { parseApiError } from "./utils/errorParser";
 import { useApiState } from "./composables/useApiState";
 import { useAbortController } from "./composables/useAbortController";
@@ -109,7 +109,7 @@ export function useApi<T = unknown, D = unknown>(
                 ...({ authMode: config?.authMode || authMode } as unknown as AxiosRequestConfig),
             } as AxiosRequestConfig);
 
-            state.setData(response.data as T | null, response);
+            state.mutate(response.data as T | null, response);
             state.setStatusCode(response.status);
             onSuccess?.(response);
             return response.data;
@@ -175,7 +175,7 @@ export function useApi<T = unknown, D = unknown>(
 
     if (options.watch) {
         watch(options.watch, () => {
-             execute();
+            execute();
         }, { deep: true });
     }
 

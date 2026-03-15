@@ -378,9 +378,9 @@ const { execute } = useApi('/analytics', {
 
 ### Manual Data Updates
 
-Use `setData` to manually update the data ref. Supports direct values or updater functions (like React's `setState`).
+Use `mutate` to manually update the data ref. Supports direct values or updater functions (like React's `setState`).
 
-> 🎓 **When to use `setData`:**  
+> 🎓 **When to use `mutate`:**  
 > ✅ Adding/removing/updating items in arrays  
 > ✅ Local sorting/filtering (without refetching)  
 > ✅ Transform data in `onSuccess` (adding computed fields)
@@ -392,21 +392,21 @@ Use `setData` to manually update the data ref. Supports direct values or updater
 
 #### Add/Remove/Update Items
 ```typescript
-const { data, setData } = useApi<Todo[]>('/todos', { immediate: true })
+const { data, mutate } = useApi<Todo[]>('/todos', { immediate: true })
 
 // Add item
 const addTodo = (newTodo: Todo) => {
-  setData(prev => prev ? [...prev, newTodo] : [newTodo])
+  mutate(prev => prev ? [...prev, newTodo] : [newTodo])
 }
 
 // Remove item
 const removeTodo = (id: number) => {
-  setData(prev => prev?.filter(t => t.id !== id) ?? null)
+  mutate(prev => prev?.filter(t => t.id !== id) ?? null)
 }
 
 // Update item
 const updateTodo = (id: number, updates: Partial<Todo>) => {
-  setData(prev => 
+  mutate(prev => 
     prev?.map(t => t.id === id ? { ...t, ...updates } : t) ?? null
   )
 }
@@ -414,14 +414,14 @@ const updateTodo = (id: number, updates: Partial<Todo>) => {
 
 #### Sort/Filter Locally
 ```typescript
-const { data, setData } = useApi<Product[]>('/products', { immediate: true })
+const { data, mutate } = useApi<Product[]>('/products', { immediate: true })
 
 const sortByPrice = () => {
-  setData(prev => prev ? [...prev].sort((a, b) => a.price - b.price) : null)
+  mutate(prev => prev ? [...prev].sort((a, b) => a.price - b.price) : null)
 }
 
 const filterActive = () => {
-  setData(prev => prev?.filter(p => p.active) ?? null)
+  mutate(prev => prev?.filter(p => p.active) ?? null)
 }
 
 // Reset to original
@@ -430,7 +430,7 @@ const resetFilters = () => execute()
 
 #### Transform in `onSuccess`
 
-Use `setData` in `onSuccess` to transform data right after fetching. Two approaches:
+Use `mutate` in `onSuccess` to transform data right after fetching. Two approaches:
 
 **Approach 1: Same type (recommended)**
 ```typescript
@@ -441,11 +441,11 @@ interface User {
   fullName?: string  // Optional field
 }
 
-const { data, setData } = useApi<User[]>('/users', {
+const { data, mutate } = useApi<User[]>('/users', {
   immediate: true,
   onSuccess: ({ data: users }) => {
     // Add computed field - still User[] type
-    setData(users.map(u => ({
+    mutate(users.map(u => ({
       ...u,
       fullName: `${u.firstName} ${u.lastName}`
     })))
@@ -473,7 +473,7 @@ const users = computed(() =>
 ```
 
 > 💡 **Rule of thumb:**  
-> - ✅ **Use `setData` in `onSuccess`** if you're adding/modifying fields but keeping the same base type  
+> - ✅ **Use `mutate` in `onSuccess`** if you're adding/modifying fields but keeping the same base type  
 > - ✅ **Use `computed`** if you're completely changing the data structure (e.g., snake_case → camelCase)
 
 ---
@@ -1089,7 +1089,7 @@ The main composable for making HTTP requests.
   
   // Methods
   execute: (config?: AxiosRequestConfig) => Promise<T | null>
-  setData: (data: T | null | ((prev: T | null) => T | null)) => void
+  mutate: (data: T | null | ((prev: T | null) => T | null)) => void
   abort: (reason?: string) => void
   reset: () => void
 }
@@ -1108,23 +1108,23 @@ await execute()
 await execute({ params: { page: 2 } })
 ```
 
-#### `setData(newData)`
+#### `mutate(newData)`
 Manually update the `data` ref. Supports direct values or updater functions:
 
 ```typescript
-const { data, setData } = useApi<User[]>('/users')
+const { data, mutate } = useApi<User[]>('/users')
 
 // Direct value
-setData([{ id: 1, name: 'John' }])
+mutate([{ id: 1, name: 'John' }])
 
 // Updater function (like React's setState)
-setData(prev => prev ? [...prev, newUser] : [newUser])
+mutate(prev => prev ? [...prev, newUser] : [newUser])
 
 // Remove item
-setData(prev => prev?.filter(u => u.id !== userId) ?? null)
+mutate(prev => prev?.filter(u => u.id !== userId) ?? null)
 ```
 
-> **Note:** `setData` automatically clears any existing error.
+> **Note:** `mutate` automatically clears any existing error.
 
 #### `abort(reason?)`
 Cancel the current request:

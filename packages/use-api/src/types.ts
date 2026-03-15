@@ -57,24 +57,24 @@ export interface UseApiReturn<T = unknown, D = unknown> {
     abort: (message?: string) => void;
     reset: () => void;
     /**
-     * Manually update data. Supports direct value or updater function.
+     * Manually mutate data. Supports direct value or updater function.
      * Clears any existing error when called.
      *
      * @example
      * // Direct value
-     * setData(newUsers)
+     * mutate(newUsers)
      *
      * // Updater function (like React's setState)
-     * setData(prev => prev?.filter(u => u.active) ?? null)
+     * mutate(prev => prev?.filter(u => u.active) ?? null)
      *
      * // Transform data after fetch
-     * const { data, setData } = useApi('/users', {
+     * const { data, mutate } = useApi('/users', {
      *   onSuccess: ({ data }) => {
-     *     setData(data.map(user => ({ ...user, fullName: `${user.first} ${user.last}` })))
+     *     mutate(data.map(user => ({ ...user, fullName: `${user.first} ${user.last}` })))
      *   }
      * })
      */
-    setData: (newData: T | null | ((prev: T | null) => T | null)) => void;
+    mutate: (newData: T | null | ((prev: T | null) => T | null)) => void;
 }
 
 export interface ApiPluginOptions {
