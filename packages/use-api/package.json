@@ -6,7 +6,8 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MortyQ/vue-useApi/tree/main/packages/use-api"
+    "url": "https://github.com/MortyQ/vue-useApi",
+    "directory": "packages/use-api"
   },
   "files": [
     "dist",
