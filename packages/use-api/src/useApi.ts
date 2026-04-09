@@ -1,4 +1,4 @@
-import { debounceFn } from "./utils/debounce";
+import { debounceFn, DebounceCancelledError } from "./utils/debounce";
 import { type AxiosRequestConfig, isAxiosError } from "axios";
 import { ref, getCurrentScope, onScopeDispose, toValue, watch, type MaybeRefOrGetter } from "vue";
 
@@ -11,6 +11,21 @@ import { useApiConfig } from "./plugin";
 import { parseApiError } from "./utils/errorParser";
 import { useApiState } from "./composables/useApiState";
 import { useAbortController } from "./composables/useAbortController";
+
+const DEFAULT_RETRY_STATUS_CODES = [408, 429, 500, 502, 503, 504];
+
+/**
+ * Cancellable sleep — resolves `true` if aborted before delay elapsed, `false` otherwise.
+ */
+function cancellableSleep(ms: number, signal: AbortSignal): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+        if (signal.aborted) { resolve(true); return; }
+        const timer = setTimeout(() => { cleanup(); resolve(false); }, ms);
+        const onAbort = () => { clearTimeout(timer); cleanup(); resolve(true); };
+        const cleanup = () => signal.removeEventListener("abort", onAbort);
+        signal.addEventListener("abort", onAbort, { once: true });
+    });
+}
 
 export function useApi<T = unknown, D = unknown>(
     url: MaybeRefOrGetter<string | undefined>,
@@ -30,12 +45,15 @@ export function useApi<T = unknown, D = unknown>(
         skipErrorNotification = false,
         retry = globalOptions?.retry ?? false,
         retryDelay = globalOptions?.retryDelay ?? 1000,
+        retryStatusCodes = globalOptions?.retryStatusCodes ?? DEFAULT_RETRY_STATUS_CODES,
         authMode = "default",
         useGlobalAbort = globalOptions?.useGlobalAbort ?? true,
         initialLoading = false,
         poll = 0,
         ...axiosConfig
     } = options;
+
+    const maxRetries = retry === false ? 0 : retry === true ? 3 : (retry as number);
 
     const startLoading = initialLoading ?? immediate;
     const state = useApiState<T>(initialData as T | null, { initialLoading: startLoading });
@@ -65,7 +83,7 @@ export function useApi<T = unknown, D = unknown>(
         const controller = new AbortController();
         abortController.value = controller;
 
-        // --- Global Abort Logic (Simplified for brevity, use your full version) ---
+        // --- Global Abort Logic ---
         let globalAbortHandler: (() => void) | null = null;
         let subscribedSignal: AbortSignal | null = null;
         if (globalAbort) {
@@ -86,53 +104,86 @@ export function useApi<T = unknown, D = unknown>(
         state.setError(null);
 
         let wasCancelled = false;
+        let retryCount = 0;
 
         try {
+            if (!requestUrl) {
+                throw new Error("Request URL is missing");
+            }
+
             const rawData = config?.data !== undefined ? config.data : axiosConfig.data;
             const resolvedData = toValue(rawData);
 
             const rawParams = config?.params !== undefined ? config.params : axiosConfig.params;
             const resolvedParams = toValue(rawParams);
 
-            if (!requestUrl) {
-                throw new Error("Request URL is missing");
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+                try {
+                    const response = await axios.request<T>({
+                        url: requestUrl,
+                        method,
+                        ...axiosConfig,
+                        ...config,
+                        data: resolvedData,
+                        params: resolvedParams,
+                        signal: controller.signal,
+                        ...({ authMode: config?.authMode || authMode } as unknown as AxiosRequestConfig),
+                    } as AxiosRequestConfig);
+
+                    state.mutate(response.data as T | null, response);
+                    state.setStatusCode(response.status);
+                    onSuccess?.(response);
+                    return response.data;
+
+                } catch (err: unknown) {
+                    // Abort / cancel — bail out silently
+                    if (controller.signal.aborted || (isAxiosError(err) && err.code === "ERR_CANCELED")) {
+                        wasCancelled = true;
+                        return null;
+                    }
+
+                    const apiError = errorParser ? errorParser(err) : parseApiError(err);
+
+                    const canRetry =
+                        retryCount < maxRetries &&
+                        (retryStatusCodes.length === 0 || retryStatusCodes.includes(apiError.status));
+
+                    if (canRetry) {
+                        retryCount++;
+                        const aborted = await cancellableSleep(retryDelay, controller.signal);
+                        if (aborted) {
+                            // Explicitly reset loading — abort during sleep leaves no in-flight request
+                            wasCancelled = true;
+                            state.setLoading(false);
+                            return null;
+                        }
+                        continue;
+                    }
+
+                    // All retries exhausted (or retry disabled) — surface the error
+                    if (!skipErrorNotification && globalErrorHandler) {
+                        globalErrorHandler(apiError, err);
+                    }
+                    state.setError(apiError);
+                    state.setStatusCode(apiError.status);
+                    onError?.(apiError);
+                    return null;
+                }
             }
-
-            const response = await axios.request<T>({
-                url: requestUrl,
-                method,
-                ...axiosConfig,
-                ...config,
-                data: resolvedData,
-                params: resolvedParams,
-                signal: controller.signal,
-                ...({ authMode: config?.authMode || authMode } as unknown as AxiosRequestConfig),
-            } as AxiosRequestConfig);
-
-            state.mutate(response.data as T | null, response);
-            state.setStatusCode(response.status);
-            onSuccess?.(response);
-            return response.data;
-
         } catch (err: unknown) {
+            // Handles "Request URL is missing" and unexpected setup errors (not retried)
             if (controller.signal.aborted || (isAxiosError(err) && err.code === "ERR_CANCELED")) {
                 wasCancelled = true;
                 return null;
             }
-
-            // Parse error using global parser if available, otherwise use default
             const apiError = errorParser ? errorParser(err) : parseApiError(err);
-
-            // Global handler (Notifications/Toasts)
             if (!skipErrorNotification && globalErrorHandler) {
                 globalErrorHandler(apiError, err);
             }
-
             state.setError(apiError);
             state.setStatusCode(apiError.status);
             onError?.(apiError);
-
-            // Retry logic here (insert your retryRequest function)
             return null;
         } finally {
             if (globalAbortHandler && subscribedSignal) subscribedSignal.removeEventListener("abort", globalAbortHandler);
@@ -140,7 +191,7 @@ export function useApi<T = unknown, D = unknown>(
                 state.setLoading(false);
                 onFinish?.();
 
-                // Polling Logic
+                // Polling Logic — starts only after the final result (success or all retries exhausted)
                 const { interval, whenHidden } = getPollConfig();
                 if (interval > 0) {
                     const shouldPoll = whenHidden || (typeof document !== "undefined" && !document.hidden);
@@ -158,7 +209,15 @@ export function useApi<T = unknown, D = unknown>(
         }
     };
 
-    const execute = debounce > 0 ? debounceFn(executeRequest, debounce) : executeRequest;
+    // When debounce is active, superseded calls are rejected with DebounceCancelledError.
+    // Swallow it here so callers of execute() always get null (not an unhandled rejection).
+    const _debounced = debounce > 0 ? debounceFn(executeRequest, debounce) : null;
+    const execute: typeof executeRequest = _debounced
+        ? (config?) => _debounced(config).catch((err) => {
+            if (err instanceof DebounceCancelledError) return null;
+            throw err;
+        })
+        : executeRequest;
 
     const abort = (msg?: string) => {
         if (pollTimer) clearTimeout(pollTimer);

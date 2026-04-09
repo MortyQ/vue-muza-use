@@ -157,3 +157,168 @@ describe('Interceptors', () => {
     })
 })
 
+
+// ---------------------------------------------------------------------------
+// Helper — reusable per-test setup (used by new describe blocks below)
+// ---------------------------------------------------------------------------
+
+function buildSetup(options: Parameters<typeof setupInterceptors>[1] = {}) {
+    const instance = createMockInstance()
+    setupInterceptors(instance, { refreshUrl: '/refresh', ...options })
+    const requestInterceptor = (instance.interceptors.request.use as Mock).mock.calls[0][0]
+    const errorInterceptor   = (instance.interceptors.response.use as Mock).mock.calls[0][1]
+    return { instance, requestInterceptor, errorInterceptor }
+}
+
+function make401(url = '/api', extra: Record<string, unknown> = {}) {
+    return {
+        config: { headers: { set: vi.fn(), delete: vi.fn() }, url, _retry: false, ...extra },
+        response: { status: 401 },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Closure isolation — two independent instances must not share state
+// ---------------------------------------------------------------------------
+
+describe('Interceptors — closure isolation', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        tokenManager.clearTokens()
+        tokenManager.setTokens({ accessToken: 'expired' })
+    })
+
+    it('two instances each start their own refresh on simultaneous 401s', async () => {
+        const { instance: instA, errorInterceptor: errorA } = buildSetup()
+        const { instance: instB, errorInterceptor: errorB } = buildSetup()
+
+        let resolveA!: (v: unknown) => void
+        let resolveB!: (v: unknown) => void
+        instA.post.mockReturnValue(new Promise(r => { resolveA = r }))
+        instB.post.mockReturnValue(new Promise(r => { resolveB = r }));
+        (instA as unknown as Mock).mockResolvedValue('retry-A');
+        (instB as unknown as Mock).mockResolvedValue('retry-B')
+
+        // Both instances receive a 401 — each should start its own refresh
+        const pA = errorA(make401('/a'))
+        const pB = errorB(make401('/b'))
+
+        // Both should have initiated their own POST to /refresh independently
+        expect(instA.post).toHaveBeenCalledTimes(1)
+        expect(instB.post).toHaveBeenCalledTimes(1)
+
+        resolveA({ data: { accessToken: 'token-A' } })
+        resolveB({ data: { accessToken: 'token-B' } })
+        await Promise.all([pA, pB])
+
+        // Each instance retried its own original request exactly once
+        expect(instA).toHaveBeenCalledTimes(1)
+        expect(instB).toHaveBeenCalledTimes(1)
+    })
+
+    it('instance A refresh success does not affect instance B requests', async () => {
+        const { instance: instA, errorInterceptor: errorA } = buildSetup()
+        const { instance: instB, errorInterceptor: errorB } = buildSetup()
+
+        let resolveA!: (v: unknown) => void
+        instA.post.mockReturnValue(new Promise(r => { resolveA = r }))
+        instB.post.mockResolvedValue({ data: { accessToken: 'token-B' } });
+        (instA as unknown as Mock).mockResolvedValue('retry-A');
+        (instB as unknown as Mock).mockResolvedValue('retry-B')
+
+        const pA = errorA(make401('/a'))
+        const pB = errorB(make401('/b'))
+
+        resolveA({ data: { accessToken: 'token-A' } })
+        await Promise.all([pA, pB])
+
+        // Verify neither instance "helped" the other: each retried its own original request
+        expect(instA).toHaveBeenCalledTimes(1)
+        expect(instB).toHaveBeenCalledTimes(1)
+    })
+
+    it('instance A refresh failure does not reject instance B queued requests', async () => {
+        const { instance: instA, errorInterceptor: errorA } = buildSetup()
+        const { instance: instB, errorInterceptor: errorB } = buildSetup()
+
+        const refreshError = new Error('A refresh failed')
+        instA.post.mockRejectedValue(refreshError)
+        instB.post.mockResolvedValue({ data: { accessToken: 'token-B' } });
+        (instB as unknown as Mock).mockResolvedValue('retry-B')
+
+        const pA = errorA(make401('/a'))
+        const pB = errorB(make401('/b'))
+
+        // pA should reject (A's refresh failed), pB should resolve (B succeeded)
+        await expect(pA).rejects.toBe(refreshError)
+        await expect(pB).resolves.toBe('retry-B')
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Queue behaviour — verify still correct after closure move
+// ---------------------------------------------------------------------------
+
+describe('Interceptors — queue behaviour', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        tokenManager.clearTokens()
+        tokenManager.setTokens({ accessToken: 'expired' })
+    })
+
+    it('three concurrent 401s → single refresh → all three original requests retried', async () => {
+        const { instance, errorInterceptor } = buildSetup()
+
+        let resolveRefresh!: (v: unknown) => void
+        instance.post.mockReturnValue(new Promise(r => { resolveRefresh = r }));
+        (instance as unknown as Mock).mockResolvedValue('success')
+
+        const p1 = errorInterceptor(make401('/api/1'))
+        const p2 = errorInterceptor(make401('/api/2'))
+        const p3 = errorInterceptor(make401('/api/3'))
+
+        resolveRefresh({ data: { accessToken: 'fresh-token' } })
+        await Promise.all([p1, p2, p3])
+
+        expect(instance.post).toHaveBeenCalledTimes(1) // single refresh
+        expect(instance).toHaveBeenCalledTimes(3)      // three retries
+    })
+
+    it('authMode: public 401 does NOT trigger a refresh POST', async () => {
+        const { instance, errorInterceptor } = buildSetup()
+
+        const error401public = make401('/public-api', { authMode: 'public' })
+
+        await expect(errorInterceptor(error401public)).rejects.toBeDefined()
+
+        expect(instance.post).not.toHaveBeenCalled()
+    })
+
+    it('same 401→refresh→retry cycle works identically on repeated calls (no state leakage)', async () => {
+        // Run the full cycle twice on the SAME instance — state must reset cleanly.
+        const { instance, errorInterceptor } = buildSetup()
+
+        for (let run = 0; run < 2; run++) {
+            vi.clearAllMocks()
+            tokenManager.setTokens({ accessToken: 'expired' })
+            instance.post.mockResolvedValue({ data: { accessToken: `fresh-run-${run}` } });
+            (instance as unknown as Mock).mockResolvedValue(`retried-run-${run}`)
+
+            const error = make401('/api')
+            // Each iteration must successfully refresh and retry
+            await expect(errorInterceptor(error)).resolves.toBe(`retried-run-${run}`)
+            expect(instance.post).toHaveBeenCalledTimes(1)
+            expect(instance).toHaveBeenCalledTimes(1)
+        }
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Known limitations (it.todo)
+// ---------------------------------------------------------------------------
+
+describe('Interceptors — known limitations (todo)', () => {
+    it.todo('two instances with different refreshUrls — each uses its own refreshUrl independently')
+    it.todo('two instances with different onTokenRefreshFailed — each callback fires for its own instance only')
+    it.todo('isRefreshing resets to false after refresh failure so subsequent 401s trigger a new refresh attempt')
+})

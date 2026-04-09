@@ -15,8 +15,8 @@ importers:
   packages/playground:
     dependencies:
       '@ametie/vue-muza-use':
-        specifier: workspace:*
-        version: link:../use-api
+        specifier: ^0.6.1
+        version: 0.6.1(axios@1.13.4)(vue@3.5.27(typescript@5.9.3))
       axios:
         specifier: ^1.6.0
         version: 1.13.4
@@ -98,6 +98,12 @@ packages:
 
   '@actions/io@2.0.0':
     resolution: {integrity: sha512-Jv33IN09XLO+0HS79aaODsvIRyduiF7NY/F6LYeK5oeUmrsz7aFdRphQjFoESF4jS7lMauDOttKALcpapVDIAg==}
+
+  '@ametie/vue-muza-use@0.6.1':
+    resolution: {integrity: sha512-5su4QaXfsItMIxZb1iK5YT4VlMMRsvZB2noxVqWdbOXSGEc3CRnhTFKZoUr2UFKUIUlY2SQst38hDVhWvKYpHQ==}
+    peerDependencies:
+      axios: ^1.0.0
+      vue: ^3.3.0
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -2514,6 +2520,11 @@ snapshots:
       undici: 6.23.0
 
   '@actions/io@2.0.0': {}
+
+  '@ametie/vue-muza-use@0.6.1(axios@1.13.4)(vue@3.5.27(typescript@5.9.3))':
+    dependencies:
+      axios: 1.13.4
+      vue: 3.5.27(typescript@5.9.3)
 
   '@babel/code-frame@7.29.0':
     dependencies:

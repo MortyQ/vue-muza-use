@@ -1,20 +1,32 @@
-import { ref, computed, getCurrentScope, onScopeDispose, toValue, watch, type Ref, type MaybeRefOrGetter } from "vue";
+import { ref, computed, effectScope, getCurrentScope, onScopeDispose, toValue, watch, type Ref, type MaybeRefOrGetter } from "vue";
 import { useApi } from "./useApi";
 import type {
     UseApiBatchOptions,
     UseApiBatchReturn,
     BatchResultItem,
+    BatchRequestConfig,
     BatchProgress,
     ApiError,
     ApiRequestConfig,
 } from "./types";
 
 /**
+ * Normalize a string or BatchRequestConfig to a full BatchRequestConfig.
+ * Strings become GET requests with no body or params.
+ */
+function normalizeRequest(item: string | BatchRequestConfig): BatchRequestConfig {
+    if (typeof item === 'string') return { url: item, method: 'GET' };
+    return { method: 'GET', ...item };
+}
+
+/**
  * Execute multiple API requests in parallel with full reactive state
  *
  * Features:
  * - Reactive loading, data, error, progress states
- * - Reactive urls support (MaybeRefOrGetter)
+ * - Reactive request list support (MaybeRefOrGetter)
+ * - Per-request method, data, params, headers configuration
+ * - Full backward compatibility — plain string arrays still work
  * - Error tolerance with `settled: true` (default)
  * - Concurrency limiting
  * - Abort support for all pending requests
@@ -24,44 +36,30 @@ import type {
  *
  * @example
  * ```ts
- * // Basic usage - fetch multiple users
- * const { data, loading, progress, execute } = useApiBatch<User>([
- *   '/users/1',
- *   '/users/2',
- *   '/users/3'
+ * // Basic usage — plain strings (backward compatible)
+ * const { data, execute } = useApiBatch(['/users/1', '/users/2'])
+ *
+ * // Per-request config — method, data, params, headers
+ * const { data } = useApiBatch([
+ *   { url: '/users', params: { page: 1 } },
+ *   { url: '/posts', method: 'POST', data: { title: 'New' } },
+ *   '/health',  // string and object can be mixed
  * ])
  *
- * await execute()
- * console.log(data.value) // BatchResultItem<User>[]
+ * // Batch DELETE by IDs
+ * const ids = [1, 2, 3]
+ * useApiBatch(ids.map(id => ({ url: `/users/${id}`, method: 'DELETE' })))
  *
- * // With reactive urls
- * const userIds = ref([1, 2, 3])
- * const urls = computed(() => userIds.value.map(id => `/users/${id}`))
- * const { successfulData } = useApiBatch<User>(urls, { immediate: true })
- *
- * // With options
- * const { successfulData, errors, progress } = useApiBatch<Post>(
- *   ['/posts/1', '/posts/2', '/posts/3'],
- *   {
- *     concurrency: 2,        // Max 2 parallel requests
- *     immediate: true,       // Execute on mount
- *     onProgress: (p) => console.log(`${p.percentage}%`)
- *   }
+ * // Reactive getter with object configs
+ * const pages = ref([1, 2, 3])
+ * const { successfulData } = useApiBatch(
+ *   () => pages.value.map(page => ({ url: '/users', params: { page } })),
+ *   { watch: pages, immediate: true }
  * )
- *
- * // Strict mode - fail on first error
- * const { execute } = useApiBatch<User>(urls, { settled: false })
- *
- * // Auto re-execute when dependency changes
- * const filters = ref({ status: 'active' })
- * const { data } = useApiBatch<User>(urls, {
- *   watch: filters,
- *   immediate: true
- * })
  * ```
  */
 export function useApiBatch<T = unknown>(
-    urls: MaybeRefOrGetter<string[]>,
+    requests: MaybeRefOrGetter<Array<string | BatchRequestConfig>>,
     options: UseApiBatchOptions<T> = {},
 ): UseApiBatchReturn<T> {
     const {
@@ -77,8 +75,8 @@ export function useApiBatch<T = unknown>(
         ...apiOptions
     } = options;
 
-    // Helper to get current urls value
-    const getUrls = () => toValue(urls);
+    // Helper to get current normalized request configs
+    const getRequests = () => toValue(requests).map(normalizeRequest);
 
     // Reactive state
     const data = ref<BatchResultItem<T>[]>([]) as Ref<BatchResultItem<T>[]>;
@@ -105,12 +103,12 @@ export function useApiBatch<T = unknown>(
     let isAborted = false;
 
     const updateProgress = (succeeded: number, failed: number) => {
-        const currentUrls = getUrls();
+        const currentRequests = getRequests();
         const completed = succeeded + failed;
         const newProgress: BatchProgress = {
             completed,
-            total: currentUrls.length,
-            percentage: currentUrls.length > 0 ? Math.round((completed / currentUrls.length) * 100) : 0,
+            total: currentRequests.length,
+            percentage: currentRequests.length > 0 ? Math.round((completed / currentRequests.length) * 100) : 0,
             succeeded,
             failed,
         };
@@ -119,37 +117,51 @@ export function useApiBatch<T = unknown>(
     };
 
     const executeRequest = async (
-        url: string,
+        config: BatchRequestConfig,
         index: number,
         signal: AbortSignal
     ): Promise<BatchResultItem<T>> => {
-        const { execute, error: reqError, statusCode } = useApi<T>(url, {
+        // Each internal useApi instance gets its own effectScope so that
+        // onScopeDispose, poll timers, and event listeners are properly cleaned up
+        // even when executeRequest() runs outside a Vue component's setup context.
+        const scope = effectScope();
+        const api = scope.run(() => useApi<T>(config.url, {
             ...apiOptions,
+            method: config.method,
+            data: config.data,
+            params: config.params,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ...(config.headers && { headers: config.headers as any }),
             useGlobalAbort: false,
             skipErrorNotification,
-        });
+        }))!;
+        const { execute, error: reqError, statusCode, response } = api;
 
         try {
             const result = await execute({ signal } as ApiRequestConfig<unknown>);
 
             if (signal.aborted) {
                 return {
-                    url,
+                    url: config.url,
                     index,
                     success: false,
                     data: null,
                     error: { message: 'Request aborted', status: 0, code: 'ABORTED' },
                     statusCode: null,
+                    response: null,
+                    request: config,
                 };
             }
 
             const item: BatchResultItem<T> = {
-                url,
+                url: config.url,
                 index,
                 success: result !== null && result !== undefined,
                 data: result ?? null,
                 error: reqError.value,
                 statusCode: statusCode.value,
+                response: response.value,
+                request: config,
             };
 
             if (item.success) {
@@ -167,34 +179,38 @@ export function useApiBatch<T = unknown>(
             };
 
             const item: BatchResultItem<T> = {
-                url,
+                url: config.url,
                 index,
                 success: false,
                 data: null,
                 error: apiError,
                 statusCode: null,
+                response: null,
+                request: config,
             };
 
             onItemError?.(item, index);
             return item;
+        } finally {
+            scope.stop();
         }
     };
 
     const executeWithConcurrency = async (
-        urls: string[],
+        requests: BatchRequestConfig[],
         limit?: number
     ): Promise<BatchResultItem<T>[]> => {
-        const results: BatchResultItem<T>[] = new Array(urls.length);
+        const results: BatchResultItem<T>[] = new Array(requests.length);
         let succeededCount = 0;
         let failedCount = 0;
 
-        if (!limit || limit >= urls.length) {
+        if (!limit || limit >= requests.length) {
             // No limit - execute all in parallel
-            const promises = urls.map((url, index) => {
+            const promises = requests.map((config, index) => {
                 const controller = new AbortController();
                 abortControllers.value.push(controller);
 
-                return executeRequest(url, index, controller.signal).then(result => {
+                return executeRequest(config, index, controller.signal).then(result => {
                     results[index] = result;
                     if (result.success) {
                         succeededCount++;
@@ -225,14 +241,14 @@ export function useApiBatch<T = unknown>(
             let currentIndex = 0;
 
             const executeNext = async (): Promise<void> => {
-                while (currentIndex < urls.length && !isAborted) {
+                while (currentIndex < requests.length && !isAborted) {
                     const index = currentIndex++;
-                    const url = urls[index];
+                    const config = requests[index];
 
                     const controller = new AbortController();
                     abortControllers.value.push(controller);
 
-                    const result = await executeRequest(url, index, controller.signal);
+                    const result = await executeRequest(config, index, controller.signal);
                     results[index] = result;
 
                     if (result.success) {
@@ -254,7 +270,7 @@ export function useApiBatch<T = unknown>(
             };
 
             // Start `limit` workers
-            const workers = Array.from({ length: Math.min(limit, urls.length) }, () => executeNext());
+            const workers = Array.from({ length: Math.min(limit, requests.length) }, () => executeNext());
 
             if (settled) {
                 await Promise.allSettled(workers);
@@ -267,7 +283,7 @@ export function useApiBatch<T = unknown>(
     };
 
     const execute = async (): Promise<BatchResultItem<T>[]> => {
-        const currentUrls = getUrls();
+        const currentRequests = getRequests();
 
         // Reset state
         isAborted = false;
@@ -279,7 +295,7 @@ export function useApiBatch<T = unknown>(
         updateProgress(0, 0);
 
         try {
-            const results = await executeWithConcurrency(currentUrls, concurrency);
+            const results = await executeWithConcurrency(currentRequests, concurrency);
             data.value = results;
 
             // Set aggregated error if all requests failed
@@ -322,7 +338,7 @@ export function useApiBatch<T = unknown>(
         data.value = [];
         progress.value = {
             completed: 0,
-            total: getUrls().length,
+            total: getRequests().length,
             percentage: 0,
             succeeded: 0,
             failed: 0,

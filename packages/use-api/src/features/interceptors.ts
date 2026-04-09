@@ -53,21 +53,25 @@ interface FailedRequestQueue {
     reject: (reason: unknown) => void;
 }
 
-let failedQueue: FailedRequestQueue[] = [];
-let isRefreshing = false;
-
-function processQueue(error: unknown, token: string | null = null): void {
-    failedQueue.forEach((promise) => {
-        if (error) promise.reject(error);
-        else if (token) promise.resolve(token);
-    });
-    failedQueue = [];
-}
-
 export function setupInterceptors(
     axiosInstance: AxiosInstance,
     options: InterceptorOptions = {}
 ) {
+    // State is scoped per setupInterceptors() call so each axios instance has
+    // its own independent refresh queue. Module-level state would cause multiple
+    // instances to share isRefreshing / failedQueue, producing cross-instance
+    // token contamination and order-dependent test failures.
+    let failedQueue: FailedRequestQueue[] = [];
+    let isRefreshing = false;
+
+    function processQueue(error: unknown, token: string | null = null): void {
+        failedQueue.forEach((promise) => {
+            if (error) promise.reject(error);
+            else if (token) promise.resolve(token);
+        });
+        failedQueue = [];
+    }
+
     const {
         refreshUrl = "/auth/refresh",
         refreshWithCredentials = false,

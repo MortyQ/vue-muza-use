@@ -25,6 +25,12 @@ export interface ApiRequestConfig<D = unknown> extends Omit<AxiosRequestConfig<D
     authMode?: AuthMode;
     retry?: boolean | number;
     retryDelay?: number;
+    /**
+     * Retry only when the response status code is in this list.
+     * Default: [408, 429, 500, 502, 503, 504]
+     * Empty array = retry on any error (network errors included).
+     */
+    retryStatusCodes?: number[];
 }
 
 export interface UseApiOptions<T = unknown, D = unknown> extends ApiRequestConfig<D> {
@@ -88,6 +94,7 @@ export interface ApiPluginOptions {
     globalOptions?: {
         retry?: number | boolean;
         retryDelay?: number;
+        retryStatusCodes?: number[];
         useGlobalAbort?: boolean;
     };
 }
@@ -101,6 +108,24 @@ export interface AuthTokens {
 // ============================================================================
 // Batch API Types
 // ============================================================================
+
+/**
+ * Per-request configuration for a single item in a batch operation.
+ * String items in the batch array are automatically normalized to this shape
+ * with method: 'GET' and no data/params/headers.
+ */
+export interface BatchRequestConfig<D = unknown> {
+    /** The URL to request */
+    url: string;
+    /** HTTP method. Default: 'GET' */
+    method?: string;
+    /** Request body (for POST, PUT, PATCH) */
+    data?: D;
+    /** Query parameters */
+    params?: D;
+    /** Per-request headers that override global defaults for this request only */
+    headers?: Record<string, string>;
+}
 
 /**
  * Result of a single request in a batch operation
@@ -118,6 +143,10 @@ export interface BatchResultItem<T = unknown> {
     error: ApiError | null;
     /** HTTP status code */
     statusCode: number | null;
+    /** Full AxiosResponse (null if failed — headers, status, etc. accessible here) */
+    response: AxiosResponse<T> | null;
+    /** The original normalized request config that produced this result */
+    request: BatchRequestConfig;
 }
 
 /**

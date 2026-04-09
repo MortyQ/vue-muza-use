@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { useApiBatch } from  '@ametie/vue-muza-use'
+import { ref } from 'vue'
+import { useApiBatch } from '@ametie/vue-muza-use'
+import type { BatchRequestConfig } from '@ametie/vue-muza-use'
 
 interface User {
   id: number
   name: string
   email: string
-
 }
 
 // ✨ Example 1: Basic batch (settled by default)
@@ -17,10 +18,10 @@ const {
   reset: resetBatch,
 } = useApiBatch<User>([
   '/users/69493fa4b9a358cdfc0db248',
-  '/users/698c74738e5e27e2d3d6779a',
-  '/users/698c745e8e5e27e2d3d67793',
-  '/users/697536f44260e0bb7f0af278',
-  '/users/6962d0e91085cb4cdf3a0aa8'
+  '/users/68da3089f44f87d108572a4b',
+  '/users/68da32114c9ad86827cf61f6',
+  '/users/69cfbb59b08a5a744d4825b7',
+  '/users/696b79aab81b988773be50e5'
 ], {
 })
 
@@ -34,11 +35,11 @@ const {
   execute: executeSettled,
   reset: resetSettled,
 } = useApiBatch<User>([
-  '/users/69493fa4b9a358cdfc0db248',
-  '/users/698c74738e5e27e2d3d6779a',
+  '/users/68da3089f44f87d108572a4b',
+  '/users/69cfbb59b08a5a744d4825b7',
   '/users/698c745e8e5e27e2d3d67793',
   '/users/697536f44260e0bb7f0af278',
-  '/users/6962d0e91085cb4cdf3a0aa8'
+  '/users/696b79aab81b988773be50e5'
 ], {
   onProgress: (p) => console.log(`Progress: ${p.percentage}% (${p.succeeded} ok, ${p.failed} failed)`),
   onItemSuccess: (item) => console.log(`✅ Loaded: ${item.url}`),
@@ -62,6 +63,54 @@ async function fetchUsingBatchSettled() {
   await executeSettled()
   console.log(`✅ Settled completed - Success: ${settledProgress.value.succeeded}, Failed: ${settledProgress.value.failed}`)
 }
+
+// ✨ Example 3: BatchRequestConfig — explicit per-request config objects
+const configRequests: BatchRequestConfig[] = [
+  { url: '/users/69493fa4b9a358cdfc0db248', method: 'GET' },
+  { url: '/users/68da3089f44f87d108572a4b', method: 'GET' },
+  { url: '/users/68da32114c9ad86827cf61f6', method: 'GET' },
+]
+
+const {
+  data: configResults,
+  successfulData: configUsers,
+  loading: loadingConfig,
+  progress: configProgress,
+  execute: executeConfig,
+  reset: resetConfig,
+} = useApiBatch<User>(configRequests)
+
+async function fetchUsingConfig() {
+  resetConfig()
+  await executeConfig()
+}
+
+// ✨ Example 4: Reactive getter + watch
+const ALL_IDS = [
+  '69493fa4b9a358cdfc0db248',
+  '68da3089f44f87d108572a4b',
+  '68da32114c9ad86827cf61f6',
+  '69cfbb59b08a5a744d4825b7',
+  '696b79aab81b988773be50e5',
+]
+
+const selectedIds = ref<string[]>(['69493fa4b9a358cdfc0db248', '68da3089f44f87d108572a4b'])
+
+function toggleId(id: string) {
+  const idx = selectedIds.value.indexOf(id)
+  selectedIds.value = idx === -1
+    ? [...selectedIds.value, id]
+    : selectedIds.value.filter(i => i !== id)
+}
+
+const {
+  successfulData: reactiveUsers,
+  loading: loadingReactive,
+  progress: reactiveProgress,
+} = useApiBatch<User>(
+  () => selectedIds.value.map(id => ({ url: `/users/${id}`, method: 'GET' })),
+  { watch: selectedIds, immediate: true },
+)
 </script>
 
 <template>
@@ -225,6 +274,109 @@ const failed = results.filter(r =>
             <strong>{{ err.code || 'Error' }}</strong>: {{ err.message }} (status: {{ err.status }})
           </li>
         </ul>
+      </div>
+    </div>
+
+    <!-- Example 3: BatchRequestConfig objects -->
+    <div class="section highlight">
+      <h3>✨ Example 3: BatchRequestConfig — Explicit Per-Request Config</h3>
+      <p class="description">
+        <strong>Feature:</strong> Pass config objects instead of plain strings.
+        Each item can have its own <code>method</code>, <code>data</code>, <code>params</code>, and <code>headers</code>.
+        <br>The result includes a <code>request</code> field with the original normalized config.
+      </p>
+
+      <div class="code-block" style="margin-bottom: 1rem;">
+        <pre><code>useApiBatch([
+  { url: '/users/abc', method: 'GET' },
+  { url: '/reports', method: 'POST', data: { from: '2026-01-01' } },
+  { url: '/users', params: { page: 1, limit: 10 } },
+])</code></pre>
+      </div>
+
+      <button @click="fetchUsingConfig" :disabled="loadingConfig" class="btn-success">
+        {{ loadingConfig ? 'Loading...' : 'Fetch with BatchRequestConfig' }}
+      </button>
+
+      <div v-if="loadingConfig" class="progress-section">
+        <div class="progress-bar">
+          <div class="progress-fill" :style="{ width: configProgress.percentage + '%' }"></div>
+        </div>
+        <span>{{ configProgress.completed }} / {{ configProgress.total }} ({{ configProgress.percentage }}%)</span>
+      </div>
+
+      <div v-if="configResults.length > 0" class="results">
+        <h4>Results with <code>result.request</code> field:</h4>
+        <div v-for="item in configResults" :key="item.index" class="result-item">
+          <div class="result-header">
+            <span :class="item.success ? 'badge-success' : 'badge-error'">
+              {{ item.success ? '✅' : '❌' }} #{{ item.index }}
+            </span>
+            <code>{{ item.request.method }} {{ item.request.url }}</code>
+          </div>
+          <div v-if="item.success && item.data" class="result-body">
+            <strong>{{ (item.data as User).name }}</strong>
+            <small>{{ (item.data as User).email }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Example 4: Reactive getter + watch -->
+    <div class="section highlight">
+      <h3>✨ Example 4: Reactive Getter + Watch (Auto Re-execution)</h3>
+      <p class="description">
+        <strong>Feature:</strong> Pass a getter function <code>() => ids.map(...)</code> instead of a static array.
+        Combine with <code>watch</code> to auto re-execute whenever the source ref changes.
+        <br>Toggle users below — the batch re-runs automatically on each change.
+      </p>
+
+      <div class="code-block" style="margin-bottom: 1rem;">
+        <pre><code>const selectedIds = ref(['abc', 'def'])
+
+useApiBatch(
+  () => selectedIds.value.map(id => ({ url: `/users/${id}` })),
+  { watch: selectedIds, immediate: true }
+)
+
+// Changing selectedIds triggers a new batch automatically ✨</code></pre>
+      </div>
+
+      <div class="toggle-group">
+        <span class="toggle-label">Select users to fetch:</span>
+        <button
+          v-for="id in ALL_IDS"
+          :key="id"
+          :class="['btn-toggle', selectedIds.includes(id) ? 'active' : '']"
+          @click="toggleId(id)"
+        >
+          {{ id.slice(-6) }}
+        </button>
+      </div>
+
+      <div class="progress-section" style="margin-top: 0.75rem;">
+        <div v-if="loadingReactive" class="progress-bar">
+          <div class="progress-fill" :style="{ width: reactiveProgress.percentage + '%' }"></div>
+        </div>
+        <span v-if="loadingReactive">
+          Loading… {{ reactiveProgress.completed }} / {{ reactiveProgress.total }}
+        </span>
+        <span v-else-if="selectedIds.length === 0" class="info">
+          ℹ️ No users selected — select at least one to trigger a fetch.
+        </span>
+        <span v-else class="info">
+          ✅ Fetched {{ reactiveUsers.length }} / {{ selectedIds.length }} selected users.
+        </span>
+      </div>
+
+      <div v-if="reactiveUsers.length > 0 && !loadingReactive" class="user-grid" style="margin-top: 1rem;">
+        <div v-for="user in reactiveUsers" :key="user.id" class="user-card">
+          <div class="user-avatar">{{ user.name[0] }}</div>
+          <div class="user-info">
+            <strong>{{ user.name }}</strong>
+            <small>{{ user.email }}</small>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -574,6 +726,79 @@ button:disabled {
   border-radius: 6px;
   color: #c00;
   font-size: 0.9rem;
+}
+
+.result-item {
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.result-header code {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.result-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-left: 0.25rem;
+}
+
+.result-body strong { color: #333; }
+.result-body small  { color: #666; font-size: 0.875rem; }
+
+.badge-success, .badge-error {
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.toggle-label {
+  font-size: 0.9rem;
+  color: #555;
+  margin-right: 0.25rem;
+}
+
+.btn-toggle {
+  padding: 0.4rem 0.9rem;
+  border: 2px solid #667eea;
+  border-radius: 20px;
+  background: white;
+  color: #667eea;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-toggle.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+}
+
+.btn-toggle:hover:not(.active) {
+  background: #f0f0ff;
 }
 </style>
 
