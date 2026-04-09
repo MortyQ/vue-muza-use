@@ -1,6 +1,6 @@
 {
   "repositoryUrl": "https://github.com/MortyQ/vue-useApi",
-  "branches": ["main"]
+  "branches": ["main"],
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
