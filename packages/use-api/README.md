@@ -22,6 +22,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - 🚀 **Batch Requests** — Execute multiple requests in parallel with progress tracking
 - 🧹 **Zero Memory Leaks** — Automatic cleanup of pending requests on component unmount
 - 🔕 **ignoreUpdates** — Atomic updates without triggering intermediate requests
+- 🗄️ **Response Caching** — In-memory cache with configurable TTL and manual invalidation
 
 **Advanced Features** (When you need them):
 - ♻️ **Intelligent Retries** — Lifecycle-aware retry logic with configurable status codes
@@ -40,6 +41,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 **Core Features:**
 - [Watch & Auto-Refetch](#watch--auto-refetch)
   - [ignoreUpdates — Atomic Updates Without Refetch](#ignoreupdates--atomic-updates-without-refetch)
+- [Response Caching](#response-caching)
 - [Polling (Background Updates)](#polling-background-updates)
 - [Error Handling](#error-handling)
   - [retry — Automatic Request Retry](#retry--automatic-request-retry)
@@ -496,6 +498,184 @@ ignoreUpdates(() => {
 > updater function will NOT be suppressed — the flag resets after the synchronous
 > portion completes. If you need to update async values, update them outside
 > `ignoreUpdates` and call `execute()` manually.
+
+---
+
+### Response Caching
+
+**TL;DR: Pass `cache: 'key'` to serve repeated requests from memory instead of the network. Entries expire after 5 minutes by default.**
+
+The cache is an in-memory `Map` shared across all `useApi` instances in the app.
+It is intentionally simple: no reactive subscriptions, no persistence, no background timers.
+Entries expire **lazily** — stale entries are removed the next time they are read.
+
+#### Basic Usage — String Shorthand
+
+```vue
+<script setup lang="ts">
+import { useApi } from '@ametie/vue-muza-use'
+
+const { data, loading } = useApi<Category[]>('/categories', {
+  cache: 'categories', // uses DEFAULT_STALE_TIME (5 minutes)
+  immediate: true,
+})
+</script>
+```
+
+The first call hits the network and caches the result under the key `'categories'`.
+Every subsequent `execute()` within 5 minutes is served from cache instantly — `loading` never becomes `true` and no axios request is made.
+
+#### Custom TTL — CacheOptions Object
+
+```vue
+<script setup lang="ts">
+import { useApi } from '@ametie/vue-muza-use'
+
+const { data, execute } = useApi<Product[]>('/products', {
+  cache: {
+    id: 'products',
+    staleTime: 60_000, // 1 minute
+  },
+  immediate: true,
+})
+</script>
+```
+
+#### Cache Hit Behavior
+
+When a valid cache entry is found:
+
+| Property / Hook | Cache Hit |
+|---|---|
+| `loading` | stays `false` — never set to `true` |
+| `data` | updated immediately via `mutate()` |
+| `onBefore` | **not called** |
+| `onSuccess` | **not called** |
+| `onFinish` | **not called** |
+| axios request | **not made** |
+
+This is intentional — a cache hit is silent. If you need to know when data comes from cache vs the network, track it with `onSuccess` (only fires on network hits).
+
+#### invalidateCache — Bust Related Caches on Mutation
+
+Use `invalidateCache` on a POST/PUT/DELETE to automatically clear caches when the mutation succeeds.
+
+```vue
+<script setup lang="ts">
+import { useApi } from '@ametie/vue-muza-use'
+
+// GET — caches the list
+const { data: products, execute: reload } = useApi<Product[]>('/products', {
+  cache: 'products',
+  immediate: true,
+})
+
+// POST — busts the list cache on success so the next GET hits the network
+const { execute: createProduct, loading } = useApi('/products', {
+  method: 'POST',
+  invalidateCache: 'products',
+})
+
+async function submit(form: NewProduct) {
+  await createProduct({ data: form })
+  await reload() // cache is gone — fetches fresh data
+}
+</script>
+```
+
+`invalidateCache` fires **only on HTTP 2xx success**. It never runs in `catch` or `finally`.
+Pass an array to bust multiple keys at once:
+
+```typescript
+const { execute } = useApi('/orders', {
+  method: 'POST',
+  invalidateCache: ['orders', 'products', 'inventory'],
+})
+```
+
+#### Imperative Cache Control
+
+Import `invalidateCache` or `clearAllCache` anywhere in your app — outside components, in Pinia stores, in route guards:
+
+```typescript
+import { invalidateCache, clearAllCache } from '@ametie/vue-muza-use'
+
+// Bust a single key (e.g. after a WebSocket push)
+invalidateCache('products')
+
+// Bust multiple keys at once
+invalidateCache(['products', 'categories'])
+
+// Wipe everything — call on logout to prevent data leaks between users
+clearAllCache()
+```
+
+#### cache + watch
+
+When `watch` is configured, each watch-triggered `execute()` still checks the cache first:
+
+```vue
+<script setup lang="ts">
+import { useApi } from '@ametie/vue-muza-use'
+import { ref } from 'vue'
+
+const categoryId = ref<number>(1)
+
+const { data } = useApi<Product[]>(() => `/categories/${categoryId.value}/products`, {
+  cache: { id: `products-cat-${categoryId.value}`, staleTime: 30_000 },
+  watch: categoryId,
+  immediate: true,
+})
+</script>
+```
+
+> [!NOTE]
+> The cache `id` is evaluated once when `useApi` is called. To cache per category,
+> use a computed or a dynamic key string derived from your reactive state.
+
+#### cache + retry
+
+Cache is written **after the final successful attempt**, not after the first.
+If the first attempt fails and a retry succeeds, the retry's response is cached:
+
+```typescript
+const { data } = useApi('/reports', {
+  cache: 'reports',
+  retry: 2,
+  retryStatusCodes: [500, 503],
+  immediate: true,
+})
+```
+
+#### Complete Options Reference
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `cache` | `string \| CacheOptions` | `undefined` | Enable caching. String = `{ id, staleTime: 300_000 }` shorthand |
+| `invalidateCache` | `string \| string[]` | `undefined` | Cache key(s) to delete on 2xx success |
+
+**`CacheOptions`**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | `string` | — | Unique cache key |
+| `staleTime` | `number` | `300_000` | TTL in milliseconds. Entry is deleted on next read after this time |
+
+#### Out of Scope (by design)
+
+The following are intentionally **not** supported in v1:
+
+- 🚫 No reactive cache entries — the cache is a plain `Map`, not Vue refs
+- 🚫 No `localStorage` / `sessionStorage` persistence
+- 🚫 No background TTL timers — expiry is checked lazily on read
+- 🚫 No cache for `useApiBatch` — batch requests manage their own state
+- 🚫 No automatic refetch on cache invalidation — call `execute()` manually after invalidating
+- 🚫 No request deduplication — concurrent calls for the same key each fire their own request
+
+> [!WARNING]
+> The cache store is **module-level** (a singleton). In SSR / Node.js environments it is
+> shared between all incoming requests. Call `clearAllCache()` between requests or avoid
+> using caching in SSR contexts.
 
 ---
 
@@ -1511,6 +1691,13 @@ function useMyCustomComposable<T>(fetchFn: () => Promise<T>) {
 | `watch` | `WatchSource \| WatchSource[]` | `undefined` | One or more refs to watch — request re-fires when any of them change |
 | `debounce` | `number` | `0` | Milliseconds to wait after the last watch change before firing the request |
 
+**Caching:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `cache` | `string \| CacheOptions` | `undefined` | Cache the response in memory. String shorthand uses default 5-min TTL. See [Response Caching](#response-caching) |
+| `invalidateCache` | `string \| string[]` | `undefined` | Cache key(s) to delete on 2xx success. Never fires on error |
+
 **Polling:**
 
 | Option | Type | Default | Description |
@@ -1764,6 +1951,45 @@ import { useApiState } from '@ametie/vue-muza-use'
 
 const { data, loading, error, mutate, setLoading, setError, reset } =
   useApiState<MyType>()
+```
+
+---
+
+### `invalidateCache(id)` / `clearAllCache()`
+
+**TL;DR: Imperatively delete one, many, or all cache entries from anywhere in your app.**
+
+```typescript
+import { invalidateCache, clearAllCache } from '@ametie/vue-muza-use'
+```
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `invalidateCache` | `(id: string \| string[]) => void` | Delete one or more cache entries by key |
+| `clearAllCache` | `() => void` | Wipe the entire cache — use on logout |
+
+**Example — bust cache after a WebSocket push:**
+
+```typescript
+// pinia store or composable outside a component
+import { invalidateCache } from '@ametie/vue-muza-use'
+
+socket.on('products:updated', () => {
+  invalidateCache('products')
+})
+```
+
+**Example — clear all on logout:**
+
+```typescript
+import { clearAllCache } from '@ametie/vue-muza-use'
+import { tokenManager } from '@ametie/vue-muza-use'
+
+function logout() {
+  tokenManager.clearTokens()
+  clearAllCache() // prevent stale data from leaking to the next user session
+  router.push('/login')
+}
 ```
 
 ---
