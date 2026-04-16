@@ -9,9 +9,13 @@
 
 A production-ready composable that eliminates boilerplate and solves the hard problems: race conditions, token refresh queues, automatic retries, and reactive request management. Write less code, ship faster, sleep better.
 
-> [!TIP]
-> 🤖 **Claude Code users** — This library ships with a built-in skill at `.claude/skills/use-api/SKILL.md`.
-> Claude will understand the feature wrapper pattern, naming conventions, and all `UseApiOptions` — and generate correct, architecture-consistent API layer code out of the box.
+> [!IMPORTANT]
+> ### 🤖 Claude Code — Built-in AI Skill
+>
+> This library ships with a skill that teaches Claude the feature wrapper pattern, naming conventions, and all `UseApiOptions`.
+> Claude will generate correct, architecture-consistent API layer code out of the box — no extra prompting needed.
+>
+> 📄 **[View skill file →](https://github.com/MortyQ/vue-useApi/blob/main/.claude/skills/use-api/SKILL.md)**
 
 ---
 
