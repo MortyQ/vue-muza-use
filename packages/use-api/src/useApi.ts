@@ -133,10 +133,9 @@ export function useApi<T = unknown, D = unknown>(
             const gs = globalAbort.getSignal();
             if (!gs.aborted) {
                 subscribedSignal = gs;
-                const currentCount = globalAbort.abortCount.value;
-                globalAbortHandler = () => {
-                    if (globalAbort.abortCount.value === currentCount) controller.abort("Global filter change");
-                };
+                // The event listener is already scoped to this specific signal instance —
+                // no need to compare abortCount. The signal fires exactly once per abort() call.
+                globalAbortHandler = () => { controller.abort("Global filter change"); };
                 gs.addEventListener("abort", globalAbortHandler);
             }
         }
