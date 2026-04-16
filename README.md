@@ -9,6 +9,14 @@
 
 A production-ready composable that eliminates boilerplate and solves the hard problems: race conditions, token refresh queues, automatic retries, and reactive request management. Write less code, ship faster, sleep better.
 
+> [!IMPORTANT]
+> ### 🤖 Claude Code — Built-in AI Skill
+>
+> This library ships with a skill that teaches Claude the feature wrapper pattern, naming conventions, and all `UseApiOptions`.
+> Claude will generate correct, architecture-consistent API layer code out of the box — no extra prompting needed.
+>
+> 📄 **[View skill file →](https://github.com/MortyQ/vue-useApi/blob/main/.claude/skills/use-api/SKILL.md)**
+
 ---
 
 ## ✨ Features
@@ -2140,7 +2148,7 @@ Quick import:
 import { useApiState } from '@ametie/vue-muza-use'
 
 const { data, loading, error, mutate, setLoading, setError, reset } =
-        useApiState<MyType>()
+  useApiState<MyType>()
 ```
 
 ---
@@ -2192,34 +2200,34 @@ Full component: debounced search that resets cleanly without triggering an inter
 
 ```vue
 <script setup lang="ts">
-  import { ref } from 'vue'
-  import { useApi } from '@ametie/vue-muza-use'
+import { ref } from 'vue'
+import { useApi } from '@ametie/vue-muza-use'
 
-  interface User {
-    id: number
-    name: string
-    email: string
+interface User {
+  id: number
+  name: string
+  email: string
+}
+
+const search = ref('')
+const page = ref(1)
+
+const { data, loading, execute, ignoreUpdates } = useApi<User[]>(
+  () => `/users?search=${search.value}&page=${page.value}`,
+  {
+    watch: [search, page],
+    debounce: 400,
+    immediate: true
   }
+)
 
-  const search = ref('')
-  const page = ref(1)
-
-  const { data, loading, execute, ignoreUpdates } = useApi<User[]>(
-          () => `/users?search=${search.value}&page=${page.value}`,
-          {
-            watch: [search, page],
-            debounce: 400,
-            immediate: true
-          }
-  )
-
-  function resetSearch() {
-    ignoreUpdates(() => {
-      search.value = ''
-      page.value = 1
-    })
-    execute()  // single request with reset values
-  }
+function resetSearch() {
+  ignoreUpdates(() => {
+    search.value = ''
+    page.value = 1
+  })
+  execute()  // single request with reset values
+}
 </script>
 
 <template>
@@ -2245,31 +2253,31 @@ When the user changes a filter, reset the page to 1 using `ignoreUpdates` so onl
 
 ```vue
 <script setup lang="ts">
-  import { ref } from 'vue'
-  import { useApi } from '@ametie/vue-muza-use'
+import { ref } from 'vue'
+import { useApi } from '@ametie/vue-muza-use'
 
-  interface Post {
-    id: number
-    title: string
-    status: string
-  }
+interface Post {
+  id: number
+  title: string
+  status: string
+}
 
-  const page = ref(1)
-  const status = ref('all')
+const page = ref(1)
+const status = ref('all')
 
-  const { data, loading, execute, ignoreUpdates } = useApi<Post[]>(
-          () => `/posts?status=${status.value}&page=${page.value}`,
-          { watch: [status, page], immediate: true }
-  )
+const { data, loading, execute, ignoreUpdates } = useApi<Post[]>(
+  () => `/posts?status=${status.value}&page=${page.value}`,
+  { watch: [status, page], immediate: true }
+)
 
-  function changeStatus(newStatus: string) {
-    // Reset page to 1 when filter changes — one request, not two
-    ignoreUpdates(() => {
-      status.value = newStatus
-      page.value = 1
-    })
-    execute()
-  }
+function changeStatus(newStatus: string) {
+  // Reset page to 1 when filter changes — one request, not two
+  ignoreUpdates(() => {
+    status.value = newStatus
+    page.value = 1
+  })
+  execute()
+}
 </script>
 
 <template>
@@ -2298,43 +2306,43 @@ When the user changes a filter, reset the page to 1 using `ignoreUpdates` so onl
 
 ```vue
 <script setup lang="ts">
-  import { ref } from 'vue'
-  import { useApi, DebounceCancelledError } from '@ametie/vue-muza-use'
+import { ref } from 'vue'
+import { useApi, DebounceCancelledError } from '@ametie/vue-muza-use'
 
-  interface CreatePostDto {
-    title: string
-    body: string
+interface CreatePostDto {
+  title: string
+  body: string
+}
+
+interface Post {
+  id: number
+  title: string
+}
+
+const form = ref<CreatePostDto>({ title: '', body: '' })
+
+const { execute, loading, error } = useApi<Post, CreatePostDto>(
+  '/posts',
+  {
+    method: 'POST',
+    data: form,
+    retry: 2,
+    retryDelay: 1500,
+    retryStatusCodes: [500, 502, 503]
   }
+)
 
-  interface Post {
-    id: number
-    title: string
-  }
-
-  const form = ref<CreatePostDto>({ title: '', body: '' })
-
-  const { execute, loading, error } = useApi<Post, CreatePostDto>(
-          '/posts',
-          {
-            method: 'POST',
-            data: form,
-            retry: 2,
-            retryDelay: 1500,
-            retryStatusCodes: [500, 502, 503]
-          }
-  )
-
-  async function submit() {
-    try {
-      const result = await execute()
-      if (result) {
-        console.log('Post created with id:', result.id)
-      }
-    } catch (err) {
-      if (err instanceof DebounceCancelledError) return
-      throw err
+async function submit() {
+  try {
+    const result = await execute()
+    if (result) {
+      console.log('Post created with id:', result.id)
     }
+  } catch (err) {
+    if (err instanceof DebounceCancelledError) return
+    throw err
   }
+}
 </script>
 
 <template>
@@ -2355,36 +2363,36 @@ When the user changes a filter, reset the page to 1 using `ignoreUpdates` so onl
 
 ```vue
 <script setup lang="ts">
-  import { computed } from 'vue'
-  import { useApiBatch } from '@ametie/vue-muza-use'
-  import type { BatchRequestConfig } from '@ametie/vue-muza-use'
+import { computed } from 'vue'
+import { useApiBatch } from '@ametie/vue-muza-use'
+import type { BatchRequestConfig } from '@ametie/vue-muza-use'
 
-  interface Stats { totalUsers: number; revenue: number }
-  interface Order { id: number; total: number }
-  interface Notification { id: number; text: string }
+interface Stats { totalUsers: number; revenue: number }
+interface Order { id: number; total: number }
+interface Notification { id: number; text: string }
 
-  const requests: BatchRequestConfig[] = [
-    { url: '/api/stats' },
-    { url: '/api/recent-orders', params: { limit: 5 } },
-    { url: '/api/notifications' }
-  ]
+const requests: BatchRequestConfig[] = [
+  { url: '/api/stats' },
+  { url: '/api/recent-orders', params: { limit: 5 } },
+  { url: '/api/notifications' }
+]
 
-  const {
-    data: results,
-    loading,
-    progress,
-    execute
-  } = useApiBatch(requests, { immediate: true })
+const {
+  data: results,
+  loading,
+  progress,
+  execute
+} = useApiBatch(requests, { immediate: true })
 
-  const stats = computed(
-          () => results.value.find(r => r.url.includes('stats'))?.data as Stats | undefined
-  )
-  const orders = computed(
-          () => results.value.find(r => r.url.includes('orders'))?.data as Order[] | undefined
-  )
-  const notifications = computed(
-          () => results.value.find(r => r.url.includes('notifications'))?.data as Notification[] | undefined
-  )
+const stats = computed(
+  () => results.value.find(r => r.url.includes('stats'))?.data as Stats | undefined
+)
+const orders = computed(
+  () => results.value.find(r => r.url.includes('orders'))?.data as Order[] | undefined
+)
+const notifications = computed(
+  () => results.value.find(r => r.url.includes('notifications'))?.data as Notification[] | undefined
+)
 </script>
 
 <template>
@@ -2412,49 +2420,49 @@ When the user changes a filter, reset the page to 1 using `ignoreUpdates` so onl
 
 ```vue
 <script setup lang="ts">
-  import { ref } from 'vue'
-  import { useApi, tokenManager } from '@ametie/vue-muza-use'
-  import { useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { useApi, tokenManager } from '@ametie/vue-muza-use'
+import { useRouter } from 'vue-router'
 
-  interface LoginResponse {
-    accessToken: string
-    refreshToken: string
-    expiresIn: number
+interface LoginResponse {
+  accessToken: string
+  refreshToken: string
+  expiresIn: number
+}
+
+const router = useRouter()
+const credentials = ref({ email: '', password: '' })
+
+const { execute: login, loading, error } = useApi<LoginResponse>(
+  '/auth/login',
+  {
+    method: 'POST',
+    authMode: 'public',
+    data: credentials,
+    onSuccess(response) {
+      tokenManager.setTokens({
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        expiresIn: response.data.expiresIn
+      })
+      router.push('/dashboard')
+    }
   }
+)
 
-  const router = useRouter()
-  const credentials = ref({ email: '', password: '' })
-
-  const { execute: login, loading, error } = useApi<LoginResponse>(
-          '/auth/login',
-          {
-            method: 'POST',
-            authMode: 'public',
-            data: credentials,
-            onSuccess(response) {
-              tokenManager.setTokens({
-                accessToken: response.data.accessToken,
-                refreshToken: response.data.refreshToken,
-                expiresIn: response.data.expiresIn
-              })
-              router.push('/dashboard')
-            }
-          }
-  )
-
-  function logout() {
-    tokenManager.clearTokens()
-    router.push('/login')
-  }
+function logout() {
+  tokenManager.clearTokens()
+  router.push('/login')
+}
 </script>
 
 <template>
   <form @submit.prevent="login()">
     <input v-model="credentials.email" type="email" placeholder="Email" />
     <input
-            v-model="credentials.password"
-            type="password"
-            placeholder="Password"
+      v-model="credentials.password"
+      type="password"
+      placeholder="Password"
     />
     <p v-if="error">{{ error.message }}</p>
     <button :disabled="loading">
