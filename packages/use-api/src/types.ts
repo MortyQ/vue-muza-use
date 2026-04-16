@@ -40,19 +40,98 @@ export interface ApiRequestConfig<D = unknown> extends Omit<AxiosRequestConfig<D
      * Empty array = retry on any error (network errors included).
      */
     retryStatusCodes?: number[];
+    /**
+     * Include credentials (cookies, Authorization headers) in cross-origin requests.
+     *
+     * Supports three auth strategies:
+     *
+     * **1. Bearer token (default)** — tokens in localStorage, no cookies needed:
+     * ```ts
+     * createApiClient({ baseURL: '/api' }) // withCredentials: false by default
+     * ```
+     *
+     * **2. Full cookie-based auth** — server sets httpOnly cookies for both tokens:
+     * ```ts
+     * createApiClient({ baseURL: '/api', withCredentials: true })
+     * ```
+     *
+     * **3. Hybrid** — Bearer access token + httpOnly refresh cookie:
+     * ```ts
+     * createApiClient({
+     *   baseURL: '/api',
+     *   authOptions: { refreshWithCredentials: true } // cookies only on /auth/refresh
+     * })
+     * ```
+     *
+     * **Per-request override** — override the global setting for a specific request:
+     * ```ts
+     * // Global: withCredentials: false, but this endpoint needs cookies
+     * const { data } = useApi('/user/profile', { withCredentials: true })
+     *
+     * // Global: withCredentials: true, but skip cookies for public CDN
+     * const { data } = useApi('https://cdn.example.com/config.json', {
+     *   withCredentials: false,
+     *   immediate: true
+     * })
+     * ```
+     */
+    withCredentials?: boolean;
 }
 
-export interface UseApiOptions<T = unknown, D = unknown> extends ApiRequestConfig<D> {
+export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends ApiRequestConfig<D> {
     immediate?: boolean;
     onSuccess?: (response: AxiosResponse<T>) => void;
     onError?: (error: ApiError) => void;
     onBefore?: () => void;
     onFinish?: () => void;
-    initialData?: T;
+    /**
+     * Transform the raw response data before it is stored in `data`.
+     * Applied on every successful response — including polling, SWR revalidation,
+     * and watch-triggered re-fetches. The cache always stores the raw server data;
+     * `select` is re-applied each time data is read from cache.
+     *
+     * The second generic parameter of `useApi` becomes the output type of `select`.
+     *
+     * @example
+     * ```ts
+     * // Extract nested field
+     * const { data } = useApi<ApiResponse, User[]>('/users', {
+     *   select: (res) => res.data,
+     * })
+     *
+     * // Transform items
+     * const { data } = useApi<RawUser[], User[]>('/users', {
+     *   select: (users) => users.map(u => ({ ...u, fullName: `${u.first} ${u.last}` })),
+     * })
+     * ```
+     */
+    select?: (data: T) => TSelected;
+    initialData?: TSelected;
     debounce?: number;
     useGlobalAbort?: boolean;
     initialLoading?: boolean;
     watch?: WatchSource | WatchSource[];
+    /**
+     * Return cached data immediately and revalidate in the background.
+     *
+     * Requires the `cache` option to be set. On a cache hit the cached value
+     * is returned right away (no loading state, no spinner) while a fresh
+     * request runs silently. The `revalidating` ref is `true` during the
+     * background fetch so you can show a subtle indicator if needed.
+     *
+     * On a cache miss the request behaves normally (loading: true).
+     *
+     * @example
+     * ```ts
+     * const { data, revalidating } = useApi('/users', {
+     *   cache: 'users',
+     *   staleWhileRevalidate: true,
+     *   immediate: true,
+     * })
+     * // Template: <span v-if="revalidating">↻</span>
+     * ```
+     */
+    staleWhileRevalidate?: boolean;
     /**
      * Polling configuration.
      * - Pass a **number** (ms) for simple polling.
@@ -83,7 +162,13 @@ export interface UseApiReturn<T = unknown, D = unknown> {
     loading: Ref<boolean>;
     error: Ref<ApiError | null>;
     statusCode: Ref<number | null>;
-    response: Ref<AxiosResponse<T> | null>;
+    response: Ref<AxiosResponse<unknown> | null>;
+    /**
+     * `true` while a background revalidation request is in-flight.
+     * Only active when `staleWhileRevalidate: true` and a cache hit occurred.
+     * Use it to show a subtle refresh indicator without blocking the UI.
+     */
+    revalidating: Ref<boolean>;
     execute: (config?: ApiRequestConfig<D>) => Promise<T | null | undefined>;
     abort: (message?: string) => void;
     reset: () => void;

@@ -5,9 +5,17 @@
 [![Vue 3](https://img.shields.io/badge/Vue-3.x-green.svg?style=flat-square)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Included-blue.svg?style=flat-square)](https://www.typescriptlang.org/)
 
-**Type-safe, feature-rich Axios wrapper for Vue 3 Composition API. Built for real-world business logic. **
+**Type-safe, feature-rich Axios wrapper for Vue 3 Composition API. Built for real-world business logic.**
 
 A production-ready composable that eliminates boilerplate and solves the hard problems: race conditions, token refresh queues, automatic retries, and reactive request management. Write less code, ship faster, sleep better.
+
+> [!IMPORTANT]
+> ### 🤖 Claude Code — Built-in AI Skill
+>
+> This library ships with a skill that teaches Claude the feature wrapper pattern, naming conventions, and all `UseApiOptions`.
+> Claude will generate correct, architecture-consistent API layer code out of the box — no extra prompting needed.
+>
+> 📄 **[View skill file →](https://github.com/MortyQ/vue-useApi/blob/main/.claude/skills/use-api/SKILL.md)**
 
 ---
 
@@ -23,11 +31,14 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - 🧹 **Zero Memory Leaks** — Automatic cleanup of pending requests on component unmount
 - 🔕 **ignoreUpdates** — Atomic updates without triggering intermediate requests
 - 🗄️ **Response Caching** — In-memory cache with configurable TTL and manual invalidation
+- ⚡ **Stale-While-Revalidate** — Serve cached data instantly while refreshing silently in the background
+- 🔬 **select** — Transform or filter response data declaratively; re-applied on every fetch automatically
 
 **Advanced Features** (When you need them):
 - ♻️ **Intelligent Retries** — Lifecycle-aware retry logic with configurable status codes
 - 🔐 **JWT Token Management** — Automatic token refresh with request queueing on 401 responses
 - 🎛️ **Flexible Architecture** — Bring your own Axios instance with full configuration control
+- 🍪 **withCredentials** — Per-request cookie and cross-origin credential control
 
 ---
 
@@ -42,11 +53,13 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - [Watch & Auto-Refetch](#watch--auto-refetch)
   - [ignoreUpdates — Atomic Updates Without Refetch](#ignoreupdates--atomic-updates-without-refetch)
 - [Response Caching](#response-caching)
+  - [Stale-While-Revalidate (SWR)](#stale-while-revalidate-swr)
 - [Polling (Background Updates)](#polling-background-updates)
 - [Error Handling](#error-handling)
   - [retry — Automatic Request Retry](#retry--automatic-request-retry)
 - [Loading States](#loading-states)
 - [Manual Data Updates (mutate)](#manual-data-updates-mutate)
+- [select — Declarative Data Transformation](#select--declarative-data-transformation)
 
 **Real-World Examples:**
 - [Data Table with Pagination](#data-table-with-pagination--sorting)
@@ -679,6 +692,70 @@ The following are intentionally **not** supported in v1:
 
 ---
 
+### Stale-While-Revalidate (SWR)
+
+**TL;DR: Return cached data instantly while fetching fresh data in the background. No loading spinner, no blank screen.**
+
+Requires the `cache` option to be set. On a cache hit, the stale data is returned immediately (no `loading: true`, no spinner) while a silent background request runs. Use the `revalidating` ref to show a subtle refresh indicator if needed.
+
+On a **cache miss** (first load), the request behaves exactly like a normal request — `loading: true`, no stale data.
+
+#### Basic Usage
+
+```vue
+<script setup lang="ts">
+import { useApi } from '@ametie/vue-muza-use'
+
+interface User { id: number; name: string }
+
+const { data, revalidating } = useApi<User[]>('/users', {
+  cache: 'users',
+  staleWhileRevalidate: true,
+  immediate: true,
+})
+</script>
+
+<template>
+  <!-- data renders immediately from cache — no blank screen -->
+  <ul>
+    <li v-for="user in data" :key="user.id">
+      {{ user.name }}
+      <span v-if="revalidating">↻</span>
+    </li>
+  </ul>
+</template>
+```
+
+#### SWR vs Normal Cache Hit
+
+| | Normal cache hit | SWR cache hit |
+|---|---|---|
+| `loading` | `false` | `false` |
+| `data` | Stale data, no new request | Stale data → then fresh data |
+| `revalidating` | `false` | `true` while fetching, then `false` |
+| Axios request | **Not made** | **Made** (silent background fetch) |
+| `onBefore` | Not called | **Not called** (silent) |
+| `onSuccess` | Not called | **Called** with fresh response |
+| `onFinish` | Not called | **Called** after background fetch |
+
+#### Error Handling
+
+If the background revalidation request fails:
+- `revalidating` resets to `false`
+- `error` is set
+- The **stale data is preserved** — your UI doesn't go blank
+
+```typescript
+const { data, revalidating, error } = useApi('/dashboard', {
+  cache: 'dashboard',
+  staleWhileRevalidate: true,
+  immediate: true,
+})
+// data.value stays the cached value even after a failed revalidation
+```
+
+---
+
 ### Polling (Background Updates)
 
 **TL;DR: Keep data fresh with smart polling that automatically pauses when the browser tab is hidden.**
@@ -945,6 +1022,73 @@ const { data } = useApi<User[]>('/users', {
 
 const { mutate } = useApi<User[]>('/users', { immediate: true })
 ```
+
+---
+
+### select — Declarative Data Transformation
+
+**TL;DR: Transform, filter, or reshape response data once — it's re-applied automatically on every fetch, polling tick, and SWR revalidation.**
+
+Use `select` when you want the same transformation applied every time the request fires. Unlike `mutate` (which you call manually), `select` is declared once and runs silently on each response.
+
+The second generic parameter of `useApi` controls the output type of `select`.
+
+#### Extract a Nested Field
+
+APIs that wrap responses in `{ data: [...], meta: {...} }`:
+
+```typescript
+interface ApiResponse { data: User[]; meta: { total: number } }
+interface User { id: number; name: string }
+
+const { data } = useApi<ApiResponse, User[]>('/users', {
+  immediate: true,
+  select: (res) => res.data,
+  // data.value is User[], not ApiResponse
+})
+```
+
+#### Transform Items
+
+```typescript
+interface RawUser { id: number; firstName: string; lastName: string }
+interface User { id: number; fullName: string }
+
+const { data } = useApi<RawUser[], User[]>('/users', {
+  immediate: true,
+  select: (users) => users.map(u => ({
+    id: u.id,
+    fullName: `${u.firstName} ${u.lastName}`,
+  })),
+})
+```
+
+#### Filter Results
+
+```typescript
+const { data } = useApi<Task[]>('/tasks', {
+  immediate: true,
+  select: (tasks) => tasks.filter(t => t.status === 'active'),
+})
+```
+
+#### select vs mutate
+
+| | `select` | `mutate` |
+|---|---|---|
+| When it runs | On every successful response (auto) | When you call it manually |
+| With polling | Re-applied on every tick | Need to call in `onSuccess` each time |
+| With SWR | Re-applied on revalidation | Need to call in `onSuccess` |
+| `onSuccess` receives | Raw `AxiosResponse<TRaw>` | — |
+
+> [!NOTE]
+> `onSuccess` always receives the **raw** `AxiosResponse` from the server, not the selected value.
+> This lets you access headers, status, and the original shape if needed.
+
+> [!NOTE]
+> The cache always stores the **raw** server response, not the selected value.
+> `select` is re-applied each time data is read from cache — including SWR cache hits.
+> If you change your `select` function, the next cache hit will re-apply the new transformation.
 
 ---
 
@@ -1352,6 +1496,38 @@ const api = createApiClient({
 
 ---
 
+### withCredentials — Per-Request Cookie Control
+
+**TL;DR: Override the Axios instance default for a single request without changing global settings.**
+
+`withCredentials` controls whether cookies and other credentials are included in cross-origin requests (CORS). Set it globally in `createApiClient` and override it per request when needed.
+
+```typescript
+// Global: withCredentials: false (Bearer token auth, no cookies)
+const api = createApiClient({ baseURL: '/api' })
+
+// Override: this specific endpoint needs cookies
+const { data } = useApi('/user/session', {
+  withCredentials: true,
+  immediate: true,
+})
+```
+
+```typescript
+// Global: withCredentials: true (full cookie-based auth)
+const api = createApiClient({ baseURL: '/api', withCredentials: true })
+
+// Override: skip cookies for a public CDN request
+const { data } = useApi('https://cdn.example.com/config.json', {
+  withCredentials: false,
+  immediate: true,
+})
+```
+
+Omitting `withCredentials` in `useApi` options means the Axios instance default is used — no override applied.
+
+---
+
 ### Saving Tokens After Login
 
 ```typescript
@@ -1660,14 +1836,22 @@ function useMyCustomComposable<T>(fetchFn: () => Promise<T>) {
 
 ## 📚 API Reference
 
-### `useApi<T, D>(url, options)`
+### `useApi<TRaw, D, TSelected>(url, options)`
+
+Three type parameters — all optional with defaults:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `TRaw` | `unknown` | Shape of the raw response data from the server |
+| `D` | `unknown` | Shape of the request body / params |
+| `TSelected` | `TRaw` | Shape of `data.value` after `select` is applied. Equals `TRaw` when `select` is not used |
 
 **Arguments:**
 
 | Argument | Type | Description |
 |----------|------|-------------|
 | `url` | `MaybeRefOrGetter<string \| undefined>` | API endpoint. String, ref, or getter function. Returning `undefined` prevents the request. |
-| `options` | `UseApiOptions<T, D>` | Configuration object (see below). |
+| `options` | `UseApiOptions<TRaw, D, TSelected>` | Configuration object (see below). |
 
 ---
 
@@ -1697,6 +1881,7 @@ function useMyCustomComposable<T>(fetchFn: () => Promise<T>) {
 |--------|------|---------|-------------|
 | `cache` | `string \| CacheOptions` | `undefined` | Cache the response in memory. String shorthand uses default 5-min TTL. See [Response Caching](#response-caching) |
 | `invalidateCache` | `string \| string[]` | `undefined` | Cache key(s) to delete on 2xx success. Never fires on error |
+| `staleWhileRevalidate` | `boolean` | `false` | When `true` and a cache hit occurs, return stale data immediately and revalidate in the background. `revalidating` is `true` during the background fetch. See [SWR](#stale-while-revalidate-swr) |
 
 **Polling:**
 
@@ -1712,11 +1897,17 @@ function useMyCustomComposable<T>(fetchFn: () => Promise<T>) {
 | `retryDelay` | `number` | `1000` | How many milliseconds to wait between retry attempts |
 | `retryStatusCodes` | `number[]` | `[408,429,500,502,503,504]` | HTTP status codes that trigger a retry. `[]` means retry on any error |
 
+**Data Transformation:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `select` | `(data: TRaw) => TSelected` | `undefined` | Transform response data before it is stored in `data`. Re-applied on every fetch, polling tick, and SWR revalidation. Cache always stores raw data. See [select](#select--declarative-data-transformation) |
+
 **State Initialization:**
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `initialData` | `T` | `null` | Initial value for `data` before the first request completes |
+| `initialData` | `TSelected` | `null` | Initial value for `data` before the first request completes |
 | `initialLoading` | `boolean` | `false` | Initial value for `loading` — set `true` to show a spinner before the first request fires |
 
 **Lifecycle Hooks:**
@@ -1734,6 +1925,12 @@ function useMyCustomComposable<T>(fetchFn: () => Promise<T>) {
 |--------|------|---------|-------------|
 | `skipErrorNotification` | `boolean` | `false` | When `true`, the global `onError` handler is NOT called for this request |
 
+**Credentials:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `withCredentials` | `boolean` | `undefined` | Override the Axios instance default for this request only. `true` = send cookies/credentials, `false` = omit them. Omitting uses the instance default set in `createApiClient` |
+
 **Advanced:**
 
 | Option | Type | Default | Description |
@@ -1746,13 +1943,14 @@ function useMyCustomComposable<T>(fetchFn: () => Promise<T>) {
 
 | Name | Type | Description |
 |------|------|-------------|
-| `data` | `Ref<T \| null>` | Response data from the last successful request |
+| `data` | `Ref<TSelected \| null>` | Response data from the last successful request (transformed by `select` if provided) |
 | `loading` | `Ref<boolean>` | `true` while a request is in flight (including retry delays) |
 | `error` | `Ref<ApiError \| null>` | Error from the last failed request; `null` on success |
 | `statusCode` | `Ref<number \| null>` | HTTP status code from the last completed request |
-| `response` | `Ref<AxiosResponse<T> \| null>` | Full Axios response object including headers |
-| `execute(config?)` | `(config?: ApiRequestConfig<D>) => Promise<T \| null>` | Manually trigger the request, optionally overriding options |
-| `mutate(newData)` | `(newData: T \| null \| ((prev: T \| null) => T \| null)) => void` | Update `data` locally without a network request; clears `error` |
+| `response` | `Ref<AxiosResponse<unknown> \| null>` | Full Axios response object including headers (raw, before `select`) |
+| `revalidating` | `Ref<boolean>` | `true` while a background SWR revalidation is in flight. Always `false` when `staleWhileRevalidate` is not set |
+| `execute(config?)` | `(config?: ApiRequestConfig<D>) => Promise<TSelected \| null>` | Manually trigger the request, optionally overriding options |
+| `mutate(newData)` | `(newData: TSelected \| null \| ((prev: TSelected \| null) => TSelected \| null)) => void` | Update `data` locally without a network request; clears `error` |
 | `abort(msg?)` | `(message?: string) => void` | Cancel the current in-flight request |
 | `reset()` | `() => void` | Cancel the request and reset all state to initial values |
 | `ignoreUpdates(fn)` | `(updater: () => void) => void` | Run `updater` without triggering watch-based re-execution |
@@ -2282,36 +2480,36 @@ Start polling every 2 seconds and stop automatically when the job reaches a term
 
 ```vue
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useApi } from '@ametie/vue-muza-use'
+  import { ref } from 'vue'
+  import { useApi } from '@ametie/vue-muza-use'
 
-interface JobStatus {
-  id: string
-  status: 'pending' | 'processing' | 'complete' | 'failed'
-  progress: number
-}
-
-const jobId = ref<string | null>(null)
-const pollInterval = ref(0)
-
-const { data: job, error } = useApi<JobStatus>(
-  () => jobId.value ? `/jobs/${jobId.value}` : undefined,
-  {
-    watch: jobId,
-    poll: { interval: pollInterval },
-    onSuccess(response) {
-      const { status } = response.data
-      if (status === 'complete' || status === 'failed') {
-        pollInterval.value = 0  // Stop polling
-      }
-    }
+  interface JobStatus {
+    id: string
+    status: 'pending' | 'processing' | 'complete' | 'failed'
+    progress: number
   }
-)
 
-function startJob(id: string) {
-  jobId.value = id
-  pollInterval.value = 2000  // Start polling every 2s
-}
+  const jobId = ref<string | null>(null)
+  const pollInterval = ref(0)
+
+  const { data: job, error } = useApi<JobStatus>(
+          () => jobId.value ? `/jobs/${jobId.value}` : undefined,
+          {
+            watch: jobId,
+            poll: { interval: pollInterval },
+            onSuccess(response) {
+              const { status } = response.data
+              if (status === 'complete' || status === 'failed') {
+                pollInterval.value = 0  // Stop polling
+              }
+            }
+          }
+  )
+
+  function startJob(id: string) {
+    jobId.value = id
+    pollInterval.value = 2000  // Start polling every 2s
+  }
 </script>
 
 <template>
