@@ -44,7 +44,7 @@ beforeEach(() => vi.resetAllMocks())
 
 type AnyUseApiReturn = ReturnType<typeof useApi>
 
-function mountWithWatch(watchSources: Parameters<typeof useApi>[1]['watch']): AnyUseApiReturn {
+function mountWithWatch(watchSources: NonNullable<Parameters<typeof useApi>[1]>['watch']): AnyUseApiReturn {
     let api!: AnyUseApiReturn
     mount(
         defineComponent({

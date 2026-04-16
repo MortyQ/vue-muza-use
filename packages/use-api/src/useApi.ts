@@ -1,5 +1,5 @@
 import { debounceFn, DebounceCancelledError } from "./utils/debounce";
-import { type AxiosRequestConfig, isAxiosError } from "axios";
+import { type AxiosRequestConfig, type AxiosResponse, isAxiosError } from "axios";
 import { ref, getCurrentScope, onScopeDispose, toValue, watch, type MaybeRefOrGetter } from "vue";
 
 import type {
@@ -43,10 +43,10 @@ function cancellableSleep(ms: number, signal: AbortSignal): Promise<boolean> {
     });
 }
 
-export function useApi<T = unknown, D = unknown>(
+export function useApi<T = unknown, D = unknown, TSelected = T>(
     url: MaybeRefOrGetter<string | undefined>,
-    options: UseApiOptions<T, D> = {},
-): UseApiReturn<T, D> {
+    options: UseApiOptions<T, D, TSelected> = {},
+): UseApiReturn<TSelected, D> {
     const { axios, onError: globalErrorHandler, globalOptions, errorParser } = useApiConfig();
 
     const {
@@ -66,13 +66,24 @@ export function useApi<T = unknown, D = unknown>(
         useGlobalAbort = globalOptions?.useGlobalAbort ?? true,
         initialLoading = false,
         poll = 0,
+        // Explicitly excluded from axiosConfig — these are useApi-only options
+        // and must not be forwarded to axios.request()
+        cache: _cache,
+        invalidateCache: _invalidateCache,
+        watch: _watch,
+        staleWhileRevalidate = false,
+        select,
         ...axiosConfig
     } = options;
 
     const maxRetries = retry === false ? 0 : retry === true ? 3 : (retry as number);
 
+    const applySelect = (raw: T): TSelected =>
+        select ? select(raw) : (raw as unknown as TSelected);
+
     const startLoading = initialLoading ?? immediate;
-    const state = useApiState<T>(initialData as T | null, { initialLoading: startLoading });
+    const state = useApiState<TSelected>(initialData as TSelected | null, { initialLoading: startLoading });
+    const revalidating = ref(false);
     const abortController = ref<AbortController | null>(null);
     const globalAbort = useGlobalAbort ? useAbortController() : null;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -90,13 +101,20 @@ export function useApi<T = unknown, D = unknown>(
         return { interval: 0, whenHidden: false };
     };
 
-    const executeRequest = async (config?: ApiRequestConfig<D>): Promise<T | null> => {
+    const executeRequest = async (config?: ApiRequestConfig<D>): Promise<TSelected | null> => {
         /**
-         * Cache hit behavior:
+         * Cache hit behavior (staleWhileRevalidate: false — default):
          * - mutate() called with cached data
          * - loading stays false
          * - onBefore / onSuccess / onFinish NOT called
          * - axios request NOT made
+         *
+         * Cache hit behavior (staleWhileRevalidate: true — SWR):
+         * - mutate() called with cached data immediately (no loading flash)
+         * - revalidating set to true
+         * - axios request IS made in the background
+         * - on success: data updated silently, revalidating: false
+         * - on error: error set, revalidating: false
          *
          * Cache write: only on HTTP 2xx success
          * Cache invalidation: only on HTTP 2xx success
@@ -109,12 +127,18 @@ export function useApi<T = unknown, D = unknown>(
          * Use clearAllCache() on logout to prevent data leaks between users.
          */
         const cacheOpts = normalizeCacheOptions(options.cache);
+        let isRevalidating = false;
 
         if (cacheOpts) {
             const cached = readCache<T>(cacheOpts.id);
             if (cached !== null) {
-                state.mutate(cached);
-                return cached;
+                state.mutate(applySelect(cached));
+                if (!staleWhileRevalidate) {
+                    return applySelect(cached);
+                }
+                // SWR: serve cache immediately, continue to fetch fresh data in background
+                isRevalidating = true;
+                revalidating.value = true;
             }
         }
 
@@ -135,14 +159,17 @@ export function useApi<T = unknown, D = unknown>(
                 subscribedSignal = gs;
                 // The event listener is already scoped to this specific signal instance —
                 // no need to compare abortCount. The signal fires exactly once per abort() call.
-                globalAbortHandler = () => { controller.abort("Global filter change"); };
+                globalAbortHandler = () => { controller.abort("Cancelled by global abort"); };
                 gs.addEventListener("abort", globalAbortHandler);
             }
         }
         // -------------------------------------------------------------------------
 
-        onBefore?.();
-        state.setLoading(true);
+        // During revalidation we already have data — don't show loading spinner
+        if (!isRevalidating) {
+            onBefore?.();
+            state.setLoading(true);
+        }
         state.setError(null);
 
         let wasCancelled = false;
@@ -173,10 +200,13 @@ export function useApi<T = unknown, D = unknown>(
                         ...({ authMode: config?.authMode || authMode } as unknown as AxiosRequestConfig),
                     } as AxiosRequestConfig);
 
-                    state.mutate(response.data as T | null, response);
+                    const selected = applySelect(response.data);
+                    // response is AxiosResponse<T>; state is typed TSelected — cast is safe
+                    // because UseApiReturn.response is Ref<AxiosResponse<unknown>>
+                    state.mutate(selected, response as unknown as AxiosResponse<TSelected>);
                     state.setStatusCode(response.status);
 
-                    // Cache WRITE — only on 2xx success
+                    // Cache WRITE — only on 2xx success; always store raw data
                     if (cacheOpts) {
                         writeCache(cacheOpts.id, response.data, cacheOpts.staleTime);
                     }
@@ -187,7 +217,7 @@ export function useApi<T = unknown, D = unknown>(
                     }
 
                     onSuccess?.(response);
-                    return response.data;
+                    return selected;
 
                 } catch (err: unknown) {
                     // Abort / cancel — bail out silently
@@ -240,8 +270,9 @@ export function useApi<T = unknown, D = unknown>(
             return null;
         } finally {
             if (globalAbortHandler && subscribedSignal) subscribedSignal.removeEventListener("abort", globalAbortHandler);
+            revalidating.value = false;
             if (!wasCancelled) {
-                state.setLoading(false);
+                if (!isRevalidating) state.setLoading(false);
                 onFinish?.();
 
                 // Polling Logic — starts only after the final result (success or all retries exhausted)
@@ -361,88 +392,5 @@ export function useApi<T = unknown, D = unknown>(
          }, { deep: true });
     }
 
-    return { ...state, execute, abort, reset, ignoreUpdates };
+    return { ...state, revalidating, execute, abort, reset, ignoreUpdates };
 }
-
-/**
- * Helper for GET requests
- *
- * @example
- * ```ts
- * const { data, loading, error } = useApiGet<User[]>('/users', {
- *   immediate: true
- * })
- * ```
- */
-export function useApiGet<T = unknown>(
-    url: MaybeRefOrGetter<string | undefined>,
-    options?: Omit<UseApiOptions<T>, "method">,
-): UseApiReturn<T> {
-    return useApi<T>(url, { ...options, method: "GET" });
-}
-
-/**
- * Helper for POST requests
- *
- * @example
- * ```ts
- * const { data, loading, execute } = useApiPost<User, CreateUserDto>('/users')
- * await execute({ data: { name: 'John' } })
- * ```
- */
-export function useApiPost<T = unknown, D = unknown>(
-    url: MaybeRefOrGetter<string | undefined>,
-    options?: Omit<UseApiOptions<T, D>, "method">,
-): UseApiReturn<T, D> {
-    return useApi<T, D>(url, { ...options, method: "POST" });
-}
-
-/**
- * Helper for PUT requests
- *
- * @example
- * ```ts
- * const { execute } = useApiPut<User, UpdateUserDto>('/users/1')
- * await execute({ data: { name: 'John Doe' } })
- * ```
- */
-export function useApiPut<T = unknown, D = unknown>(
-    url: MaybeRefOrGetter<string | undefined>,
-    options?: Omit<UseApiOptions<T, D>, "method">,
-): UseApiReturn<T, D> {
-    return useApi<T, D>(url, { ...options, method: "PUT" });
-}
-
-/**
- * Helper for PATCH requests
- *
- * @example
- * ```ts
- * const { execute } = useApiPatch<User, Partial<User>>('/users/1')
- * await execute({ data: { name: 'John' } })
- * ```
- */
-export function useApiPatch<T = unknown, D = unknown>(
-    url: MaybeRefOrGetter<string | undefined>,
-    options?: Omit<UseApiOptions<T, D>, "method">,
-): UseApiReturn<T, D> {
-    return useApi<T, D>(url, { ...options, method: "PATCH" });
-}
-
-/**
- * Helper for DELETE requests
- *
- * @example
- * ```ts
- * const { execute } = useApiDelete('/users/1')
- * await execute()
- * ```
- */
-export function useApiDelete<T = unknown>(
-    url: MaybeRefOrGetter<string | undefined>,
-    options?: Omit<UseApiOptions<T>, "method">,
-): UseApiReturn<T> {
-    return useApi<T>(url, { ...options, method: "DELETE" });
-}
-
-

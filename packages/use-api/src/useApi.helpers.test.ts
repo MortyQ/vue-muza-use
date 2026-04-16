@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { defineComponent } from 'vue'
 import { mount } from '@vue/test-utils'
 import type { AxiosInstance } from 'axios'
-import { useApiGet, useApiPost, useApiPut, useApiPatch, useApiDelete } from './useApi'
+import { useApiGet, useApiPost, useApiPut, useApiPatch, useApiDelete } from './useApi.helpers'
 import { createApi } from './plugin'
 import type { ApiPluginOptions } from './types'
 

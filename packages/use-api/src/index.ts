@@ -1,12 +1,6 @@
 export { createApi, useApiConfig } from "./plugin";
-export {
-    useApi,
-    useApiGet,
-    useApiPost,
-    useApiPut,
-    useApiPatch,
-    useApiDelete,
-} from "./useApi";
+export { useApi } from "./useApi";
+export { useApiGet, useApiPost, useApiPut, useApiPatch, useApiDelete } from "./useApi.helpers";
 export { useApiBatch } from "./useApiBatch";
 export { useApiState, type SetDataInput } from "./composables/useApiState";
 export { useAbortController } from "./composables/useAbortController";
