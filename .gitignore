@@ -6,16 +6,11 @@ dist
 npm-debug.log*
 pnpm-debug.log*
 
-# Development helper scripts (local use only)
+# Local development
 *.sh
-QUICK_COMMANDS.md
-VITE_PROXY_SETUP.md
-*_CHECKLIST.md
-*_NEXT_STEPS.md
-PROBLEM_FOUND.md
-COOKIE_EXISTS_NEXT_STEPS.md
-CLEAN_VERSION_READY.md
-USING_IN_PINIA.md
-MIGRATION_COOKIE_MODE.md
-QUICK_FIX_PLUGIN_ERROR.md
+packages/playground
 
+# Claude Code — keep skills, ignore everything else
+.claude/projects
+.claude/settings.json
+.claude/todos
