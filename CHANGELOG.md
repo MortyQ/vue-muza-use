@@ -12,23 +12,41 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ### Breaking Changes
 - **`watch` option removed** from `UseApiOptions`. `url`, `params`, and `data` are now auto-tracked — the request re-fires automatically when their reactive dependencies change. No explicit `watch` needed.
+- **`staleWhileRevalidate` option removed** from `UseApiOptions`. Moved into `CacheOptions` as `swr: boolean`. Use `cache: { id: 'key', swr: true }` instead of `cache: 'key', staleWhileRevalidate: true`.
 - **`peerDependencies`**: minimum Vue version bumped from `^3.3.0` to `^3.5.0` (required for `effectScope.pause/resume`).
 
 ### Added
 - `lazy?: boolean` — opt-out of auto-tracking. When `true`, reactive changes to `url`, `params`, and `data` do NOT trigger a re-fetch. Use for forms and manual mutations where you call `execute()` yourself.
+- `refetchOnFocus?: boolean | { throttle?: number }` — re-fetch when the browser tab regains focus. Default throttle: 60 000ms. Pass `{ throttle: 0 }` to always refetch. Configurable globally via `createApiClient({ globalOptions: { refetchOnFocus: true } })`.
+- `refetchOnReconnect?: boolean` — re-fetch when the browser regains network connectivity (`online` event). No throttle applied. Configurable globally.
+- `CacheOptions.swr?: boolean` — replaces the top-level `staleWhileRevalidate` option.
 
 ### Migration from 0.x
 
 ```ts
+// watch → auto-tracking
 // Before
 useApi('/products', {
   params: () => ({ q: search.value }),
   watch: [search],
 })
-
-// After — watch removed, auto-tracked via params getter
+// After
 useApi('/products', {
   params: () => ({ q: search.value }),
+})
+
+// staleWhileRevalidate → cache.swr
+// Before
+useApi('/users', { cache: 'users', staleWhileRevalidate: true })
+// After
+useApi('/users', { cache: { id: 'users', swr: true } })
+
+// New: refetchOnFocus
+useApi('/dashboard', { refetchOnFocus: true })
+
+// New: global config
+createApiClient({
+  globalOptions: { refetchOnFocus: true, refetchOnReconnect: true }
 })
 
 // Form (opt-out of auto-tracking)
