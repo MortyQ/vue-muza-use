@@ -17,7 +17,7 @@ import { readCache, writeCache, invalidateCache as cacheInvalidate, DEFAULT_STAL
 const DEFAULT_RETRY_STATUS_CODES = [408, 429, 500, 502, 503, 504];
 
 /**
- * Normalise the `cache` option into a consistent shape with a guaranteed `staleTime`.
+ * Normalise the `cache` option into a consistent shape with a guaranteed `staleTime` and `swr` flag.
  * Returns null if caching is not configured.
  */
 function normalizeCacheOptions(
@@ -102,13 +102,13 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
 
     const executeRequest = async (config?: ApiRequestConfig<D>): Promise<TSelected | null> => {
         /**
-         * Cache hit behavior (staleWhileRevalidate: false — default):
+         * Cache hit behavior (cache.swr: false — default):
          * - mutate() called with cached data
          * - loading stays false
          * - onBefore / onSuccess / onFinish NOT called
          * - axios request NOT made
          *
-         * Cache hit behavior (staleWhileRevalidate: true — SWR):
+         * Cache hit behavior (cache.swr: true — SWR):
          * - mutate() called with cached data immediately (no loading flash)
          * - revalidating set to true
          * - axios request IS made in the background
