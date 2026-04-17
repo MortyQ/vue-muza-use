@@ -19,17 +19,19 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 
 ---
 
+> **Using v0.x?** The legacy documentation is available at [v0.10.0 README](https://github.com/MortyQ/vue-muza-use/blob/v0.10.0/packages/use-api/README.md).
+
 ## ✨ Features
 
 **Core Features** (Get started in minutes):
 - 🎯 **TypeScript-first** — Full TypeScript support with strict typing for requests and responses
-- 🔄 **Smart Reactivity** — Watch refs and automatically refetch when dependencies change
+- 🔄 **Smart Reactivity** — Auto-tracks reactive deps in `url`, `params`, and `data` — refetches automatically when they change
 - ⏱️ **Built-in Debouncing** — Perfect for search inputs and auto-save forms
 - 🛡️ **Race Condition Protection** — Global abort controller cancels stale requests automatically
 - 📊 **Auto-Polling** — Built-in interval fetching with smart tab visibility detection
 - 🚀 **Batch Requests** — Execute multiple requests in parallel with progress tracking
 - 🧹 **Zero Memory Leaks** — Automatic cleanup of pending requests on component unmount
-- 🔕 **ignoreUpdates** — Update watched refs without triggering a re-fetch
+- 🔕 **ignoreUpdates** — Update reactive deps silently without triggering a re-fetch
 - 🗄️ **Response Caching** — In-memory cache with configurable TTL and manual invalidation
 - ⚡ **Stale-While-Revalidate** — Serve cached data instantly while refreshing silently in the background
 - 🔬 **select** — Transform or filter response data declaratively; re-applied on every fetch automatically
@@ -196,7 +198,6 @@ const searchQuery = ref('')
 const { data, loading } = useApi<Product[]>(
   () => `/products/search?q=${searchQuery.value}`,
   {
-    watch: searchQuery,
     debounce: 500
   }
 )
@@ -299,7 +300,6 @@ const filters = ref({
 
 const { data } = useApi('/users', {
   params: filters,
-  watch: filters,
   immediate: true
 })
 ```
@@ -321,7 +321,6 @@ const id = ref<number | null>(null)
 
 const { data } = useApi<User>(
   () => id.value ? `/users/${id.value}` : undefined,
-  { watch: id }
 )
 
 // No request fires until id.value is set
@@ -384,62 +383,81 @@ const { execute, loading, error } = useApi<LoginResponse>(
 
 ### Watch & Auto-Refetch
 
-Watch refs and automatically refetch when they change. Perfect for filters, search, and dynamic content.
+**TL;DR: Pass reactive refs or getters to `url`, `params`, or `data` — the request re-fires automatically when they change.**
 
-#### Single Dependency
+Any reactive dependency accessed inside a getter is tracked automatically. No explicit `watch` option needed.
+
 ```typescript
 import { ref } from 'vue'
 import { useApi } from '@ametie/vue-muza-use'
 
-interface User {
-  id: number
-  name: string
-}
+const search = ref('')
+const page = ref(1)
 
+// Reactive params getter — both search and page are tracked automatically
+const { data, loading } = useApi('/products', {
+  params: () => ({ q: search.value, page: page.value }),
+  immediate: true,
+})
+
+// Change any dep → request re-fires automatically
+search.value = 'shoes'
+page.value = 2
+```
+
+**Reactive URL:**
+```typescript
 const userId = ref(1)
 
-const { data } = useApi<User>(
-  () => `/users/${userId.value}`,
-  { watch: userId, immediate: true }
-)
-
-userId.value = 2  // → automatic refetch
-```
-
-#### Multiple Dependencies
-```typescript
-import { ref } from 'vue'
-import { useApi } from '@ametie/vue-muza-use'
-
-const searchQuery = ref('')
-const category = ref('all')
-
-const { data } = useApi(
-  () => `/products?q=${searchQuery.value}&category=${category.value}`,
-  {
-    watch: [searchQuery, category],
-    debounce: 500
-  }
-)
-```
-
-#### Auto-Save Form
-```typescript
-import { ref } from 'vue'
-import { useApi } from '@ametie/vue-muza-use'
-
-const settings = ref({
-  theme: 'dark',
-  notifications: true
+const { data } = useApi(() => `/users/${userId.value}`, {
+  immediate: true,
 })
 
-useApi('/user/settings', {
-  method: 'PUT',
-  data: settings,
-  watch: settings,
-  debounce: 1000,
-  onSuccess: () => console.log('Saved!')
+userId.value = 2  // → re-fetches /users/2 automatically
+```
+
+**Opt-out with `lazy: true`:**
+
+For forms and manual mutations where you control when `execute()` is called:
+
+```typescript
+const form = ref({ name: '', email: '' })
+
+const { execute, loading } = useApi('/users', {
+  method: 'POST',
+  data: form,
+  lazy: true,  // form changes do NOT trigger re-fetch
+  onSuccess: () => router.push('/users'),
 })
+
+// Only fires when you call it
+async function submit() {
+  await execute()
+}
+```
+
+**`immediate` works independently of auto-tracking:**
+
+```typescript
+// Fetch on mount + re-fetch on dep change
+useApi('/products', {
+  params: () => ({ q: search.value }),
+  immediate: true,
+})
+
+// No fetch on mount, but re-fetch on dep change
+useApi('/products', {
+  params: () => ({ q: search.value }),
+  // immediate: false is the default
+})
+```
+
+**Batching:** Vue batches synchronous reactive changes before triggering auto-tracking — two synchronous ref changes fire only one request.
+
+```typescript
+// Only one request fires (Vue batches sync changes)
+status.value = 'active'
+page.value = 1
 ```
 
 ---
@@ -448,7 +466,7 @@ useApi('/user/settings', {
 
 **TL;DR: Update a watched ref without triggering the watcher.**
 
-When `watch` is configured, any change to a watched ref fires a new request. `ignoreUpdates` lets you change those refs silently — the watcher is suppressed for the duration of the callback.
+When auto-tracking is active, any reactive dep change fires a new request. `ignoreUpdates` pauses the tracking scope for the duration of the callback — changes inside do not trigger a re-fetch.
 
 #### Example — clear search input without fetching
 
@@ -460,7 +478,6 @@ const search = ref('')
 
 const { data, ignoreUpdates } = useApi('/products', {
   params: () => ({ q: search.value }),
-  watch: [search],
   debounce: 300,
 })
 
@@ -468,15 +485,15 @@ function clearSearch() {
   ignoreUpdates(() => {
     search.value = ''
   })
-  // watch is suppressed — no request fires
+  // auto-tracking is paused — no request fires
 }
 ```
 
-The user types → watch fires → debounced request. Clicking "Clear" resets the input without triggering a fetch.
+The user types → auto-tracking fires → debounced request. Clicking "Clear" resets the input without triggering a fetch.
 
 #### Safe to call without a watch option
 
-If no `watch` option is configured, `ignoreUpdates` still runs the updater — it just has nothing to suppress.
+If `lazy: true`, `ignoreUpdates` still runs the updater — it just has nothing to suppress.
 
 ```typescript
 const { ignoreUpdates } = useApi('/data')
@@ -604,7 +621,7 @@ clearAllCache()
 
 #### cache + watch
 
-When `watch` is configured, each watch-triggered `execute()` still checks the cache first:
+When auto-tracking is active, each dep-change-triggered `execute()` still checks the cache first:
 
 ```vue
 <script setup lang="ts">
@@ -615,7 +632,7 @@ const categoryId = ref<number>(1)
 
 const { data } = useApi<Product[]>(() => `/categories/${categoryId.value}/products`, {
   cache: { id: `products-cat-${categoryId.value}`, staleTime: 30_000 },
-  watch: categoryId,
+  params: () => ({ category: categoryId.value }),
   immediate: true,
 })
 </script>
@@ -1109,7 +1126,6 @@ const params = computed(() => ({
 
 const { data, loading } = useApi<OrdersResponse>('/orders', {
   params,
-  watch: params,
   immediate: true
 })
 </script>
@@ -1857,8 +1873,8 @@ Three type parameters — all optional with defaults:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `immediate` | `boolean` | `false` | When `true`, executes the request automatically when the composable is created |
-| `watch` | `WatchSource \| WatchSource[]` | `undefined` | One or more refs to watch — request re-fires when any of them change |
-| `debounce` | `number` | `0` | Milliseconds to wait after the last watch change before firing the request |
+| `lazy` | `boolean` | `false` | Disable auto-tracking — reactive changes to `url`, `params`, and `data` will NOT trigger a re-fetch |
+| `debounce` | `number` | `0` | Milliseconds to debounce auto-tracked re-fetches |
 
 **Caching:**
 
@@ -1938,7 +1954,7 @@ Three type parameters — all optional with defaults:
 | `mutate(newData)` | `(newData: TSelected \| null \| ((prev: TSelected \| null) => TSelected \| null)) => void` | Update `data` locally without a network request; clears `error` |
 | `abort(msg?)` | `(message?: string) => void` | Cancel the current in-flight request |
 | `reset()` | `() => void` | Cancel the request and reset all state to initial values |
-| `ignoreUpdates(fn)` | `(updater: () => void) => void` | Run `updater` without triggering watch-based re-execution |
+| `ignoreUpdates(fn)` | `(updater: () => void) => void` | Run `updater` without triggering auto-tracked re-execution |
 
 #### `execute(config?)`
 
@@ -2198,7 +2214,6 @@ const search = ref('')
 
 const { data, loading, ignoreUpdates } = useApi<User[]>('/users', {
   params: () => ({ q: search.value }),
-  watch: [search],
   debounce: 400,
   immediate: true,
 })
@@ -2207,7 +2222,7 @@ function clearSearch() {
   ignoreUpdates(() => {
     search.value = ''
   })
-  // watch is suppressed — no request fires on clear
+  // auto-tracking is paused — no request fires on clear
 }
 </script>
 
@@ -2230,7 +2245,7 @@ function clearSearch() {
 
 ### 2. Paginated List with Filter Reset
 
-When the user changes a filter, also reset the page to 1. Vue batches synchronous ref changes, so the watcher fires once — no `ignoreUpdates` needed here.
+When the user changes a filter, also reset the page to 1. Vue batches synchronous ref changes, so auto-tracking fires once — no `ignoreUpdates` needed here.
 
 ```vue
 <script setup lang="ts">
@@ -2248,14 +2263,13 @@ const status = ref('all')
 
 const { data, loading } = useApi<Post[]>('/posts', {
   params: () => ({ status: status.value, page: page.value }),
-  watch: [status, page],
   immediate: true,
 })
 
 function changeStatus(newStatus: string) {
   status.value = newStatus
   page.value = 1
-  // Vue batches these sync changes — watch fires once, one request
+  // Vue batches these sync changes — auto-tracking fires once, one request
 }
 </script>
 
@@ -2474,7 +2488,6 @@ Start polling every 2 seconds and stop automatically when the job reaches a term
   const { data: job, error } = useApi<JobStatus>(
           () => jobId.value ? `/jobs/${jobId.value}` : undefined,
           {
-            watch: jobId,
             poll: { interval: pollInterval },
             onSuccess(response) {
               const { status } = response.data
@@ -2509,7 +2522,7 @@ Start polling every 2 seconds and stop automatically when the job reaches a term
 | Problem | Likely Cause | Fix |
 |---------|--------------|-----|
 | `"createApi config not found"` | `createApi()` not called | Call `app.use(createApi(...))` in `main.ts` before mounting |
-| Request fires twice on mount | `immediate: true` AND `watch` on a ref both trigger on setup | Use only `immediate` OR `watch` for the first load — not both |
+| Request fires twice on mount | `immediate: true` fires on mount; auto-tracking also fires when a dep changes immediately | Ensure deps don't change synchronously right after mount, or use `lazy: true` with manual `execute()` |
 | `retry` option does nothing | Default is `retry: false` | Set `retry: true` or `retry: 3` |
 | ALL errors trigger retry, not just some | `retryStatusCodes` not set — uses library default | Specify exact codes or use `retryStatusCodes: []` to retry on any error |
 | `ignoreUpdates` still triggers a request | Updater function contains an `await` | `ignoreUpdates` is sync-only — move async logic outside the updater |
