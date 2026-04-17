@@ -1,5 +1,5 @@
 {
-  "repositoryUrl": "https://github.com/MortyQ/vue-useApi",
+  "repositoryUrl": "https://github.com/MortyQ/vue-muza-use",
   "branches": ["main"],
   "plugins": [
     "@semantic-release/commit-analyzer",
