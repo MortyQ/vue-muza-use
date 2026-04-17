@@ -90,7 +90,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     const globalAbort = useGlobalAbort ? useAbortController() : null;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     // notifyFetched is reassigned after execute() is defined — see useRefetchTriggers wiring below
-    let notifyFetched: () => void = () => {}
+    let notifyFetched: () => void = () => {};
 
     // Helper to resolve poll config
     const getPollConfig = () => {
@@ -323,16 +323,16 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     // -------------------------------------------------------------------------
     // Refetch triggers — focus + reconnect
     // -------------------------------------------------------------------------
-    const refetchOnFocus = _refetchOnFocus ?? globalOptions?.refetchOnFocus
-    const refetchOnReconnect = _refetchOnReconnect ?? globalOptions?.refetchOnReconnect
+    const refetchOnFocus = _refetchOnFocus ?? globalOptions?.refetchOnFocus;
+    const refetchOnReconnect = _refetchOnReconnect ?? globalOptions?.refetchOnReconnect;
 
     const { notifyFetched: _notifyFetched } = useRefetchTriggers({
         refetchOnFocus,
         refetchOnReconnect,
         loading: state.loading,
         onTrigger: () => execute(),
-    })
-    notifyFetched = _notifyFetched
+    });
+    notifyFetched = _notifyFetched;
 
     let trackingScope: ReturnType<typeof effectScope> | undefined
 

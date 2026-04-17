@@ -8,11 +8,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { defineComponent } from 'vue'
 import { mount, enableAutoUnmount } from '@vue/test-utils'
-enableAutoUnmount(afterEach)
 import type { AxiosInstance } from 'axios'
 import { useApi } from './useApi'
 import { createApi } from './plugin'
 import { clearAllCache } from './features/cacheManager'
+
+enableAutoUnmount(afterEach)
 
 // ---------------------------------------------------------------------------
 // Shared mock
@@ -71,7 +72,7 @@ function simulateOnline() {
     window.dispatchEvent(new Event('online'))
 }
 
-function flush() {
+function flush(): Promise<void> {
     return new Promise(r => setTimeout(r, 0))
 }
 
@@ -100,7 +101,7 @@ describe('useApi — refetchOnFocus', () => {
         // Default throttle is 60s — after an immediate request, focus should be suppressed
         resolveWith('first')
         const api = mountApi({ refetchOnFocus: true, immediate: true })
-        await api.execute()
+        await flush()
 
         vi.clearAllMocks()
         simulateFocus()
@@ -126,7 +127,7 @@ describe('useApi — refetchOnFocus', () => {
     it('works with cache + swr: true — instant stale data + background revalidation on focus', async () => {
         resolveWith('stale')
         const first = mountApi({ cache: 'shared', immediate: true })
-        await first.execute()
+        await flush()
 
         resolveWith('fresh')
         const second = mountApi({ cache: { id: 'shared', swr: true }, refetchOnFocus: { throttle: 0 } })
