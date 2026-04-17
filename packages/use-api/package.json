@@ -1,12 +1,12 @@
 {
   "name": "@ametie/vue-muza-use",
   "version": "0.10.0",
-  "description": "Powerful Vue 3 API composable (Muza Kit) with Axios, Auto-Refresh & TypeScript",
+  "description": "Powerful Vue 3 API composable (Muza) with Axios, Auto-Refresh & TypeScript",
   "author": "MortyQ",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MortyQ/vue-useApi",
+    "url": "https://github.com/MortyQ/vue-muza-use",
     "directory": "packages/use-api"
   },
   "files": [
