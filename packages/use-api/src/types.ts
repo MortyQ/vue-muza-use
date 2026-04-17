@@ -110,7 +110,12 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
     debounce?: number;
     useGlobalAbort?: boolean;
     initialLoading?: boolean;
-    watch?: WatchSource | WatchSource[];
+    /**
+     * Disable auto-tracking. When true, reactive changes to `url`, `params`,
+     * and `data` will NOT trigger a re-fetch. Use for forms or manual mutations
+     * where you want full control over when `execute()` is called.
+     */
+    lazy?: boolean;
     /**
      * Return cached data immediately and revalidate in the background.
      *
@@ -173,24 +178,22 @@ export interface UseApiReturn<T = unknown, D = unknown> {
     abort: (message?: string) => void;
     reset: () => void;
     /**
-     * Run `updater` without triggering the watch-based auto re-execution.
+     * Run `updater` without triggering auto-tracked re-execution.
      *
-     * Useful for atomically updating multiple reactive sources (filters, pagination refs,
-     * form fields) without firing intermediate requests. After the updater runs, call
-     * `execute()` manually to fetch with the new values.
+     * Pauses the internal tracking scope for the duration of the updater,
+     * so reactive changes to `url`, `params`, or `data` inside it do not
+     * fire a request.
      *
-     * **Synchronous only** — reactive changes that occur after an `await` inside the
-     * updater will NOT be suppressed (the flag resets after the synchronous portion).
+     * **Synchronous only** — changes after an `await` inside the updater
+     * will NOT be suppressed (the scope resumes after the sync portion).
      *
-     * Safe to call even when no `watch` option is configured — the updater still runs,
-     * no error is thrown.
+     * Safe to call when `lazy: true` — the updater still runs, no error is thrown.
      *
      * @example
      * ignoreUpdates(() => {
-     *   filters.value.page = 1
-     *   filters.value.search = 'john'
+     *   filters.value.status = 'active'
      * })
-     * await execute() // single request with all new values
+     * // watch is suppressed — no request fires
      */
     ignoreUpdates: (updater: () => void) => void;
     /**
