@@ -42,10 +42,7 @@ function mountTriggers(options: Parameters<typeof useRefetchTriggers>[0]) {
 // ---------------------------------------------------------------------------
 
 describe('useRefetchTriggers — refetchOnFocus', () => {
-    beforeEach(() => {
-        // happy-dom: document.hidden is false by default (document is visible)
-        // No mock needed for the "visible" case
-    })
+    // happy-dom: document.hidden is false by default — no setup needed
 
     it('fires onTrigger on visibilitychange when throttle is 0', () => {
         const onTrigger = vi.fn()
@@ -101,6 +98,20 @@ describe('useRefetchTriggers — refetchOnFocus', () => {
         mountTriggers({ refetchOnFocus: false, loading, onTrigger })
 
         simulateFocus()
+
+        expect(onTrigger).not.toHaveBeenCalled()
+    })
+
+    it('does NOT fire when visibilitychange fires but document is still hidden', () => {
+        const onTrigger = vi.fn()
+        const loading = ref(false)
+
+        mountTriggers({ refetchOnFocus: { throttle: 0 }, loading, onTrigger })
+
+        // Simulate tab switching AWAY (hidden: true) then the event fires
+        Object.defineProperty(document, 'hidden', { value: true, configurable: true })
+        simulateFocus()
+        Object.defineProperty(document, 'hidden', { value: false, configurable: true })
 
         expect(onTrigger).not.toHaveBeenCalled()
     })
@@ -176,17 +187,25 @@ describe('useRefetchTriggers — refetchOnReconnect', () => {
 // ---------------------------------------------------------------------------
 
 describe('useRefetchTriggers — notifyFetched', () => {
-    it('notifyFetched resets the throttle clock — focus fires again with throttle: 0', () => {
+    it('notifyFetched records timestamp — subsequent focus is blocked until throttle elapses', () => {
+        vi.useFakeTimers()
+
         const onTrigger = vi.fn()
         const loading = ref(false)
+        const THROTTLE = 5_000
 
-        // throttle: 0 → always fires regardless of notifyFetched timing
-        const { triggers } = mountTriggers({ refetchOnFocus: { throttle: 0 }, loading, onTrigger })
+        const { triggers } = mountTriggers({ refetchOnFocus: { throttle: THROTTLE }, loading, onTrigger })
 
-        triggers.notifyFetched()
-        simulateFocus()
+        triggers.notifyFetched() // records now as lastFetchedAt
 
+        simulateFocus() // immediately after fetch — throttle not elapsed
+        expect(onTrigger).not.toHaveBeenCalled()
+
+        vi.advanceTimersByTime(THROTTLE + 1) // advance past throttle
+        simulateFocus() // now throttle has elapsed
         expect(onTrigger).toHaveBeenCalledOnce()
+
+        vi.useRealTimers()
     })
 
     it('is a no-op when refetchOnFocus is not set', () => {
