@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Mock } from 'vitest'
 import type { AxiosInstance } from 'axios'
+import { ref, nextTick } from 'vue'
 import { useApiBatch } from './useApiBatch'
 import { createApi } from './plugin'
 
@@ -887,7 +888,6 @@ describe('useApiBatch — onFinish always fires', () => {
 
 describe('useApiBatch — lazy / auto-tracking', () => {
     it('lazy:false (default) — changing a reactive dep in the getter triggers execute()', async () => {
-        const { ref, nextTick } = await import('vue')
         const ids = ref([1, 2])
 
         mockRequest.mockResolvedValue({ data: {}, status: 200 })
@@ -911,7 +911,6 @@ describe('useApiBatch — lazy / auto-tracking', () => {
     it('lazy:false (default) — static array does NOT auto-execute', async () => {
         mockRequest.mockResolvedValue({ data: {}, status: 200 })
 
-        const { nextTick } = await import('vue')
         useApiBatch(['/a', '/b'])
         await nextTick()
         await nextTick()
@@ -921,7 +920,6 @@ describe('useApiBatch — lazy / auto-tracking', () => {
     })
 
     it('lazy:true — changing a reactive dep does NOT trigger execute()', async () => {
-        const { ref, nextTick } = await import('vue')
         const ids = ref([1, 2])
 
         mockRequest.mockResolvedValue({ data: {}, status: 200 })
@@ -1191,14 +1189,14 @@ describe('useApiBatch — immediate option', () => {
     })
 
     it('immediate:false (default) with static array does not auto-execute', async () => {
-        const { nextTick } = await import('vue')
+        vi.useFakeTimers()
         mockRequest.mockResolvedValue({ data: {}, status: 200 })
 
         useApiBatch(['/a', '/b'])
-        await nextTick()
-        await nextTick()
+        await vi.runAllTimersAsync()
 
         expect(mockRequest).not.toHaveBeenCalled()
+        vi.useRealTimers()
     })
 
     it('immediate:true executes once only — not on every render', async () => {
@@ -1218,7 +1216,6 @@ describe('useApiBatch — immediate option', () => {
 
 describe('useApiBatch — watch option (deprecated, still functional)', () => {
     it('watch:ref re-executes when the ref changes', async () => {
-        const { ref, nextTick } = await import('vue')
         const trigger = ref(0)
         mockRequest.mockResolvedValue({ data: {}, status: 200 })
 
@@ -1234,7 +1231,6 @@ describe('useApiBatch — watch option (deprecated, still functional)', () => {
     })
 
     it('watch:[ref, ref] re-executes when any source changes', async () => {
-        const { ref, nextTick } = await import('vue')
         const a = ref(0)
         const b = ref(0)
         mockRequest.mockResolvedValue({ data: {}, status: 200 })
