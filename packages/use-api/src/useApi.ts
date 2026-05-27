@@ -155,10 +155,14 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         abortController.value = controller;
 
         // Chain external signal → internal controller so batch abort reaches Axios
-        if (config?.signal && !config.signal.aborted) {
-            config.signal.addEventListener('abort', () => {
-                controller.abort(config.signal!.reason);
-            }, { once: true });
+        if (config?.signal) {
+            if (config.signal.aborted) {
+                controller.abort(config.signal.reason);
+            } else {
+                config.signal.addEventListener('abort', () => {
+                    controller.abort(config.signal!.reason);
+                }, { once: true });
+            }
         }
 
         // --- Global Abort Logic ---
