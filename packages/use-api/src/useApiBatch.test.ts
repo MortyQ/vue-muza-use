@@ -1336,3 +1336,123 @@ describe('useApiBatch — concurrency edge cases', () => {
     })
 })
 
+// ---------------------------------------------------------------------------
+// Coverage: poll whenHidden:true
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — poll whenHidden:true', () => {
+    it('poll:{whenHidden:true} continues polling even when tab is hidden', async () => {
+        vi.useFakeTimers()
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        Object.defineProperty(document, 'hidden', { value: true, configurable: true })
+
+        const { execute } = useApiBatch(['/a'], { poll: { interval: 100, whenHidden: true } })
+        await execute()
+
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+
+        await vi.advanceTimersByTimeAsync(100)
+
+        // whenHidden:true — re-executes even when tab is hidden
+        expect(mockRequest).toHaveBeenCalledTimes(2)
+
+        Object.defineProperty(document, 'hidden', { value: false, configurable: true })
+        vi.useRealTimers()
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Coverage: abort robustness
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — abort robustness', () => {
+    it('calling abort() twice is idempotent — no errors thrown', async () => {
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { execute, abort } = useApiBatch(['/a'])
+        await execute()
+
+        expect(() => {
+            abort()
+            abort()
+        }).not.toThrow()
+    })
+
+    it('calling abort() before execute() does not throw', () => {
+        const { abort } = useApiBatch(['/a'])
+        expect(() => abort()).not.toThrow()
+    })
+
+    it('abort() sets loading to false', async () => {
+        mockRequest.mockImplementation((config: { signal?: AbortSignal }) =>
+            new Promise((_, reject) => {
+                config.signal?.addEventListener('abort', () =>
+                    reject(Object.assign(new Error('canceled'), {
+                        isAxiosError: true, code: 'ERR_CANCELED', response: null,
+                    }))
+                )
+            })
+        )
+
+        const { execute, abort, loading } = useApiBatch(['/a'])
+        const p = execute()
+        await new Promise(r => setTimeout(r, 0))
+
+        expect(loading.value).toBe(true)
+        abort()
+        await p.catch(() => {})
+
+        expect(loading.value).toBe(false)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Coverage: reset() during execution
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — reset() during execution', () => {
+    it('reset() during in-flight execution aborts requests and clears all state', async () => {
+        mockRequest.mockImplementation((config: { signal?: AbortSignal }) =>
+            new Promise((_, reject) => {
+                config.signal?.addEventListener('abort', () =>
+                    reject(Object.assign(new Error('canceled'), {
+                        isAxiosError: true, code: 'ERR_CANCELED', response: null,
+                    }))
+                )
+            })
+        )
+
+        const { execute, reset, loading, data, errors } = useApiBatch(['/a', '/b'])
+        const p = execute()
+        await new Promise(r => setTimeout(r, 0))
+
+        expect(loading.value).toBe(true)
+        reset()
+
+        expect(loading.value).toBe(false)
+        expect(data.value).toHaveLength(0)
+        expect(errors.value).toHaveLength(0)
+
+        await p.catch(() => {})
+    })
+
+    it('reset() clears poll timer — no re-execution after reset', async () => {
+        vi.useFakeTimers()
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { execute, reset } = useApiBatch(['/a'], { poll: 100 })
+        await execute()
+
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+        reset()
+
+        await vi.advanceTimersByTimeAsync(200)
+
+        // Timer cleared by reset — no second execution
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+
+        vi.useRealTimers()
+    })
+})
+
