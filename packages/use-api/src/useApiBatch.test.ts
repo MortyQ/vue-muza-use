@@ -303,6 +303,44 @@ describe('useApiBatch — known issues (todo)', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Task 1: external signal chain — abort() reaches Axios
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — abort() cancels in-flight Axios requests', () => {
+  it('abort() causes in-flight requests to be cancelled at the Axios level', async () => {
+    let capturedSignal: AbortSignal | undefined
+
+    mockRequest.mockImplementation((config: { signal?: AbortSignal }) => {
+      capturedSignal = config.signal
+      // Return a promise that rejects when the signal is aborted — simulates Axios CanceledError
+      return new Promise((_resolve, reject) => {
+        if (config.signal) {
+          config.signal.addEventListener('abort', () => {
+            const err = Object.assign(new Error('canceled'), { code: 'ERR_CANCELED' })
+            reject(err)
+          }, { once: true })
+        }
+      })
+    })
+
+    const { execute, abort } = useApiBatch(['/slow'])
+    const p = execute()
+    // Give execute() time to reach mockRequest
+    await new Promise(r => setTimeout(r, 0))
+
+    expect(capturedSignal).toBeDefined()
+    expect(capturedSignal!.aborted).toBe(false)
+
+    abort('test abort')
+
+    expect(capturedSignal!.aborted).toBe(true)
+
+    // Wait for the batch to settle after abort
+    await p.catch(() => {})
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Problem B: BatchResultItem response field
 // ---------------------------------------------------------------------------
 
