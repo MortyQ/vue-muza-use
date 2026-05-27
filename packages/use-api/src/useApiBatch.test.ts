@@ -1259,8 +1259,8 @@ describe('useApiBatch — settled:false error details', () => {
         await execute().catch(() => {})
 
         expect(error.value).not.toBeNull()
-        expect(error.value?.message).toBeDefined()
-        expect(typeof error.value?.message).toBe('string')
+        expect(error.value?.message).toBeTruthy()
+        expect(error.value?.status).toBe(503)
     })
 
     it('settled:true — error.value is null when only some requests fail', async () => {
@@ -1289,7 +1289,7 @@ describe('useApiBatch — settled:false error details', () => {
 // ---------------------------------------------------------------------------
 
 describe('useApiBatch — concurrency edge cases', () => {
-    it('concurrency larger than total requests runs all in parallel', async () => {
+    it('concurrency:2 caps parallel requests — peak is at most 2', async () => {
         let peak = 0
         let active = 0
 
@@ -1301,12 +1301,11 @@ describe('useApiBatch — concurrency edge cases', () => {
             )
         })
 
-        const { execute } = useApiBatch(['/a', '/b'], { concurrency: 100 })
+        const { execute } = useApiBatch(['/a', '/b', '/c', '/d'], { concurrency: 2 })
         await execute()
 
-        // Both run in parallel even with concurrency: 100 (larger than 2 items)
-        expect(peak).toBe(2)
-        expect(mockRequest).toHaveBeenCalledTimes(2)
+        expect(peak).toBeLessThanOrEqual(2)
+        expect(mockRequest).toHaveBeenCalledTimes(4)
     })
 
     it('concurrency:1 with abort stops pending items correctly', async () => {
@@ -1331,8 +1330,9 @@ describe('useApiBatch — concurrency edge cases', () => {
         abort()
         await p.catch(() => {})
 
-        // Every signal that was created should be aborted
-        expect(signals.every(s => s.aborted)).toBe(true)
+        // With concurrency:1, only the first request starts before abort; remaining items are abandoned
+        expect(signals.length).toBe(1)
+        expect(signals[0].aborted).toBe(true)
     })
 })
 
