@@ -344,7 +344,34 @@ export interface UseApiBatchOptions<T = unknown, D = unknown> extends Omit<ApiRe
     immediate?: boolean;
     /** Skip individual error notifications */
     skipErrorNotification?: boolean;
-    /** Watch sources to trigger re-execution */
+    /**
+     * Disable auto-tracking. When true, reactive changes to the `requests` getter
+     * will NOT trigger re-execution. Use when you want full manual control via execute().
+     * Default: false — auto-tracks when `requests` is a function.
+     */
+    lazy?: boolean;
+    /**
+     * Polling interval in ms, or advanced config object.
+     * - Pass a number: `poll: 5000` — re-execute every 5 seconds.
+     * - Pass an object: `poll: { interval: 5000, whenHidden: false }` — skip polling when tab is hidden.
+     * Properties inside the object can also be Refs.
+     */
+    poll?: MaybeRefOrGetter<number | {
+        interval: MaybeRefOrGetter<number>;
+        whenHidden?: MaybeRefOrGetter<boolean>;
+    }>;
+    /**
+     * @deprecated Use a reactive getter for `requests` with `lazy: false` (default).
+     * Auto-tracking will re-execute when the getter's dependencies change.
+     * Will be removed in v2.0.
+     *
+     * @example
+     * // Before (deprecated):
+     * useApiBatch(() => ids.value.map(id => `/items/${id}`), { watch: ids })
+     *
+     * // After (preferred):
+     * useApiBatch(() => ids.value.map(id => `/items/${id}`))
+     */
     watch?: WatchSource | WatchSource[];
     /** Callback when a single request succeeds */
     onItemSuccess?: (item: BatchResultItem<T>, index: number) => void;
