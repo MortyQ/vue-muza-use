@@ -1087,3 +1087,92 @@ describe('useApiBatch — onProgress callback', () => {
     })
 })
 
+// ---------------------------------------------------------------------------
+// Coverage: callback parameter verification
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — callback parameter verification', () => {
+    it('onItemSuccess receives item with correct shape at correct index', async () => {
+        mockRequest.mockResolvedValueOnce({ data: { id: 99 }, status: 200 })
+
+        const onItemSuccess = vi.fn()
+        const { execute } = useApiBatch(['/users/99'], { onItemSuccess })
+        await execute()
+
+        expect(onItemSuccess).toHaveBeenCalledOnce()
+        const [item, index] = onItemSuccess.mock.calls[0]
+        expect(index).toBe(0)
+        expect(item).toMatchObject({
+            url: '/users/99',
+            success: true,
+            index: 0,
+            data: { id: 99 },
+            error: null,
+        })
+    })
+
+    it('onItemError receives item with correct shape at correct index', async () => {
+        mockRequest.mockRejectedValueOnce(axiosError(404, 'Not found'))
+
+        const onItemError = vi.fn()
+        const { execute } = useApiBatch(['/missing'], { onItemError })
+        await execute()
+
+        expect(onItemError).toHaveBeenCalledOnce()
+        const [item, index] = onItemError.mock.calls[0]
+        expect(index).toBe(0)
+        expect(item).toMatchObject({
+            url: '/missing',
+            success: false,
+            index: 0,
+            data: null,
+        })
+        expect(item.error).not.toBeNull()
+    })
+
+    it('onItemSuccess and onItemError receive correct indices across a mixed batch', async () => {
+        mockRequest
+            .mockResolvedValueOnce({ data: 'ok', status: 200 })
+            .mockRejectedValueOnce(axiosError(500))
+            .mockResolvedValueOnce({ data: 'ok', status: 200 })
+
+        const successIndices: number[] = []
+        const errorIndices: number[] = []
+
+        const { execute } = useApiBatch(['/a', '/b', '/c'], {
+            onItemSuccess: (_item, i) => successIndices.push(i),
+            onItemError: (_item, i) => errorIndices.push(i),
+        })
+        await execute()
+
+        expect(successIndices.sort((a, b) => a - b)).toEqual([0, 2])
+        expect(errorIndices).toEqual([1])
+    })
+
+    it('onFinish fires after abort() with the results accumulated before abort', async () => {
+        mockRequest.mockImplementation((config: { signal?: AbortSignal }) => {
+            return new Promise((_, reject) => {
+                config.signal?.addEventListener('abort', () =>
+                    reject(Object.assign(new Error('canceled'), {
+                        isAxiosError: true,
+                        code: 'ERR_CANCELED',
+                        response: null,
+                    }))
+                )
+            })
+        })
+
+        const onFinish = vi.fn()
+        const { execute, abort } = useApiBatch(['/a'], { onFinish })
+
+        const p = execute()
+        await new Promise(r => setTimeout(r, 0))
+        abort()
+        await p.catch(() => {})
+
+        expect(onFinish).toHaveBeenCalledOnce()
+        const [results] = onFinish.mock.calls[0]
+        expect(Array.isArray(results)).toBe(true)
+    })
+})
+
