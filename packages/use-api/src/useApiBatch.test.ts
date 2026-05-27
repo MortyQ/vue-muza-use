@@ -1003,3 +1003,87 @@ describe('useApiBatch — poll', () => {
     })
 })
 
+// ---------------------------------------------------------------------------
+// Coverage: onProgress callback
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — onProgress callback', () => {
+    it('onProgress is called at least once per item after completion', async () => {
+        mockRequest
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+
+        const onProgress = vi.fn()
+        const { execute } = useApiBatch(['/a', '/b'], { onProgress })
+        await execute()
+
+        // At minimum once per item (plus the initial 0-progress call)
+        expect(onProgress.mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('onProgress final call has percentage: 100 after all complete', async () => {
+        mockRequest
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+
+        const onProgress = vi.fn()
+        const { execute } = useApiBatch(['/a', '/b'], { onProgress })
+        await execute()
+
+        const lastCall = onProgress.mock.calls.at(-1)?.[0]
+        expect(lastCall).toMatchObject({
+            completed: 2,
+            total: 2,
+            percentage: 100,
+            succeeded: 2,
+            failed: 0,
+        })
+    })
+
+    it('onProgress BatchProgress object contains all required fields', async () => {
+        mockRequest.mockResolvedValueOnce({ data: {}, status: 200 })
+
+        const onProgress = vi.fn()
+        const { execute } = useApiBatch(['/a'], { onProgress })
+        await execute()
+
+        const anyCall = onProgress.mock.calls[0][0]
+        expect(anyCall).toHaveProperty('completed')
+        expect(anyCall).toHaveProperty('total')
+        expect(anyCall).toHaveProperty('percentage')
+        expect(anyCall).toHaveProperty('succeeded')
+        expect(anyCall).toHaveProperty('failed')
+    })
+
+    it('onProgress tracks failed counts correctly in final call', async () => {
+        mockRequest
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+            .mockRejectedValueOnce(axiosError(500))
+
+        const onProgress = vi.fn()
+        const { execute } = useApiBatch(['/a', '/b'], { onProgress })
+        await execute()
+
+        const lastCall = onProgress.mock.calls.at(-1)?.[0]
+        expect(lastCall).toMatchObject({
+            succeeded: 1,
+            failed: 1,
+            total: 2,
+            percentage: 100,
+        })
+    })
+
+    it('progress ref reflects same values as onProgress final call', async () => {
+        mockRequest
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+            .mockRejectedValueOnce(axiosError(500))
+
+        const onProgress = vi.fn()
+        const { execute, progress } = useApiBatch(['/a', '/b'], { onProgress })
+        await execute()
+
+        const lastCallArg = onProgress.mock.calls.at(-1)?.[0]
+        expect(progress.value).toEqual(lastCallArg)
+    })
+})
+
