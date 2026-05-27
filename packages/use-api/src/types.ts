@@ -143,7 +143,7 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      * Compatible with `lazy: true` — focus is a browser trigger, not a reactive dep.
      * Compatible with `poll` — both register separate listeners; `!loading` guard prevents duplicates.
      *
-     * Can be set globally via `createApiClient({ globalOptions: { refetchOnFocus: true } })`.
+     * Can be set globally via `createApi({ axios, globalOptions: { refetchOnFocus: true } })`.
      * Per-request value takes precedence over global (including `false` to opt-out).
      */
     refetchOnFocus?: boolean | { throttle?: number };
@@ -153,7 +153,7 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      * No throttle is applied — reconnect is already a rare event.
      * No refetch fires if a request is already in-flight (`loading: true`).
      *
-     * Can be set globally via `createApiClient({ globalOptions: { refetchOnReconnect: true } })`.
+     * Can be set globally via `createApi({ axios, globalOptions: { refetchOnReconnect: true } })`.
      * Per-request value takes precedence over global (including `false` to opt-out).
      */
     refetchOnReconnect?: boolean;

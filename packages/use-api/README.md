@@ -798,13 +798,15 @@ const { data } = useApi('/messages', {
 Apply to all `useApi` instances at once:
 
 ```typescript
-createApiClient({
-  axios,
+const api = createApiClient({ baseURL: 'https://api.example.com' })
+
+app.use(createApi({
+  axios: api,
   globalOptions: {
     refetchOnFocus: true,
     refetchOnReconnect: true,
   },
-})
+}))
 ```
 
 Opt individual requests out with `refetchOnFocus: false`:
