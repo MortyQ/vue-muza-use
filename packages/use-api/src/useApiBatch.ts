@@ -68,6 +68,8 @@ export function useApiBatch<T = unknown>(
         concurrency,
         immediate = false,
         skipErrorNotification = true,
+        lazy = false,
+        poll = 0,
         watch: watchSource,
         onItemSuccess,
         onItemError,
@@ -360,7 +362,23 @@ export function useApiBatch<T = unknown>(
         onScopeDispose(() => abort('Scope disposed'));
     }
 
-    // Watch for changes and re-execute
+    // Auto-tracking: when requests is a getter and lazy:false, re-execute on dep changes
+    if (!lazy && typeof requests === 'function') {
+        const trackingScope = effectScope();
+        trackingScope.run(() => {
+            const requestsComputed = computed(() =>
+                (requests as () => Array<string | BatchRequestConfig>)().map(normalizeRequest)
+            );
+            watch(requestsComputed, () => {
+                execute();
+            }, { deep: true });
+        });
+        if (getCurrentScope()) onScopeDispose(() => trackingScope.stop());
+        // Trigger initial execution
+        execute();
+    }
+
+    // Legacy watch option (deprecated — use reactive getter with lazy:false instead)
     if (watchSource) {
         watch(watchSource, () => {
             execute();

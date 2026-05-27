@@ -640,7 +640,8 @@ describe('useApiBatch — BatchRequestConfig: reactive getter with object config
         const pages = [1, 2, 3]
 
         const { data, execute } = useApiBatch(
-            () => pages.map(page => ({ url: '/users', params: { page } }))
+            () => pages.map(page => ({ url: '/users', params: { page } })),
+            { lazy: true }
         )
         await execute()
 
@@ -768,6 +769,65 @@ describe('useApiBatch — onFinish always fires', () => {
         // Results array may be partial — but it must be an array
         const [results] = onFinish.mock.calls[0]
         expect(Array.isArray(results)).toBe(true)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Task 6: lazy option + auto-tracking
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — lazy / auto-tracking', () => {
+    it('lazy:false (default) — changing a reactive dep in the getter triggers execute()', async () => {
+        const { ref, nextTick } = await import('vue')
+        const ids = ref([1, 2])
+
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { data } = useApiBatch(
+            () => ids.value.map(id => ({ url: `/items/${id}` }))
+        )
+
+        // Wait for initial auto-execute to fire and complete
+        await vi.waitFor(() => expect(mockRequest).toHaveBeenCalledTimes(2))
+
+        // Change the reactive dep
+        ids.value = [1, 2, 3]
+        await nextTick()
+
+        // Should have fired again with 3 requests
+        await vi.waitFor(() => expect(mockRequest).toHaveBeenCalledTimes(5)) // 2 + 3
+        await vi.waitFor(() => expect(data.value).toHaveLength(3))
+    })
+
+    it('lazy:false (default) — static array does NOT auto-execute', async () => {
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { nextTick } = await import('vue')
+        useApiBatch(['/a', '/b'])
+        await nextTick()
+        await nextTick()
+
+        // Static array: no auto-tracking, no automatic execute
+        expect(mockRequest).not.toHaveBeenCalled()
+    })
+
+    it('lazy:true — changing a reactive dep does NOT trigger execute()', async () => {
+        const { ref, nextTick } = await import('vue')
+        const ids = ref([1, 2])
+
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        useApiBatch(
+            () => ids.value.map(id => ({ url: `/items/${id}` })),
+            { lazy: true }
+        )
+
+        ids.value = [1, 2, 3]
+        await nextTick()
+        await nextTick()
+
+        // lazy:true disables auto-tracking — no requests fired
+        expect(mockRequest).not.toHaveBeenCalled()
     })
 })
 
