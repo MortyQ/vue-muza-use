@@ -1368,15 +1368,26 @@ describe('useApiBatch — poll whenHidden:true', () => {
 
 describe('useApiBatch — abort robustness', () => {
     it('calling abort() twice is idempotent — no errors thrown', async () => {
-        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+        mockRequest.mockImplementation((config: { signal?: AbortSignal }) =>
+            new Promise((_, reject) => {
+                config.signal?.addEventListener('abort', () =>
+                    reject(Object.assign(new Error('canceled'), {
+                        isAxiosError: true, code: 'ERR_CANCELED', response: null,
+                    }))
+                )
+            })
+        )
 
         const { execute, abort } = useApiBatch(['/a'])
-        await execute()
+        const p = execute()
+        await new Promise(r => setTimeout(r, 0))
 
         expect(() => {
             abort()
             abort()
         }).not.toThrow()
+
+        await p.catch(() => {})
     })
 
     it('calling abort() before execute() does not throw', () => {
