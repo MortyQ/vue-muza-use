@@ -1247,3 +1247,92 @@ describe('useApiBatch — watch option (deprecated, still functional)', () => {
     })
 })
 
+// ---------------------------------------------------------------------------
+// Coverage: settled:false error details
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — settled:false error details', () => {
+    it('settled:false sets error.value to a non-null ApiError after rejection', async () => {
+        mockRequest.mockRejectedValueOnce(axiosError(503, 'Service Unavailable'))
+
+        const { error, execute } = useApiBatch(['/a'], { settled: false })
+        await execute().catch(() => {})
+
+        expect(error.value).not.toBeNull()
+        expect(error.value?.message).toBeDefined()
+        expect(typeof error.value?.message).toBe('string')
+    })
+
+    it('settled:true — error.value is null when only some requests fail', async () => {
+        mockRequest
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+            .mockRejectedValueOnce(axiosError(500))
+
+        const { error, execute } = useApiBatch(['/a', '/b'], { settled: true })
+        await execute()
+
+        expect(error.value).toBeNull()
+    })
+
+    it('settled:false — loading returns to false even after rejection', async () => {
+        mockRequest.mockRejectedValueOnce(axiosError(500))
+
+        const { loading, execute } = useApiBatch(['/a'], { settled: false })
+        await execute().catch(() => {})
+
+        expect(loading.value).toBe(false)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Coverage: concurrency edge cases
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — concurrency edge cases', () => {
+    it('concurrency larger than total requests runs all in parallel', async () => {
+        let peak = 0
+        let active = 0
+
+        mockRequest.mockImplementation(() => {
+            active++
+            peak = Math.max(peak, active)
+            return new Promise<unknown>(resolve =>
+                setTimeout(() => { active--; resolve({ data: {}, status: 200 }) }, 0)
+            )
+        })
+
+        const { execute } = useApiBatch(['/a', '/b'], { concurrency: 100 })
+        await execute()
+
+        // Both run in parallel even with concurrency: 100 (larger than 2 items)
+        expect(peak).toBe(2)
+        expect(mockRequest).toHaveBeenCalledTimes(2)
+    })
+
+    it('concurrency:1 with abort stops pending items correctly', async () => {
+        const signals: AbortSignal[] = []
+
+        mockRequest.mockImplementation((config: { signal?: AbortSignal }) => {
+            if (config.signal) signals.push(config.signal)
+            return new Promise((_, reject) => {
+                config.signal?.addEventListener('abort', () =>
+                    reject(Object.assign(new Error('canceled'), {
+                        isAxiosError: true, code: 'ERR_CANCELED', response: null,
+                    }))
+                )
+            })
+        })
+
+        const { execute, abort } = useApiBatch(['/a', '/b', '/c'], { concurrency: 1 })
+        const p = execute()
+
+        // Wait for first request to register
+        await new Promise(r => setTimeout(r, 0))
+        abort()
+        await p.catch(() => {})
+
+        // Every signal that was created should be aborted
+        expect(signals.every(s => s.aborted)).toBe(true)
+    })
+})
+
