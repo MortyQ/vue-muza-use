@@ -1176,3 +1176,78 @@ describe('useApiBatch — callback parameter verification', () => {
     })
 })
 
+// ---------------------------------------------------------------------------
+// Coverage: immediate option
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — immediate option', () => {
+    it('immediate:true with static array executes once automatically', async () => {
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { data } = useApiBatch(['/a', '/b'], { immediate: true })
+
+        await vi.waitFor(() => expect(data.value).toHaveLength(2))
+        expect(mockRequest).toHaveBeenCalledTimes(2)
+    })
+
+    it('immediate:false (default) with static array does not auto-execute', async () => {
+        const { nextTick } = await import('vue')
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        useApiBatch(['/a', '/b'])
+        await nextTick()
+        await nextTick()
+
+        expect(mockRequest).not.toHaveBeenCalled()
+    })
+
+    it('immediate:true executes once only — not on every render', async () => {
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { data } = useApiBatch(['/a'], { immediate: true })
+
+        await vi.waitFor(() => expect(data.value).toHaveLength(1))
+        // Should be exactly 1 — not 2, not 3
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Coverage: deprecated watch option
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — watch option (deprecated, still functional)', () => {
+    it('watch:ref re-executes when the ref changes', async () => {
+        const { ref, nextTick } = await import('vue')
+        const trigger = ref(0)
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { execute } = useApiBatch(['/a'], { watch: trigger })
+        await execute()
+
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+
+        trigger.value++
+        await nextTick()
+
+        await vi.waitFor(() => expect(mockRequest).toHaveBeenCalledTimes(2))
+    })
+
+    it('watch:[ref, ref] re-executes when any source changes', async () => {
+        const { ref, nextTick } = await import('vue')
+        const a = ref(0)
+        const b = ref(0)
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { execute } = useApiBatch(['/a'], { watch: [a, b] })
+        await execute()
+
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+
+        b.value++
+        await nextTick()
+
+        await vi.waitFor(() => expect(mockRequest).toHaveBeenCalledTimes(2))
+    })
+})
+
