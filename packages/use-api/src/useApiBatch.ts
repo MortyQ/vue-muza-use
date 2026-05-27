@@ -104,6 +104,16 @@ export function useApiBatch<T = unknown>(
     // Abort controllers for all active requests
     const abortControllers = ref<AbortController[]>([]);
     let isAborted = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const getPollConfig = (): { interval: number; whenHidden: boolean } => {
+        const val = toValue(poll);
+        if (typeof val === 'number') return { interval: val, whenHidden: false };
+        return {
+            interval: toValue((val as { interval: MaybeRefOrGetter<number> }).interval),
+            whenHidden: toValue((val as { whenHidden?: MaybeRefOrGetter<boolean> }).whenHidden) ?? false,
+        };
+    };
 
     const updateProgress = (succeeded: number, failed: number, total: number) => {
         const completed = succeeded + failed;
@@ -331,11 +341,24 @@ export function useApiBatch<T = unknown>(
             loading.value = false;
             abortControllers.value = [];
             onFinish?.(finalResults);
+            if (!isAborted) {
+                const { interval, whenHidden } = getPollConfig();
+                if (interval > 0) {
+                    const hidden = typeof document !== 'undefined' && document.hidden;
+                    if (whenHidden || !hidden) {
+                        pollTimer = setTimeout(() => {
+                            pollTimer = null;
+                            execute();
+                        }, interval);
+                    }
+                }
+            }
         }
     };
 
     const abort = (message = 'Batch aborted') => {
         isAborted = true;
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
         for (const controller of abortControllers.value) {
             controller.abort(message);
         }

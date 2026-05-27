@@ -831,3 +831,66 @@ describe('useApiBatch — lazy / auto-tracking', () => {
     })
 })
 
+// ---------------------------------------------------------------------------
+// Task 7: poll option
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — poll', () => {
+    it('poll:N re-executes after N ms', async () => {
+        vi.useFakeTimers()
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { execute } = useApiBatch(['/a'], { poll: 100 })
+        await execute()
+
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+
+        // Advance timer — should trigger another execute
+        await vi.advanceTimersByTimeAsync(100)
+
+        expect(mockRequest).toHaveBeenCalledTimes(2)
+
+        vi.useRealTimers()
+    })
+
+    it('abort() clears the poll timer — no re-execution after abort', async () => {
+        vi.useFakeTimers()
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        const { execute, abort } = useApiBatch(['/a'], { poll: 100 })
+        await execute()
+
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+        abort()
+
+        await vi.advanceTimersByTimeAsync(200)
+
+        // Timer was cleared by abort — no second call
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+
+        vi.useRealTimers()
+    })
+
+    it('poll with whenHidden:false does not re-execute when document is hidden', async () => {
+        vi.useFakeTimers()
+        mockRequest.mockResolvedValue({ data: {}, status: 200 })
+
+        // Simulate hidden tab
+        Object.defineProperty(document, 'hidden', { value: true, configurable: true })
+
+        const { execute } = useApiBatch(['/a'], { poll: { interval: 100, whenHidden: false } })
+        await execute()
+
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+
+        await vi.advanceTimersByTimeAsync(200)
+
+        // Tab is hidden + whenHidden:false → no re-execution
+        expect(mockRequest).toHaveBeenCalledTimes(1)
+
+        // Restore
+        Object.defineProperty(document, 'hidden', { value: false, configurable: true })
+        vi.useRealTimers()
+    })
+})
+
