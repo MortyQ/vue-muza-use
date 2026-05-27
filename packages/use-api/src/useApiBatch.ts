@@ -33,7 +33,7 @@ function normalizeRequest(item: string | BatchRequestConfig): BatchRequestConfig
  * - Abort support for all pending requests
  * - Detailed per-request results with URL mapping
  * - Progress tracking
- * - Watch option for auto re-execution
+ * - Auto-tracking for reactive getter requests (lazy: false default)
  *
  * @example
  * ```ts
@@ -51,11 +51,10 @@ function normalizeRequest(item: string | BatchRequestConfig): BatchRequestConfig
  * const ids = [1, 2, 3]
  * useApiBatch(ids.map(id => ({ url: `/users/${id}`, method: 'DELETE' })))
  *
- * // Reactive getter with object configs
+ * // Reactive getter — auto-tracks deps, re-executes when pages changes
  * const pages = ref([1, 2, 3])
  * const { successfulData } = useApiBatch(
- *   () => pages.value.map(page => ({ url: '/users', params: { page } })),
- *   { watch: pages, immediate: true }
+ *   () => pages.value.map(page => ({ url: '/users', params: { page } }))
  * )
  * ```
  */
@@ -397,7 +396,11 @@ export function useApiBatch<T = unknown>(
             }, { deep: true });
         });
         if (getCurrentScope()) onScopeDispose(() => trackingScope.stop());
-        // Trigger initial execution
+        // Trigger initial execution for getter with auto-tracking
+        execute();
+    } else if (immediate) {
+        // For non-getter requests, execute immediately if requested.
+        // (Getter requests with lazy:false already execute on mount via auto-tracking above.)
         execute();
     }
 
@@ -406,11 +409,6 @@ export function useApiBatch<T = unknown>(
         watch(watchSource, () => {
             execute();
         }, { deep: true });
-    }
-
-    // Execute immediately if requested
-    if (immediate) {
-        execute();
     }
 
     return {
