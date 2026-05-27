@@ -103,13 +103,12 @@ export function useApiBatch<T = unknown>(
     const abortControllers = ref<AbortController[]>([]);
     let isAborted = false;
 
-    const updateProgress = (succeeded: number, failed: number) => {
-        const currentRequests = getRequests();
+    const updateProgress = (succeeded: number, failed: number, total: number) => {
         const completed = succeeded + failed;
         const newProgress: BatchProgress = {
             completed,
-            total: currentRequests.length,
-            percentage: currentRequests.length > 0 ? Math.round((completed / currentRequests.length) * 100) : 0,
+            total,
+            percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
             succeeded,
             failed,
         };
@@ -135,6 +134,7 @@ export function useApiBatch<T = unknown>(
             ...(config.headers && { headers: config.headers as any }),
             useGlobalAbort: false,
             skipErrorNotification,
+            lazy: true,
         }))!;
         const { execute, error: reqError, statusCode, response } = api;
 
@@ -199,7 +199,8 @@ export function useApiBatch<T = unknown>(
 
     const executeWithConcurrency = async (
         requests: BatchRequestConfig[],
-        limit?: number
+        limit: number | undefined,
+        total: number
     ): Promise<BatchResultItem<T>[]> => {
         const results: BatchResultItem<T>[] = new Array(requests.length);
         let succeededCount = 0;
@@ -221,7 +222,7 @@ export function useApiBatch<T = unknown>(
                             errors.value.push(result.error);
                         }
                     }
-                    updateProgress(succeededCount, failedCount);
+                    updateProgress(succeededCount, failedCount, total);
 
                     // In non-settled mode, abort siblings then throw
                     if (!settled && !result.success && result.error) {
@@ -261,7 +262,7 @@ export function useApiBatch<T = unknown>(
                             errors.value.push(result.error);
                         }
                     }
-                    updateProgress(succeededCount, failedCount);
+                    updateProgress(succeededCount, failedCount, total);
 
                     // In non-settled mode, abort remaining on first error
                     if (!settled && !result.success && result.error) {
@@ -299,11 +300,12 @@ export function useApiBatch<T = unknown>(
         errors.value = [];
         data.value = [];
         abortControllers.value = [];
-        updateProgress(0, 0);
+        const total = currentRequests.length;
+        updateProgress(0, 0, total);
 
         let finalResults: BatchResultItem<T>[] = [];
         try {
-            finalResults = await executeWithConcurrency(currentRequests, concurrency);
+            finalResults = await executeWithConcurrency(currentRequests, concurrency, total);
             data.value = finalResults;
 
             // Set aggregated error if all requests failed
