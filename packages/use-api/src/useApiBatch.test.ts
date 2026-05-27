@@ -659,6 +659,115 @@ describe('useApiBatch — BatchRequestConfig: reactive getter with object config
 })
 
 // ---------------------------------------------------------------------------
+// Coverage: aggregated error state
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — aggregated error state', () => {
+    it('error.value is set with code BATCH_ALL_FAILED when every request fails', async () => {
+        mockRequest
+            .mockRejectedValueOnce(axiosError(500))
+            .mockRejectedValueOnce(axiosError(404))
+
+        const { error, execute } = useApiBatch(['/a', '/b'])
+        await execute()
+
+        expect(error.value).not.toBeNull()
+        expect(error.value?.code).toBe('BATCH_ALL_FAILED')
+        expect(error.value?.message).toContain('2')
+        expect(error.value?.status).toBe(0)
+    })
+
+    it('error.value is null when only some requests fail', async () => {
+        mockRequest
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+            .mockRejectedValueOnce(axiosError(500))
+
+        const { error, execute } = useApiBatch(['/a', '/b'])
+        await execute()
+
+        expect(error.value).toBeNull()
+    })
+
+    it('error.value is null after reset()', async () => {
+        mockRequest
+            .mockRejectedValueOnce(axiosError(500))
+
+        const { error, execute, reset } = useApiBatch(['/a'])
+        await execute()
+
+        expect(error.value).not.toBeNull()
+        reset()
+        expect(error.value).toBeNull()
+    })
+})
+
+describe('useApiBatch — errors array structure', () => {
+    it('errors array items have message and status fields', async () => {
+        mockRequest.mockRejectedValueOnce(axiosError(422, 'Validation failed'))
+
+        const { errors, execute } = useApiBatch(['/a'])
+        await execute()
+
+        expect(errors.value).toHaveLength(1)
+        expect(typeof errors.value[0].message).toBe('string')
+        expect(typeof errors.value[0].status).toBe('number')
+    })
+
+    it('errors array is empty when all requests succeed', async () => {
+        mockRequest
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+            .mockResolvedValueOnce({ data: {}, status: 200 })
+
+        const { errors, execute } = useApiBatch(['/a', '/b'])
+        await execute()
+
+        expect(errors.value).toHaveLength(0)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Coverage: empty request array edge case
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — empty request array', () => {
+    it('empty array completes immediately with no requests fired', async () => {
+        const { data, errors, loading, execute } = useApiBatch([])
+        await execute()
+
+        expect(mockRequest).not.toHaveBeenCalled()
+        expect(data.value).toHaveLength(0)
+        expect(errors.value).toHaveLength(0)
+        expect(loading.value).toBe(false)
+    })
+
+    it('empty array progress reflects total: 0 and percentage: 0', async () => {
+        const { progress, execute } = useApiBatch([])
+        await execute()
+
+        expect(progress.value.total).toBe(0)
+        expect(progress.value.completed).toBe(0)
+        expect(progress.value.percentage).toBe(0)
+    })
+
+    it('error.value is null for empty array — no BATCH_ALL_FAILED', async () => {
+        const { error, execute } = useApiBatch([])
+        await execute()
+
+        expect(error.value).toBeNull()
+    })
+
+    it('onFinish fires with empty array for empty request batch', async () => {
+        const onFinish = vi.fn()
+        const { execute } = useApiBatch([], { onFinish })
+        await execute()
+
+        expect(onFinish).toHaveBeenCalledOnce()
+        const [results] = onFinish.mock.calls[0]
+        expect(results).toHaveLength(0)
+    })
+})
+
+// ---------------------------------------------------------------------------
 // Task 2: race condition — rapid re-execute aborts the previous run
 // ---------------------------------------------------------------------------
 
