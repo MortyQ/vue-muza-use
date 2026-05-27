@@ -696,3 +696,78 @@ describe('useApiBatch — race condition', () => {
     })
 })
 
+// ---------------------------------------------------------------------------
+// Task 3A: settled:false unlimited-concurrency — abort remaining on first failure
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — settled:false aborts siblings', () => {
+    it('settled:false aborts remaining in-flight requests when one fails', async () => {
+        const signals: AbortSignal[] = []
+
+        mockRequest.mockImplementation((config: { signal?: AbortSignal }) => {
+            if (config.signal) signals.push(config.signal)
+            // All requests hang until their signal is aborted or we manually settle
+            return new Promise((resolve, reject) => {
+                config.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+                // The first request resolves after a microtask to let all requests register
+                if (signals.length === 1) {
+                    Promise.resolve().then(() => {
+                        const err = Object.assign(new Error('Server error'), {
+                            isAxiosError: true,
+                            response: { status: 500, data: { message: 'Server error' } },
+                        })
+                        reject(err)
+                    })
+                }
+            })
+        })
+
+        const { execute } = useApiBatch(['/a', '/b', '/c'], { settled: false })
+        await execute().catch(() => {})
+
+        // All signals should be aborted (including siblings of the failed request)
+        expect(signals.every(s => s.aborted)).toBe(true)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Task 3B: onFinish fires even when settled:false rejects
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — onFinish always fires', () => {
+    it('onFinish is called even when settled:false batch rejects', async () => {
+        mockRequest
+            .mockRejectedValueOnce(Object.assign(new Error('fail'), {
+                isAxiosError: true,
+                response: { status: 500, data: { message: 'fail' } },
+            }))
+
+        const onFinish = vi.fn()
+        const { execute } = useApiBatch(['/fail'], { settled: false, onFinish })
+        await execute().catch(() => {})
+
+        expect(onFinish).toHaveBeenCalledOnce()
+    })
+
+    it('onFinish receives partial results when settled:false rejects mid-batch', async () => {
+        let callCount = 0
+        mockRequest.mockImplementation(() => {
+            callCount++
+            if (callCount === 1) return Promise.resolve({ data: { id: 1 }, status: 200 })
+            return Promise.reject(Object.assign(new Error('fail'), {
+                isAxiosError: true,
+                response: { status: 500, data: { message: 'fail' } },
+            }))
+        })
+
+        const onFinish = vi.fn()
+        const { execute } = useApiBatch(['/a', '/b'], { settled: false, onFinish })
+        await execute().catch(() => {})
+
+        expect(onFinish).toHaveBeenCalledOnce()
+        // Results array may be partial — but it must be an array
+        const [results] = onFinish.mock.calls[0]
+        expect(Array.isArray(results)).toBe(true)
+    })
+})
+

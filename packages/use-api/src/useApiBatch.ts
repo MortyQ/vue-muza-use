@@ -223,8 +223,9 @@ export function useApiBatch<T = unknown>(
                     }
                     updateProgress(succeededCount, failedCount);
 
-                    // In non-settled mode, throw on first error
+                    // In non-settled mode, abort siblings then throw
                     if (!settled && !result.success && result.error) {
+                        abort('First request failed in non-settled mode');
                         throw result.error;
                     }
 
@@ -300,22 +301,22 @@ export function useApiBatch<T = unknown>(
         abortControllers.value = [];
         updateProgress(0, 0);
 
+        let finalResults: BatchResultItem<T>[] = [];
         try {
-            const results = await executeWithConcurrency(currentRequests, concurrency);
-            data.value = results;
+            finalResults = await executeWithConcurrency(currentRequests, concurrency);
+            data.value = finalResults;
 
             // Set aggregated error if all requests failed
-            const allFailed = results.every(r => !r.success);
-            if (allFailed && results.length > 0) {
+            const allFailed = finalResults.every(r => !r.success);
+            if (allFailed && finalResults.length > 0) {
                 error.value = {
-                    message: `All ${results.length} requests failed`,
+                    message: `All ${finalResults.length} requests failed`,
                     status: 0,
                     code: 'BATCH_ALL_FAILED',
                 };
             }
 
-            onFinish?.(results);
-            return results;
+            return finalResults;
         } catch (err) {
             // This happens in non-settled mode when first request fails
             if (!settled) {
@@ -325,6 +326,7 @@ export function useApiBatch<T = unknown>(
         } finally {
             loading.value = false;
             abortControllers.value = [];
+            onFinish?.(finalResults);
         }
     };
 
