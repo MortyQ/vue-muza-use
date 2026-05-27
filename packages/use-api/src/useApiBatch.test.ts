@@ -657,3 +657,42 @@ describe('useApiBatch — BatchRequestConfig: reactive getter with object config
     it.todo('reactive getter — changing data inside config objects triggers re-execution when watched')
 })
 
+// ---------------------------------------------------------------------------
+// Task 2: race condition — rapid re-execute aborts the previous run
+// ---------------------------------------------------------------------------
+
+describe('useApiBatch — race condition', () => {
+    it('second execute() aborts the first before starting', async () => {
+        const signals: AbortSignal[] = []
+        let resolveFirst!: (v: unknown) => void
+
+        mockRequest.mockImplementation((config: { signal?: AbortSignal }) => {
+            if (config.signal) signals.push(config.signal)
+            if (signals.length === 1) {
+                // First call: never resolves until we manually resolve it
+                return new Promise(r => { resolveFirst = r })
+            }
+            return Promise.resolve({ data: { run: 2 }, status: 200 })
+        })
+
+        const { execute, data } = useApiBatch(['/a'])
+
+        // Start first execution — will hang
+        const p1 = execute()
+        await new Promise(r => setTimeout(r, 0)) // let mockRequest be called
+
+        // Start second execution immediately — should abort first
+        const p2 = execute()
+        await p2
+
+        // First signal should be aborted
+        expect(signals[0]?.aborted).toBe(true)
+        // Second execution's data should win
+        expect(data.value[0]?.data).toEqual({ run: 2 })
+
+        // Resolve p1 to avoid dangling promise
+        resolveFirst({ data: {}, status: 200 })
+        await p1.catch(() => {})
+    })
+})
+

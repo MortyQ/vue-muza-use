@@ -284,6 +284,11 @@ export function useApiBatch<T = unknown>(
     };
 
     const execute = async (): Promise<BatchResultItem<T>[]> => {
+        // Abort any in-flight execution before starting a new one
+        if (loading.value) {
+            abort('Replaced by new execution');
+        }
+
         const currentRequests = getRequests();
 
         // Reset state
