@@ -8,6 +8,43 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.1.1] — 2026-05-27
+
+### Fixed
+- Corrected `globalOptions.refetchOnFocus` / `refetchOnReconnect` configuration examples in README.
+
+---
+
+## [1.1.0] — 2026-05-27
+
+### Added — `useApiBatch`
+
+- **`BatchRequestConfig`** — per-request `method`, `data`, `params`, and `headers`. Pass config objects instead of (or alongside) plain strings. Default method is `GET`. Strings and objects can be mixed in the same array.
+- **`lazy` option** (`boolean`, default `false`) — when `requests` is a getter function, the batch re-executes automatically whenever the getter's reactive dependencies change. Set `lazy: true` to disable auto-tracking and keep full manual control via `execute()`.
+- **`poll` option** — same semantics as `useApi`'s `poll`. After each completed execution, schedules the next one after `interval` ms. Skips scheduling when `whenHidden: false` (default) and the tab is hidden.
+- `BatchResultItem.request` — the normalized `BatchRequestConfig` that produced each result.
+- `BatchResultItem.response` — the full `AxiosResponse<T>` object; access response headers here.
+
+### Changed — `useApiBatch`
+
+- **`watch` option deprecated** — use a reactive getter for `requests` with `lazy: false` (default) instead. Auto-tracking fires `execute()` automatically when the getter's dependencies change. The option still works and will be removed in v2.0.
+
+### Fixed — `useApiBatch`
+
+- **Race condition in `execute()`** — calling `execute()` while a previous run was in-flight caused both executions to run concurrently; the older run could overwrite `data` after the newer one completed. The previous run is now aborted before starting a new one.
+- **`settled: false` missing abort** — in the unlimited-concurrency path, a failed request now aborts sibling requests before throwing. Previously, sibling requests kept running after the first failure.
+- **`onFinish` not called after `settled: false` rejection** — `onFinish` is now in `finally` and always fires with the results accumulated before the failure.
+
+### Fixed — `useApi`
+
+- **External `signal` ignored by Axios** — the `signal` passed to `execute({ signal })` is now forwarded to the internal `AbortController`. Previously, `axios.request()` used only the internal controller's signal; the external one was silently discarded. This affected `useApiBatch` per-item cancellation.
+
+### Performance — `useApiBatch`
+
+- `progress.total` is now captured once at the start of `execute()` instead of being recomputed inside every `.then()` callback. Previously O(n) per completion, O(n²) total for large batches.
+
+---
+
 ## [1.0.0] — 2026-04-17
 
 ### Breaking Changes

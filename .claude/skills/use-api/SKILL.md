@@ -6,7 +6,7 @@
 |---|---|
 | **name** | `use-api` |
 | **description** | Feature-scoped API layer pattern built on `@ametie/vue-muza-use`. Generates and refactors typed composable wrappers for HTTP requests in Vue 3 apps. |
-| **version** | 1.1 |
+| **version** | 1.2 |
 | **applies_to** | `**/api/use*.ts`, `**/*.vue`, `**/*.ts` (when dealing with HTTP requests) |
 
 ## Auto-Activation Triggers
@@ -269,6 +269,40 @@ const { loading, execute } = fetchOnDemand({
   data: () => payload.value,
 });
 // called manually: execute()
+```
+
+### 7. Batch request (useApiBatch)
+```ts
+// feature/<feature>/api/use<Feature>.ts
+import { useApiBatch, type UseApiBatchOptions } from "@ametie/vue-muza-use";
+import type { User } from "@/features/users/types";
+
+export default () => {
+  // Bulk delete by IDs
+  const bulkDeleteUsers = (ids: number[], options?: UseApiBatchOptions<void>) =>
+    useApiBatch(ids.map(id => ({ url: `/users/${id}`, method: 'DELETE' })), options);
+
+  // Fetch multiple items by IDs — reactive getter auto-tracks deps
+  const fetchUsersByIds = (getIds: () => number[], options?: UseApiBatchOptions<User>) =>
+    useApiBatch(() => getIds().map(id => `/users/${id}`), options);
+
+  return { bulkDeleteUsers, fetchUsersByIds };
+};
+```
+
+```ts
+// component
+const { bulkDeleteUsers, fetchUsersByIds } = useUsers();
+
+// Bulk delete
+const { loading, execute: deleteAll } = bulkDeleteUsers(selectedIds.value, {
+  onFinish: (results) => reload(),
+});
+
+// Reactive batch — re-executes when watchedIds changes
+const { successfulData: users, loading: usersLoading } = fetchUsersByIds(
+  () => watchedIds.value,  // auto-tracked, no lazy:true needed
+);
 ```
 
 ---
