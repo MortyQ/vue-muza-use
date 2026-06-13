@@ -1,5 +1,5 @@
 {
-  "extends": "@muzakit/config/tsconfig.base.json",
+  "extends": "@ametie/config/tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
     "noEmit": true,
