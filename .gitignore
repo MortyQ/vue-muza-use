@@ -8,10 +8,11 @@ pnpm-debug.log*
 
 # Local development
 *.sh
-packages/playground
 
 # Claude Code — keep skills, ignore everything else
 .claude/projects
 .claude/settings.json
 .claude/todos
 .superpowers
+
+packages/playground/.env
