@@ -1,0 +1,39 @@
+// Table Grid Styles
+// ============================================
+@use './variables' as *;
+
+.v-table-grid {
+  display: grid;
+  width: 100%;
+  min-width: fit-content;
+  transition: none;
+
+  &.v-is-resizing {
+    cursor: col-resize;
+    user-select: none;
+
+    * {
+      cursor: col-resize !important;
+      user-select: none !important;
+      transition: none !important;
+    }
+
+    .v-table-row-wrapper:hover > .v-table-cell {
+      background: none !important;
+      border-left: none !important;
+      border-bottom-color: color-mix(in oklch, var(--ui-border-subtle) 30%, transparent) !important;
+    }
+
+    .v-table-total-cell {
+      box-shadow: none !important;
+    }
+  }
+}
+
+.v-contents {
+  display: contents;
+}
+
+.v-table-virtual-spacer {
+  grid-column: 1 / -1;
+}

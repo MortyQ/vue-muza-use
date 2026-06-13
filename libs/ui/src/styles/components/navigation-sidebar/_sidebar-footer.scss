@@ -1,0 +1,23 @@
+// ── Sidebar Footer ─────────────────────────────────────────────────────────
+
+.v-sidebar-footer {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: 0.5rem;
+  //padding: 8px !important;
+  border-top: 1px solid var(--ui-border-subtle);
+  min-height: 5rem;
+}
+
+.v-sidebar-footer__slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.v-sidebar-footer__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}

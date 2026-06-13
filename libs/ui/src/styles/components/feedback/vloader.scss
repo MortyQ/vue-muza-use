@@ -1,0 +1,63 @@
+.v-loader-container {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+
+  &.v-loader--fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: color-mix(in oklch, var(--ui-background) 80%, transparent);
+    backdrop-filter: blur(2px);
+  }
+}
+
+.v-loader {
+  aspect-ratio: 5;
+  display: grid;
+  color: var(--ui-primary);
+  --_g: no-repeat radial-gradient(farthest-side, currentColor 94%, transparent);
+  
+  &::before,
+  &::after {
+    content: "";
+    grid-area: 1/1;
+    background: var(--_g) left,
+    var(--_g) right;
+    background-size: 20% 100%;
+    animation: v-loader-anim 1s infinite;
+  }
+
+  &::after {
+    background: var(--_g) calc(1 * 100% / 3),
+    var(--_g) calc(2 * 100% / 3);
+    background-size: 20% 100%;
+    animation-direction: reverse;
+  }
+
+  &--sm {
+    height: 10px;
+  }
+
+  &--md {
+    height: 15px;
+  }
+
+  &--lg {
+    height: 22px;
+  }
+}
+
+@keyframes v-loader-anim {
+  80%, 100% {
+    transform: rotate(0.5turn);
+  }
+}
+
+.v-loader-message {
+  font-size: 0.875rem;
+  color: currentColor;
+  opacity: 0.75;
+}

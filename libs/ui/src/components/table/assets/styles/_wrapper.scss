@@ -1,0 +1,77 @@
+// Table Wrapper Styles
+// ============================================
+@use './variables' as *;
+
+.v-table-wrapper {
+  width: 100%;
+  position: relative;
+  box-shadow: var(--ui-shadow-lg);
+  border: 1px solid var(--ui-border-subtle);
+  border-radius: 1rem;
+  background-color: var(--ui-surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  height: fit-content;
+
+  &--with-toolbar {
+    .v-table-scroll-container {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+  }
+}
+
+.v-table-toolbar-slot {
+  width: 100%;
+  border-bottom: $table-border-width solid var(--ui-border);
+  background-color: transparent;
+}
+
+.v-table-scroll-container {
+  position: relative;
+  overflow: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  isolation: isolate;
+  flex-shrink: 0;
+  background-color: transparent;
+  contain: strict;
+  will-change: scroll-position;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--ui-surface-sunken);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--ui-border) 70%, var(--ui-foreground-secondary) 30%);
+    border-radius: 4px;
+    border: 2px solid var(--ui-surface-sunken);
+
+    &:hover {
+      background: color-mix(in oklch, var(--ui-border) 50%, var(--ui-foreground-secondary) 50%);
+    }
+
+    &:active {
+      background: var(--ui-foreground-secondary);
+    }
+  }
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-border) var(--ui-surface-sunken);
+}
+
+.v-table-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 0;
+  min-height: 300px;
+}

@@ -1,0 +1,105 @@
+// Table Cell Styles
+// ============================================
+@use './variables' as *;
+
+.v-table-cell {
+  padding: $table-cell-padding-y $table-cell-padding-x;
+  min-height: 50px;
+  border-bottom: 1px solid var(--ui-border);
+  border-right: 1px solid color-mix(in oklch, var(--ui-border) 70%, transparent);
+  color: var(--ui-foreground);
+  font-size: $table-font-size-base;
+  line-height: $table-line-height-base;
+  font-weight: $table-font-weight-regular;
+  min-width: 0;
+  transition: background-color 0.15s ease;
+
+  .v-table-grid.v-is-resizing & {
+    transition: none !important;
+  }
+
+  &--left   { text-align: left; }
+  &--center { text-align: center; }
+  &--right  { text-align: right; }
+}
+
+.v-table-cell-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  height: 100%;
+
+  &--indented {
+    padding-left: var(--indent, 0);
+  }
+}
+
+.v-table-cell-text {
+  flex: 1;
+  min-width: 0;
+
+  &--truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &--wrap {
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+  }
+}
+
+.v-table-cell--interactive .v-table-cell-text {
+  overflow: visible;
+}
+
+.v-table-cell--expandable {
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background-color: color-mix(in oklch, var(--ui-surface) 94%, var(--ui-foreground) 6%);
+  }
+
+  &:active {
+    background-color: color-mix(in oklch, var(--ui-surface) 92%, var(--ui-foreground) 8%);
+  }
+}
+
+.v-table-cell-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: $table-expand-button-size;
+  height: $table-expand-button-size;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: all $transition-fast;
+  cursor: pointer;
+  color: var(--ui-foreground-secondary);
+
+  &:hover {
+    background-color: color-mix(in oklch, var(--ui-border) 40%, transparent);
+    color: var(--ui-foreground);
+    transform: scale(1.08);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+
+  :deep(svg) {
+    transition: transform $transition-normal;
+  }
+}
+
+.v-table-cell-expand-spacer {
+  width: $table-expand-button-size;
+  flex-shrink: 0;
+}

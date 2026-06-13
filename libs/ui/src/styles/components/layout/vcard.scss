@@ -1,0 +1,319 @@
+/* ============================================
+   BASE
+   ============================================ */
+.v-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.5rem;
+  color: var(--ui-foreground);
+  background-color: var(--ui-surface);
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   WIDTH / SIZE (global — :where keeps specificity low)
+   ============================================ */
+:global(:where(.v-card)) {
+  width: 100%;
+}
+
+:global(:where(.v-card--fit)) {
+  width: fit-content;
+  max-width: 100%;
+}
+
+:global(:where(.v-card--sm)) {
+  width: 24rem;
+  max-width: 100%;
+}
+
+:global(:where(.v-card--md)) {
+  width: 28rem;
+  max-width: 100%;
+}
+
+:global(:where(.v-card--lg)) {
+  width: 32rem;
+  max-width: 100%;
+}
+
+:global(:where(.v-card--xl)) {
+  width: 36rem;
+  max-width: 100%;
+}
+
+:global(:where(.v-card--full)) {
+  width: 100%;
+  max-width: none;
+}
+
+/* ============================================
+   VARIANTS
+   ============================================ */
+.v-card--default,
+.v-card--elevated {
+  background-color: var(--ui-surface);
+  border: 1px solid color-mix(in oklch, var(--ui-border) 50%, transparent);
+  box-shadow: var(--ui-shadow-md);
+}
+
+.v-card--elevated:hover {
+  box-shadow: var(--ui-shadow-xl);
+  transform: translateY(-2px);
+}
+
+.v-card--outlined {
+  background-color: var(--ui-surface);
+  box-shadow: none !important;
+  border: 1px solid var(--ui-border);
+}
+
+.v-card--outlined:hover {
+  border-color: var(--ui-primary);
+  box-shadow: var(--ui-shadow-sm) !important;
+}
+
+.v-card--ghost {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none !important;
+}
+
+.v-card--ghost:hover {
+  background-color: var(--ui-surface-raised);
+  box-shadow: none !important;
+}
+
+/* ============================================
+   GLASS VARIANTS
+   ============================================ */
+.v-card--glass {
+  background-color: var(--ui-surface);
+  border: 1px solid color-mix(in oklch, var(--ui-border) 40%, transparent);
+  box-shadow: var(--ui-shadow-md);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  @media (min-width: 768px) {
+    background: color-mix(in oklch, var(--ui-surface) 10%, transparent);
+    backdrop-filter: blur(10px) saturate(150%);
+    -webkit-backdrop-filter: blur(10px) saturate(150%);
+    border: 1px solid color-mix(in oklch, var(--ui-surface) 20%, transparent);
+  }
+
+  &:hover {
+    box-shadow: var(--ui-shadow-xl);
+  }
+}
+
+.v-card--glass-elevated {
+  background-color: var(--ui-surface);
+  border: 1px solid color-mix(in oklch, var(--ui-border) 50%, transparent);
+  box-shadow: var(--ui-shadow-lg);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  @media (min-width: 768px) {
+    background: color-mix(in oklch, var(--ui-surface) 70%, transparent);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    border: 1px solid color-mix(in oklch, var(--ui-surface) 30%, transparent);
+  }
+
+  &:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: var(--ui-shadow-xl);
+  }
+}
+
+.v-card--translucent {
+  background: color-mix(in oklch, var(--ui-surface) 55%, transparent);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid color-mix(in oklch, var(--ui-border) 50%, transparent);
+  box-shadow: var(--ui-shadow-md);
+}
+
+/* ============================================
+   BORDER RADIUS
+   ============================================ */
+.v-card--radius-none {
+  border-radius: 0 !important;
+}
+
+.v-card--radius-sm {
+  border-radius: 0.125rem !important;
+}
+
+.v-card--radius-md {
+  border-radius: var(--ui-radius) !important;
+}
+
+.v-card--radius-lg {
+  border-radius: var(--ui-radius-lg) !important;
+}
+
+.v-card--radius-xl {
+  border-radius: 0.75rem !important;
+}
+
+.v-card--radius-full {
+  border-radius: 9999px !important;
+}
+
+/* ============================================
+   PADDING
+   ============================================ */
+.v-card--padding-none {
+  padding: 0 !important;
+}
+
+.v-card--padding-sm {
+  padding: 0.75rem !important;
+}
+
+.v-card--padding-md {
+  padding: 1rem 1.5rem !important;
+}
+
+.v-card--padding-lg {
+  padding: 1.5rem 2rem !important;
+}
+
+.v-card--padding-xl {
+  padding: 2rem 2.5rem !important;
+}
+
+/* ============================================
+   STATES
+   ============================================ */
+.v-card--interactive {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.v-card--interactive.v-card--default,
+.v-card--interactive.v-card--elevated {
+  &:hover:not(.v-card--disabled):not(.v-card--loading) {
+    transform: scale(1.02);
+    box-shadow: var(--ui-shadow-xl);
+  }
+}
+
+.v-card--interactive.v-card--outlined:hover:not(.v-card--disabled):not(.v-card--loading),
+.v-card--interactive.v-card--ghost:hover:not(.v-card--disabled):not(.v-card--loading) {
+  transform: scale(1.02);
+}
+
+.v-card--interactive:active:not(.v-card--disabled):not(.v-card--loading) {
+  transform: scale(0.98);
+}
+
+.v-card--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.v-card--loading {
+  pointer-events: none;
+  position: relative;
+}
+
+/* ============================================
+   SLOTS / INNER ELEMENTS
+   ============================================ */
+.v-card__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  width: 100%;
+}
+
+.v-card__header {
+  margin-bottom: 1rem;
+}
+
+.v-card__header-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.v-card__header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.v-card__icon {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--ui-primary);
+}
+
+.v-card__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ui-foreground);
+  line-height: 1.25;
+  margin: 0 0 0.25rem 0;
+}
+
+.v-card__subtitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ui-foreground-secondary);
+  margin: 0;
+}
+
+.v-card__description {
+  font-size: 0.875rem;
+  color: var(--ui-foreground-secondary);
+  line-height: 1.625;
+  margin-top: 0.5rem;
+}
+
+.v-card__content {
+  color: var(--ui-foreground);
+  flex: 1;
+}
+
+.v-card__footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ui-border);
+}
+
+/* ============================================
+   IMAGE MARGIN ADJUSTMENTS PER PADDING
+   ============================================ */
+.v-card__image {
+  width: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  margin: -1rem -1.5rem 1rem -1.5rem;
+
+  img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.v-card--padding-none .v-card__image {
+  margin: 0 0 1rem 0;
+}
+
+.v-card--padding-sm .v-card__image {
+  margin: -0.75rem -0.75rem 0.75rem -0.75rem;
+}
+
+.v-card--padding-lg .v-card__image {
+  margin: -1.5rem -2rem 1.5rem -2rem;
+}
+
+.v-card--padding-xl .v-card__image {
+  margin: -2rem -2.5rem 2rem -2.5rem;
+}

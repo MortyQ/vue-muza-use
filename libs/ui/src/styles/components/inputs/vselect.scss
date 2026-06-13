@@ -1,0 +1,374 @@
+/* ============================================
+   WRAPPER
+   ============================================ */
+.v-select {
+  position: relative;
+  width: 100%;
+  align-self: flex-start;
+  background: var(--ui-surface-raised);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+/* ============================================
+   FLOATING LABEL
+   ============================================ */
+.v-select__label {
+  position: absolute;
+  left: 0.75rem;
+  top: 0;
+  color: var(--ui-foreground-muted);
+  font-size: 0.875rem;
+  transition: transform 200ms ease, color 200ms ease, font-weight 200ms ease;
+  pointer-events: none;
+  transform-origin: top left;
+  transform: translate(0, 12px) scale(1);
+  z-index: 20;
+  max-width: calc(100% - 24px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &--active {
+    transform: translate(0, -9px) scale(0.75);
+    color: var(--ui-primary);
+    font-weight: 500;
+  }
+}
+
+/* ============================================
+   FIELDSET BORDER
+   ============================================ */
+.v-select__fieldset {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--ui-radius-lg);
+  pointer-events: none;
+  transition: border-color 200ms ease, border-width 200ms ease;
+  border: 1px solid var(--ui-border);
+  margin: 0;
+  padding: 0 8px;
+  top: 0;
+
+  &--active {
+    border-color: var(--ui-border-focus);
+    border-width: 2px;
+  }
+}
+
+.v-select__legend {
+  height: 0;
+  font-size: 0.875rem;
+  transition: max-width 200ms ease, padding 200ms ease;
+  border: none;
+  padding: 0;
+  max-width: 0;
+  width: auto;
+  white-space: nowrap;
+  overflow: hidden;
+
+  span {
+    opacity: 0;
+    display: inline-block;
+  }
+
+  &--visible {
+    max-width: 100%;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+}
+
+/* ============================================
+   CARET / LOADER ICON
+   ============================================ */
+.v-select__caret-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--ui-foreground-muted);
+  transition: transform 200ms ease, color 200ms ease;
+}
+
+:deep(.multiselect--active) .v-select__caret-icon {
+  transform: rotate(180deg);
+  color: var(--ui-primary);
+}
+
+/* ============================================
+   MULTISELECT ROOT
+   ============================================ */
+:deep(.multiselect) {
+  min-height: 44px;
+  position: relative;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* ============================================
+   TAGS (INPUT AREA)
+   ============================================ */
+:deep(.multiselect__tags) {
+  background-color: transparent;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--ui-foreground);
+  transition: all 200ms;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+}
+
+:deep(.multiselect__tags:hover) {
+  border-color: transparent !important;
+}
+
+/* ============================================
+   SELECTED VALUE DISPLAY
+   ============================================ */
+:deep(.multiselect__single) {
+  background-color: transparent;
+  color: var(--ui-foreground);
+  font-size: 0.875rem;
+  font-weight: 400;
+  margin-bottom: 0;
+  line-height: 1.25rem;
+  padding-top: 0.25rem;
+  border: none !important;
+  padding-left: 0;
+}
+
+/* ============================================
+   SEARCH INPUT
+   ============================================ */
+:deep(.multiselect__input) {
+  background-color: transparent;
+  color: var(--ui-foreground);
+  font-size: 0.875rem;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  margin-bottom: 0;
+  padding-top: 0.25rem;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+:deep(.multiselect__input::placeholder) {
+  color: var(--ui-input-placeholder);
+}
+
+/* ============================================
+   PLACEHOLDER
+   ============================================ */
+:deep(.multiselect__placeholder) {
+  font-size: 0.875rem;
+  font-weight: 400;
+  margin-bottom: 0;
+  padding-top: 0.25rem;
+  color: var(--ui-input-placeholder);
+}
+
+/* ============================================
+   CARET BUTTON (wrapper)
+   ============================================ */
+:deep(.multiselect__select) {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 200ms;
+  background: transparent !important;
+}
+
+:deep(.multiselect__select::before) {
+  display: none;
+}
+
+/* ============================================
+   DISABLED STATE
+   ============================================ */
+:deep(.multiselect--disabled) {
+  border-radius: var(--ui-radius-lg);
+  cursor: not-allowed;
+}
+
+:deep(.multiselect--disabled) .multiselect__tags {
+  background-color: transparent;
+  cursor: not-allowed;
+  opacity: 1 !important;
+}
+
+/* Disabled background on the wrapper (sits behind fieldset, same as VInput pattern) */
+.v-select--disabled {
+  background-color: var(--ui-surface-sunken);
+}
+
+:deep(.multiselect--disabled) .multiselect__single {
+  color: var(--ui-foreground-secondary);
+}
+
+:deep(.multiselect--disabled) .multiselect__placeholder {
+  color: var(--ui-foreground-disabled);
+}
+
+:deep(.multiselect--disabled) .multiselect__select {
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+:deep(.multiselect--disabled) .v-select__caret-icon {
+  color: var(--ui-foreground-disabled);
+}
+
+/* ============================================
+   MULTI-SELECT TAGS (chips)
+   ============================================ */
+:deep(.multiselect__tag) {
+  background-color: var(--ui-primary);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--ui-radius);
+  margin-bottom: 0;
+  margin-right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid var(--ui-border);
+  padding: 4px 28px 4px 12px;
+  gap: 0.5rem;
+}
+
+:deep(.multiselect__tag-icon) {
+  cursor: pointer;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  bottom: auto; /* reset default bottom: 0 — otherwise element stretches mid→bottom */
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 150ms ease;
+}
+
+:deep(.multiselect__tag-icon::after) {
+  content: "×";
+  color: white;
+  font-size: 14px;
+  line-height: 1;
+}
+
+:deep(.multiselect__tag-icon:hover) {
+  background-color: color-mix(in oklch, white 25%, transparent);
+}
+
+:deep(.multiselect__tag-icon:hover::after) {
+  color: white;
+}
+
+/* ============================================
+   SPINNER — hidden; we use VIcon loader instead
+   ============================================ */
+:deep(.multiselect__spinner) {
+  display: none !important;
+}
+
+/* ============================================
+   DROPDOWN CONTENT WRAPPER
+   (applies when teleportToBody = false)
+   ============================================ */
+:deep(.multiselect__content-wrapper) {
+  background-color: var(--ui-input-bg);
+  border: 1px solid var(--ui-border-subtle);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-lg);
+  margin-top: 0.25rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-top: none !important;
+}
+
+:deep(.multiselect__content) {
+  background-color: var(--ui-input-bg);
+}
+
+/* ============================================
+   OPTIONS
+   ============================================ */
+:deep(.multiselect__option) {
+  color: var(--ui-foreground);
+  font-size: 0.875rem;
+  font-weight: 400;
+  padding: 0.625rem 1rem;
+  transition: color 150ms ease, background-color 150ms ease;
+  cursor: pointer;
+  background-color: transparent;
+}
+
+:deep(.multiselect__option:hover),
+:deep(.multiselect__option.multiselect__option--highlight) {
+  background-color: var(--ui-surface-hover);
+  color: var(--ui-foreground);
+}
+
+:deep(.multiselect__option.multiselect__option--selected) {
+  background-color: var(--ui-primary);
+  color: white;
+  font-weight: 500;
+}
+
+/* Make sure all children are also white on selected */
+:deep(.multiselect__option.multiselect__option--selected),
+:deep(.multiselect__option.multiselect__option--selected) * {
+  color: white !important;
+}
+
+/* Hovering a selected item = deselect indicator */
+:deep(.multiselect__option.multiselect__option--selected.multiselect__option--highlight) {
+  background-color: var(--ui-danger-subtle);
+  color: var(--ui-danger);
+}
+
+:deep(.multiselect__option.multiselect__option--selected.multiselect__option--highlight),
+:deep(.multiselect__option.multiselect__option--selected.multiselect__option--highlight) * {
+  color: var(--ui-danger) !important;
+}
+
+/* ============================================
+   GROUPED OPTIONS
+   ============================================ */
+:deep(.multiselect__option.multiselect__option--group) {
+  background-color: var(--ui-surface-sunken);
+  color: var(--ui-primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 16px;
+}
+
+:deep(.multiselect__option.multiselect__option--group:hover),
+:deep(.multiselect__option.multiselect__option--group.multiselect__option--highlight) {
+  background-color: var(--ui-border-subtle);
+  color: var(--ui-primary);
+}
+
+:deep(.multiselect__option.multiselect__option--group.multiselect__option--selected) {
+  background-color: color-mix(in oklch, var(--ui-primary) 10%, transparent);
+  color: var(--ui-primary);
+}
+
+/* ============================================
+   DISABLED OPTIONS
+   ============================================ */
+:deep(.multiselect__option.multiselect__option--disabled) {
+  cursor: not-allowed;
+  background-color: transparent;
+  color: var(--ui-foreground-disabled);
+}

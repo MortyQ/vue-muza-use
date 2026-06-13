@@ -1,0 +1,178 @@
+/* ============================================
+   BASE
+   ============================================ */
+.v-floating {
+  position: relative;
+  display: inline-block;
+}
+
+.v-floating-trigger {
+  cursor: pointer;
+
+  &--disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+/* ============================================
+   FLOATING CONTENT
+   ============================================ */
+.v-floating-content {
+  background-color: var(--ui-surface-overlay);
+
+  &.v-floating--positioning {
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
+    transition: none;
+    animation: none;
+    opacity: 0;
+    top: -9999px;
+    left: -9999px;
+  }
+
+  &:not(.v-floating--positioning) {
+    animation: floatingFadeIn 0.15s ease-out;
+  }
+
+  &.v-floating--updating {
+    transition: none;
+    animation: none;
+  }
+
+  /* Non-teleport mode */
+  &:not(.v-floating--teleported) {
+    position: absolute;
+    z-index: 9999;
+  }
+
+  /* Positioning */
+  &.v-floating--bottom-left:not(.v-floating--teleported) {
+    top: calc(100% + 8px);
+    left: 0;
+  }
+
+  &.v-floating--bottom-right:not(.v-floating--teleported) {
+    top: calc(100% + 8px);
+    right: 0;
+  }
+
+  &.v-floating--top-left:not(.v-floating--teleported) {
+    bottom: calc(100% + 8px);
+    left: 0;
+  }
+
+  &.v-floating--top-right:not(.v-floating--teleported) {
+    bottom: calc(100% + 8px);
+    right: 0;
+  }
+
+  /* Variants */
+  &.v-floating--styled {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    box-shadow: var(--ui-shadow-lg);
+    min-width: 160px;
+    max-width: 320px;
+  }
+
+  &.v-floating--dropdown {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  &.v-floating--popover {
+    padding: 1rem;
+  }
+
+  &.v-floating--unstyled {
+    display: block;
+  }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes floatingFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================
+   FLOATING ITEMS
+   ============================================ */
+.v-floating-item {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ui-foreground);
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover:not(&--disabled):not(&--loading) {
+    background-color: var(--ui-surface-hover);
+
+    .v-floating-item-icon {
+      color: var(--ui-primary);
+      transform: scale(1.1);
+    }
+
+    .v-floating-item-label {
+      color: var(--ui-primary);
+    }
+  }
+
+  &--active {
+    background-color: var(--ui-surface-active);
+    color: var(--ui-primary);
+
+    .v-floating-item-icon {
+      color: var(--ui-primary);
+    }
+  }
+
+  &--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &--loading {
+    cursor: wait;
+  }
+}
+
+/* ============================================
+   FLOATING ITEM CHILDREN
+   ============================================ */
+.v-floating-item-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: var(--ui-foreground-secondary);
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.v-floating-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.v-floating-item-loading {
+  margin-left: auto;
+  flex-shrink: 0;
+}

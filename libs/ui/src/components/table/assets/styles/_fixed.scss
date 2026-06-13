@@ -1,0 +1,65 @@
+// Table Fixed Columns Styles
+// =====================================================
+@use './variables' as *;
+
+.v-table-fixed-column {
+  z-index: $z-index-fixed-cell;
+  will-change: transform;
+  background-color: color-mix(in oklch, var(--ui-primary) 2%, var(--ui-surface) 98%);
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.v-table-fixed-left {
+  position: sticky;
+  left: 0;
+}
+
+.v-table-fixed-right {
+  position: sticky;
+  right: 0;
+}
+
+.v-table-fixed-left-last {
+  border-right: 2px solid color-mix(in oklch, var(--ui-primary) 70%, transparent);
+}
+
+.v-table-fixed-right-first {
+  border-left: 2px solid color-mix(in oklch, var(--ui-primary) 70%, transparent);
+}
+
+.v-table-row-wrapper:hover {
+  .v-table-fixed-column {
+    background-color: color-mix(in oklch, var(--ui-primary) 4%, var(--ui-surface) 96%);
+  }
+
+  .v-table-fixed-left-last {
+    border-right-color: color-mix(in oklch, var(--ui-primary) 90%, transparent);
+  }
+
+  .v-table-fixed-right-first {
+    border-left-color: color-mix(in oklch, var(--ui-primary) 90%, transparent);
+  }
+}
+
+.v-table-cell.v-table-fixed-column {
+  z-index: $z-index-fixed-cell !important;
+  background-color: color-mix(in oklch, var(--ui-primary) 2%, var(--ui-surface) 98%);
+}
+
+.v-table-header-cell.v-table-fixed-column {
+  z-index: $z-index-header-fixed !important;
+  background-color: color-mix(in oklch, var(--ui-primary) 1%, var(--ui-surface) 99%);
+  font-weight: 500;
+}
+
+.v-table-header-group.v-table-fixed-column {
+  z-index: $z-index-header-fixed !important;
+  background-color: color-mix(in oklch, var(--ui-primary) 1%, var(--ui-surface) 99%);
+  font-weight: 500;
+}
+
+.v-table-total-cell.v-table-fixed-column {
+  z-index: $z-index-total-fixed !important;
+  background-color: color-mix(in oklch, var(--ui-primary) 3%, var(--ui-surface) 97%);
+  font-weight: 600;
+}

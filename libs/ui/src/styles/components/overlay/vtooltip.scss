@@ -1,0 +1,51 @@
+/* ============================================
+   ROOT WRAPPER (TRIGGER)
+   ============================================ */
+.v-tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+/* ============================================
+   FLOATING POPPER
+   ============================================ */
+.v-tooltip__popper {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* ============================================
+   TOOLTIP BODY
+   ============================================ */
+.v-tooltip__body {
+  background: var(--ui-surface);
+  color: var(--ui-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-lg);
+  border: 1px solid var(--ui-border);
+  word-break: break-word;
+  width: fit-content;
+  min-width: 200px;
+}
+
+/* ============================================
+   TRANSITION
+   ============================================ */
+.v-tooltip-fade-enter-active {
+  transition: opacity 200ms ease-out;
+}
+
+.v-tooltip-fade-leave-active {
+  transition: opacity 150ms ease-in;
+}
+
+.v-tooltip-fade-enter-from,
+.v-tooltip-fade-leave-to {
+  opacity: 0;
+}
+

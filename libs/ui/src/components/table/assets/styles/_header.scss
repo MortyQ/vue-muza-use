@@ -1,0 +1,228 @@
+// Table Header Styles
+// ============================================
+@use './variables' as *;
+
+.v-table-header-row {
+  display: contents;
+
+  & > * {
+    position: sticky;
+    top: 0;
+    z-index: $z-index-header;
+  }
+
+  &-level-0 > * { top: 0; }
+  &-level-1 > * { top: $table-header-height; }
+  &-level-2 > * { top: calc($table-header-height * 2); }
+}
+
+.v-table-header-group {
+  padding: $table-header-padding-y $table-header-padding-x;
+  min-height: $table-header-height;
+  height: $table-header-height;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background-color: color-mix(in oklch, var(--ui-surface) 96%, var(--ui-foreground) 4%);
+  border-bottom: $table-border-width solid var(--ui-border);
+  font-weight: $table-font-weight-bold;
+  font-size: $table-font-size-header;
+  line-height: $table-line-height-header;
+  color: var(--ui-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  overflow: hidden;
+  min-width: 0;
+  user-select: none;
+
+  &--left   { text-align: left; }
+  &--center { text-align: center; }
+  &--right  { text-align: right; }
+
+  &.v-table-fixed-column {
+    z-index: $z-index-header-fixed !important;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -$table-shadow-offset;
+    height: $table-shadow-offset;
+    pointer-events: none;
+    z-index: -1;
+    box-shadow: 0 $table-shadow-offset $table-shadow-blur 0 color-mix(in oklch, var(--ui-foreground) 8%, transparent);
+  }
+}
+
+.v-table-header-group-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v-table-header-cell {
+  padding: $table-header-padding-y $table-header-padding-right $table-header-padding-y $table-header-padding-x;
+  min-height: $table-header-height;
+  height: $table-header-height;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  // NOTE: no position: relative here — position: sticky is applied via .v-table-header-row > *
+  // sticky also creates a containing block for the absolutely positioned resize handle
+  background: linear-gradient(
+    to bottom,
+    var(--ui-surface-tinted),
+    var(--ui-surface-tinted-deep)
+  );
+  border-bottom: 1px solid var(--ui-border-strong);
+  border-right: 1px solid var(--ui-border);
+  font-weight: $table-font-weight-semibold;
+  font-size: $table-font-size-header;
+  line-height: $table-line-height-header;
+  color: var(--ui-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  overflow: hidden;
+  min-width: 0;
+
+  &--left   { text-align: left;   justify-content: flex-start; }
+  &--center { text-align: center; justify-content: center; }
+  &--right  { text-align: right;  justify-content: flex-end; }
+
+  &--sortable { cursor: pointer; }
+
+  &.v-table-fixed-column {
+    z-index: $z-index-header-fixed !important;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -$table-shadow-offset;
+    height: $table-shadow-offset;
+    pointer-events: none;
+    z-index: -1;
+    box-shadow: 0 $table-shadow-offset $table-shadow-blur 0 color-mix(in oklch, var(--ui-foreground) 8%, transparent);
+  }
+}
+
+// Header content layout
+.v-table-header-content {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.v-table-header-label-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+
+  &--clickable {
+    cursor: pointer;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+}
+
+.v-table-header-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.v-table-header-click-indicator {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.5;
+  flex-shrink: 0;
+
+  .click-indicator-icon {
+    color: var(--ui-foreground-secondary);
+  }
+}
+
+// ── Resize Handle ──────────────────────────────────────────────────────────
+// Positioned at the right edge of each resizable header cell
+
+.v-table-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: $table-resize-handle-width;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  // Expand the clickable area slightly without affecting visual
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -4px;
+    right: -4px;
+    bottom: 0;
+  }
+
+  // Show divider on hover
+  &:hover .v-table-resize-divider {
+    opacity: 1;
+  }
+
+  &:hover .v-table-resize-line {
+    opacity: 1;
+  }
+}
+
+.v-table-resize-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+
+  .v-table-resize-handle:hover & {
+    opacity: 1;
+  }
+}
+
+.v-table-resize-line {
+  width: 2px;
+  height: 8px;
+  background-color: var(--ui-primary);
+  border-radius: 1px;
+  opacity: 0.7;
+}
+
+.v-table-resize-divider {
+  position: absolute;
+  top: 15%;
+  right: 1px;
+  width: 2px;
+  height: 70%;
+  background-color: color-mix(in oklch, var(--ui-border-strong) 60%, transparent);
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}

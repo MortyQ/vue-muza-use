@@ -1,0 +1,165 @@
+/* ============================================
+   BACKDROP
+   ============================================ */
+.v-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+  background-color: var(--ui-overlay);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ============================================
+   CONTAINER
+   ============================================ */
+.v-modal__container {
+  border-radius: var(--ui-radius-xl);
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  background-color: var(--ui-surface-overlay);
+  box-shadow: var(--ui-shadow-xl);
+
+  @media (min-width: 768px) {
+    background: color-mix(in oklch, var(--ui-surface-overlay) 95%, transparent);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    border: 1px solid color-mix(in oklch, white 30%, transparent);
+    box-shadow: var(--ui-shadow-lg);
+  }
+
+  /* Max-width variants */
+  &--sm   { max-width: 24rem; }
+  &--md   { max-width: 28rem; }
+  &--lg   { max-width: 32rem; }
+  &--xl   { max-width: 36rem; }
+  &--2xl  { max-width: 42rem; }
+  &--3xl  { max-width: 75vw; }
+  &--full { max-width: 100%; }
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+.v-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--ui-border);
+  flex-shrink: 0;
+}
+
+.v-modal__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ui-foreground);
+}
+
+/* ============================================
+   CLOSE BUTTON
+   ============================================ */
+.v-modal__close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--ui-radius);
+  transition: color 0.2s ease, background-color 0.2s ease;
+  flex-shrink: 0;
+  color: var(--ui-foreground-muted);
+
+  &:hover {
+    color: var(--ui-foreground);
+    background-color: var(--ui-surface-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ui-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ============================================
+   CONTENT
+   ============================================ */
+.v-modal__content {
+  padding: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+  color: var(--ui-foreground);
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.v-modal__footer {
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--ui-border);
+  flex-shrink: 0;
+}
+
+.v-modal__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ============================================
+   TRANSITIONS
+   ============================================ */
+.v-modal-enter-active,
+.v-modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.v-modal-enter-active .v-modal__container,
+.v-modal-leave-active .v-modal__container {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.v-modal-enter-from,
+.v-modal-leave-to {
+  opacity: 0;
+}
+
+.v-modal-enter-from .v-modal__container,
+.v-modal-leave-to .v-modal__container {
+  transform: scale(0.95) translateY(-20px);
+  opacity: 0;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 640px) {
+  .v-modal__backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .v-modal__container {
+    max-height: 100vh;
+    border-radius: var(--ui-radius-xl) var(--ui-radius-xl) 0 0;
+    max-width: 100% !important;
+  }
+
+  .v-modal__header,
+  .v-modal__content,
+  .v-modal__footer {
+    padding: 1rem;
+  }
+}

@@ -1,0 +1,102 @@
+// Table Design Tokens & Variables - 2025 Modern Edition
+// ============================================
+// Centralized location for all table variables
+// All colors use Tailwind theme() function for seamless light/dark mode support
+
+// ════════════════════════════════════════════════════════════════
+// SPACING & SIZING - Generous, comfortable modern spacing
+// ════════════════════════════════════════════════════════════════
+
+// Cell padding - increased for better readability
+$table-cell-padding-x: 1.25rem; // 20px - more breathing room
+$table-cell-padding-y: 0.875rem; // 14px - comfortable vertical space
+$table-header-padding-x: 1.25rem; // 20px
+$table-header-padding-y: 0.875rem; // 14px
+$table-header-padding-right: 0.6rem;
+
+// Sizing
+$table-default-height: 600px;
+$table-row-height: 50px;
+$table-header-height: 48px; // Calculated header height for multi-level positioning
+$table-expand-button-size: 24px; // Reduced from 28px for cleaner look
+$table-resize-handle-width: 4px; // Thinner, more subtle
+$table-indent-size: 24px;
+
+// ════════════════════════════════════════════════════════════════
+// TYPOGRAPHY - Modern, readable type system
+// ════════════════════════════════════════════════════════════════
+
+$table-font-size-base: 0.875rem; // 14px - optimal for data tables
+$table-font-size-header: 0.8125rem; // 13px - slightly smaller for headers
+$table-line-height-base: 1.5; // Excellent readability
+$table-line-height-header: 1.3; // Tighter for headers
+$table-font-weight-regular: 400;
+$table-font-weight-medium: 500;
+$table-font-weight-semibold: 600;
+$table-font-weight-bold: 700;
+
+// ════════════════════════════════════════════════════════════════
+// BORDERS - Minimal, subtle approach
+// ════════════════════════════════════════════════════════════════
+
+$table-border-width: 1px;
+$table-border-radius: 0.75rem; // 12px - modern, softer corners
+$table-total-border-width: 1px; // Changed from 2px for consistency
+
+// ════════════════════════════════════════════════════════════════
+// SHADOWS - Soft, elegant depth indicators
+// ════════════════════════════════════════════════════════════════
+
+// Fixed column shadows - using theme colors for automatic dark mode
+// Note: These will be enhanced with CSS custom properties in _fixed.scss
+$table-shadow-offset: 12px;
+$table-shadow-blur: 12px;
+$table-shadow-spread: -6px;
+
+// ════════════════════════════════════════════════════════════════
+// Z-INDEX HIERARCHY - Proper layering for sticky elements
+// ════════════════════════════════════════════════════════════════
+// Visual hierarchy (top to bottom):
+//
+// 15 ┌─────────────────────────────────────┐
+//    │  Header + Fixed (highest)           │ ← always on top
+// 11 ├─────────────────────────────────────┤
+//    │  Total + Fixed                      │
+// 10 ├─────────────────────────────────────┤
+//    │  Header (regular)                   │ ← above fixed cells!
+//  9 ├─────────────────────────────────────┤
+//    │  Total (regular)                    │
+//  5 ├─────────────────────────────────────┤
+//    │  Fixed Cells (body)                 │ ← below header!
+//  2 ├─────────────────────────────────────┤
+//    │  Row hover                          │
+//  1 └─────────────────────────────────────┘
+//    │  Base cells                         │
+// ════════════════════════════════════════════════════════════════
+
+$z-index-base: 1;
+$z-index-row-hover: 2;
+$z-index-fixed-cell: 5; // Fixed cells lower than header!
+$z-index-total: 9;
+$z-index-header: 10; // Header above fixed cells
+$z-index-total-fixed: 11; // Total with fixed slightly above header
+$z-index-header-fixed: 15; // Fixed header highest!
+
+// ════════════════════════════════════════════════════════════════
+// TRANSITIONS - Smooth, performant animations
+// ════════════════════════════════════════════════════════════════
+
+$transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1); // Snappy
+$transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1); // Smooth
+$transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1); // Elegant
+
+// ════════════════════════════════════════════════════════════════
+// OPACITY VALUES - Consistent transparency scale
+// ════════════════════════════════════════════════════════════════
+
+$opacity-disabled: 0.5;
+$opacity-hover: 0.04; // Subtle hover overlay
+$opacity-selected: 0.08; // Clear selection state
+$opacity-secondary: 0.6; // Secondary text/icons
+
+

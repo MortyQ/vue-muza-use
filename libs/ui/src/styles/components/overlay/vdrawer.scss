@@ -1,0 +1,190 @@
+/* ============================================
+   BACKDROP
+   ============================================ */
+.v-drawer__backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--ui-overlay);
+  display: flex;
+  overflow: hidden;
+
+  &--blur-xs {
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  &--blur-sm {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  &--blur-md {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  &--blur-lg {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+}
+
+/* ============================================
+   CONTAINER
+   ============================================ */
+.v-drawer__container {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--ui-surface-overlay);
+  box-shadow: var(--ui-shadow-xl);
+
+  @media (min-width: 768px) {
+    border-radius: var(--ui-radius-xl);
+    padding: 1.5rem;
+    background: color-mix(in oklch, var(--ui-surface-overlay) 95%, transparent);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    border: 1px solid color-mix(in oklch, white 30%, transparent);
+    box-shadow:
+      0 4px 16px color-mix(in oklch, var(--ui-primary) 8%, transparent),
+      0 8px 32px color-mix(in oklch, var(--ui-primary) 6%, transparent);
+  }
+
+  /* Width variants */
+  &--width-sm  { max-width: 24rem; }
+  &--width-md  { max-width: 28rem; }
+  &--width-lg  { max-width: 32rem; }
+  &--width-xl  { max-width: 36rem; }
+  &--width-full { max-width: 100%; }
+
+  /* Position variants */
+  &--left {
+    left: 0;
+    border-right: 1px solid var(--ui-border);
+  }
+
+  &--right {
+    right: 0;
+    border-left: 1px solid var(--ui-border);
+  }
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+.v-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.v-drawer__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ui-foreground);
+}
+
+/* ============================================
+   CLOSE BUTTON
+   ============================================ */
+.v-drawer__close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--ui-radius);
+  transition: color 0.2s ease, background-color 0.2s ease;
+  flex-shrink: 0;
+  color: var(--ui-foreground-muted);
+
+  &:hover {
+    color: var(--ui-foreground);
+    background-color: var(--ui-surface-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ui-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ============================================
+   CONTENT
+   ============================================ */
+.v-drawer__content {
+  padding: 1.25rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  color: var(--ui-foreground);
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.v-drawer__footer {
+  padding: 1rem 1.25rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  border-top: 1px solid var(--ui-border);
+}
+
+/* ============================================
+   TRANSITIONS
+   ============================================ */
+.v-drawer-enter-active,
+.v-drawer-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.v-drawer-enter-from,
+.v-drawer-leave-to {
+  opacity: 0;
+}
+
+.v-drawer-enter-active .v-drawer__container,
+.v-drawer-leave-active .v-drawer__container {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.v-drawer-enter-from .v-drawer__container--right,
+.v-drawer-leave-to .v-drawer__container--right {
+  transform: translateX(100%);
+}
+
+.v-drawer-enter-from .v-drawer__container--left,
+.v-drawer-leave-to .v-drawer__container--left {
+  transform: translateX(-100%);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 640px) {
+  .v-drawer__container {
+    max-width: 100% !important;
+    width: 100%;
+  }
+
+  .v-drawer__header,
+  .v-drawer__content,
+  .v-drawer__footer {
+    padding: 1rem;
+  }
+}

@@ -1,0 +1,73 @@
+// ── Sidebar Container ──────────────────────────────────────────────────────
+
+// Breakpoint at which mobile sidebar takes over
+$sidebar-mobile-breakpoint: 1024px;
+
+.sidebar {
+  --sidebar-width: 16rem;
+  --sidebar-collapsed-width: 4.5rem;
+  --sidebar-transition: 300ms ease-in-out;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-width);
+  height: 100dvh;
+  background-color: var(--ui-surface);
+  border-right: 1px solid var(--ui-border-subtle);
+  transition: width var(--sidebar-transition);
+  overflow: hidden;
+  z-index: 40;
+
+  // WebKit: GPU compositing for smooth width transition
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+
+  // P18: Paint constraint
+  contain: layout style;
+
+  // Subtle right edge gradient
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(
+                    to bottom,
+                    transparent 0%,
+                    var(--ui-border-subtle) 10%,
+                    var(--ui-border-subtle) 90%,
+                    transparent 100%
+    );
+    pointer-events: none;
+  }
+
+  &--collapsed {
+    width: var(--sidebar-collapsed-width);
+  }
+}
+
+// Flat variant: no background decoration, merges with page background
+.sidebar--flat {
+  background-color: transparent;
+  border-right: none;
+  box-shadow: none;
+
+  &::after {
+    display: none;
+  }
+}
+
+// Hide desktop sidebar on mobile — mobile sidebar takes over
+@media (max-width: #{$sidebar-mobile-breakpoint - 1px}) {
+  .sidebar {
+    border: 2px solid red;
+    display: none !important;
+  }
+}
+

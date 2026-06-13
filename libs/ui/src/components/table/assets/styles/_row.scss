@@ -1,0 +1,96 @@
+// Table Row Styles
+// ============================================
+@use './variables' as *;
+
+.v-table-row-wrapper {
+  display: contents;
+  cursor: pointer;
+
+  &:hover > .v-table-cell {
+    background-color: color-mix(in oklch, var(--ui-primary) 4%, var(--ui-surface) 96%);
+    border-bottom-color: color-mix(in oklch, var(--ui-primary) 20%, var(--ui-border) 80%);
+
+    &:first-child {
+      border-left: 3px solid color-mix(in oklch, var(--ui-primary) 80%, transparent);
+      padding-left: calc(#{$table-cell-padding-x} - 3px);
+    }
+
+    &[data-custom-row="true"] {
+      background-color: inherit;
+      border-bottom-color: var(--ui-border);
+
+      &:first-child {
+        border-left: 3px solid var(--ui-primary);
+        padding-left: calc(#{$table-cell-padding-x} - 3px);
+      }
+    }
+  }
+
+  .v-table-grid.v-is-resizing &:hover > .v-table-cell {
+    background: none;
+    border-bottom-color: color-mix(in oklch, var(--ui-border-subtle) 30%, transparent);
+
+    &:first-child {
+      border-left: none;
+      padding-left: $table-cell-padding-x;
+    }
+  }
+
+  &:active > .v-table-cell {
+    background-color: color-mix(in oklch, var(--ui-primary) 6%, var(--ui-surface) 94%);
+  }
+
+  &--disabled {
+    cursor: not-allowed;
+    opacity: $opacity-disabled;
+
+    &:hover > .v-table-cell {
+      background-color: var(--ui-surface);
+    }
+  }
+
+  &--selected > .v-table-cell {
+    background-color: color-mix(in oklch, var(--ui-primary) 8%, var(--ui-surface) 92%);
+    font-weight: $table-font-weight-medium;
+
+    &:first-child {
+      border-left: 3px solid var(--ui-primary);
+      padding-left: calc(#{$table-cell-padding-x} - 3px);
+    }
+  }
+
+  &--selected:hover > .v-table-cell {
+    background-color: color-mix(in oklch, var(--ui-primary) 10%, var(--ui-surface) 90%);
+  }
+}
+
+.v-table-row-virtual {
+  display: contents;
+
+  & > .v-table-cell {
+    min-height: $table-row-height;
+    height: $table-row-height;
+  }
+}
+
+.v-table-row-expandable {
+  display: contents;
+
+  &--entering > .v-table-cell {
+    animation: expandRowIn $transition-normal cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &--leaving > .v-table-cell {
+    animation: expandRowOut $transition-normal cubic-bezier(0.4, 0, 1, 1);
+  }
+}
+
+@keyframes expandRowIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes expandRowOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-4px); }
+}

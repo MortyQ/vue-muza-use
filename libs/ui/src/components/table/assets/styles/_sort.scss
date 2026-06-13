@@ -1,0 +1,54 @@
+// Table Sort Styles
+// ============================================
+
+.v-table-header-sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: color-mix(in oklch, var(--ui-primary) 8%, transparent);
+
+    .v-sort-icon:not(.v-sort-icon--active) {
+      opacity: 0.6;
+      color: var(--ui-primary);
+    }
+  }
+
+  &:active {
+    background-color: color-mix(in oklch, var(--ui-primary) 15%, transparent);
+  }
+}
+
+.v-sort-icon {
+  opacity: 0.45;
+  transition: all 0.2s ease;
+  color: var(--ui-foreground-secondary);
+
+  &--active {
+    opacity: 1;
+    color: var(--ui-primary);
+    filter: drop-shadow(0 0 4px color-mix(in oklch, var(--ui-primary) 40%, transparent));
+    background-color: color-mix(in oklch, var(--ui-primary) 15%, transparent);
+    border-radius: 4px;
+    padding: 2px;
+  }
+}
+
+.v-sort-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ui-primary);
+  background-color: color-mix(in oklch, var(--ui-primary) 15%, transparent);
+  border-radius: 4px;
+}

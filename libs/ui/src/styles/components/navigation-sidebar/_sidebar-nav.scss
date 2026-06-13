@@ -1,0 +1,46 @@
+// ── Sidebar Nav ────────────────────────────────────────────────────────────
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem 0.75rem;
+
+  // P18: Paint constraint
+  contain: layout style;
+
+  // Firefox scrollbar
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--ui-foreground) 20%, transparent) transparent;
+
+  // WebKit scrollbar
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklch, var(--ui-foreground) 15%, transparent);
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--ui-foreground) 25%, transparent);
+  }
+
+  &--collapsed {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+.sidebar-nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+

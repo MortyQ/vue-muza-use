@@ -1,0 +1,6 @@
+/* Import shared theme tokens — do NOT import tailwindcss again here,
+   it is already imported inside theme.css */
+@import "@ametie/config/tailwind/theme.css";
+
+/* UI component design tokens with fallbacks */
+@import "./styles/tokens.css";

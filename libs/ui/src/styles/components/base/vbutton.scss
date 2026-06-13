@@ -1,0 +1,159 @@
+.v-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-weight: 300;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--ui-shadow-xs);
+  transition: background-color 300ms ease-in-out,
+  color 300ms ease-in-out,
+  border-color 300ms ease-in-out,
+  box-shadow 300ms ease-in-out;
+}
+
+.v-button--icon-only {
+  padding: 0;
+}
+
+.v-button--disabled,
+.v-button:disabled {
+  color: var(--ui-foreground-disabled);
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.v-button:focus-visible {
+  outline: 2px solid var(--ui-ring);
+  outline-offset: 2px;
+}
+
+.v-button--primary {
+  background-color: var(--ui-primary);
+  color: var(--ui-primary-foreground);
+  border: 2px solid var(--ui-primary);
+
+  &:hover:not(:disabled) {
+    background-color: var(--ui-primary-hover);
+    border-color: var(--ui-primary-hover);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--ui-primary-active);
+    border-color: var(--ui-primary-active);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ui-ring);
+    outline-offset: 2px;
+  }
+}
+
+.v-button--positive {
+  background-color: var(--ui-success);
+  color: white;
+  border: 2px solid var(--ui-success);
+
+  &:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--ui-success) 82%, black);
+    border-color: color-mix(in oklch, var(--ui-success) 82%, black);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--ui-success-hover);
+    border-color: var(--ui-success-hover);
+  }
+}
+
+.v-button--negative {
+  background-color: var(--ui-danger);
+  color: white;
+  border: 2px solid var(--ui-danger);
+
+  &:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--ui-danger) 82%, black);
+    border-color: color-mix(in oklch, var(--ui-danger) 82%, black);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--ui-danger-hover);
+    border-color: var(--ui-danger-hover);
+  }
+}
+
+.v-button--warning {
+  background-color: var(--ui-warning);
+  color: white;
+  border: 2px solid var(--ui-warning);
+
+  &:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--ui-warning) 82%, black);
+    border-color: color-mix(in oklch, var(--ui-warning) 82%, black);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--ui-warning-hover);
+    border-color: var(--ui-warning-hover);
+  }
+}
+
+.v-button--link {
+  background-color: transparent;
+  color: var(--ui-primary);
+  border: none;
+  box-shadow: none;
+  font-weight: 500;
+  padding: 0 0.5rem;
+  min-width: unset;
+  position: relative;
+
+  &::after {
+    content: '';
+    display: block;
+    position: absolute;
+    left: 0;
+    bottom: 6px;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--ui-primary), var(--ui-primary-hover));
+    opacity: 0.2;
+    border-radius: 1px;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: scaleX(0.6);
+    transform-origin: left;
+  }
+
+  &:hover:not(:disabled),
+  &.router-link-active {
+    color: var(--ui-primary-hover);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  &:hover:not(:disabled)::after,
+  &.router-link-active::after {
+    opacity: 0.8;
+    transform: scaleX(1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ui-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    color: var(--ui-foreground-muted);
+    background: transparent;
+    opacity: 0.5;
+  }
+}
+

@@ -1,0 +1,149 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+/* ═══════════════════════════════════════════════════════════════════
+   VIOLET/SLATE DESIGN SYSTEM
+   Color space: OKLCH (perceptually uniform — equal L = equal brightness)
+   Strategy: hue 280 for all neutrals + primary (violet). Low chroma = slate-gray.
+   High chroma = interactive violet.
+
+   TOKEN NAMING RULES:
+   --ui-[group]-[variant]
+   Groups: primary / surface / nav / foreground / border / overlay /
+           success / warning / danger / info / input / badge
+
+   USAGE RULES (read before using any token):
+   • NEVER use raw oklch() values in .vue or .scss files
+   • ALWAYS use --ui-* tokens or their Tailwind class equivalents
+   • If token doesn't exist — discuss adding it, don't hardcode
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-optical-sizing: auto;
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  BRAND — PRIMARY                                         ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-primary:            var(--primary, oklch(52% 0.27 280));
+    --ui-primary-hover:      var(--primary-hover, oklch(47% 0.27 280));
+    --ui-primary-active:     var(--primary-active, oklch(42% 0.27 280));
+    --ui-primary-foreground: var(--primary-foreground, oklch(100% 0 0));
+    --ui-primary-subtle:     var(--primary-subtle, oklch(95% 0.06 280));
+    --ui-primary-muted:      var(--primary-muted, oklch(89% 0.09 280));
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  SURFACES — PAGE & COMPONENT BACKGROUNDS                 ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-background:           var(--background, oklch(96% 0.015 280));
+    --ui-surface-sunken:       var(--surface-sunken, oklch(93% 0.018 280));
+    --ui-surface:              var(--surface, oklch(99.5% 0.003 280));
+    --ui-surface-raised:       var(--surface-raised, oklch(98% 0.005 280));
+    --ui-surface-overlay:      var(--surface-overlay, oklch(100% 0.002 280));
+    --ui-surface-hover:        var(--surface-hover, oklch(94% 0.008 280));
+    --ui-surface-active:       var(--surface-active, oklch(91% 0.010 280));
+    --ui-surface-tinted:       var(--surface-tinted, oklch(96% 0.020 280));
+    --ui-surface-tinted-deep:  var(--surface-tinted-deep, oklch(93% 0.025 280));
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  NAVIGATION                                              ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-nav:        var(--nav, oklch(22% 0.035 275));
+    --ui-nav-hover:  var(--nav-hover, oklch(27% 0.032 275));
+    --ui-nav-active: var(--nav-active, oklch(30% 0.030 275));
+    --ui-nav-border: var(--nav-border, oklch(28% 0.025 275));
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  TEXT — FOREGROUND (5-level hierarchy)                   ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-foreground:           var(--foreground, oklch(16% 0.015 280));
+    --ui-foreground-secondary: var(--foreground-secondary, oklch(38% 0.012 280));
+    --ui-foreground-muted:     var(--foreground-muted, oklch(55% 0.008 280));
+    --ui-foreground-subtle:    var(--foreground-subtle, oklch(70% 0.005 280));
+    --ui-foreground-disabled:  var(--foreground-disabled, oklch(76% 0.004 280));
+    --ui-foreground-inverted:  var(--foreground-inverted, oklch(100% 0 0));
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  BORDERS (4 weights: subtle → default → strong → focus)  ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-border-subtle: var(--border-subtle, oklch(92% 0.008 280));
+    --ui-border:        var(--border, oklch(87% 0.010 280));
+    --ui-border-strong: var(--border-strong, oklch(77% 0.013 280));
+    --ui-border-focus:  var(--border-focus, oklch(52% 0.27 280));
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  OVERLAY & SCRIM                                         ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-overlay: var(--overlay, oklch(0% 0 0 / 0.5));
+    --ui-scrim: var(--scrim, oklch(0% 0 0 / 0.25));
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  STATUS COLORS (each: base / hover / fg / subtle / muted)║
+       ╚══════════════════════════════════════════════════════════╝ */
+
+    /* Success — green hue 145 */
+    --ui-success: var(--success, oklch(52% 0.17 145));
+    --ui-success-hover: var(--success-hover, oklch(46% 0.17 145));
+    --ui-success-foreground: var(--success-foreground, oklch(100% 0 0));
+    --ui-success-subtle: var(--success-subtle, oklch(94% 0.05 145));
+    --ui-success-muted: var(--success-muted, oklch(88% 0.07 145));
+
+    /* Warning — yellow hue 75 */
+    --ui-warning: var(--warning, oklch(72% 0.17 75));
+    --ui-warning-hover: var(--warning-hover, oklch(65% 0.17 75));
+    --ui-warning-foreground: var(--warning-foreground, oklch(20% 0.01 75));
+    --ui-warning-subtle: var(--warning-subtle, oklch(96% 0.05 75));
+    --ui-warning-muted: var(--warning-muted, oklch(91% 0.07 75));
+
+    /* Danger — red hue 25 */
+    --ui-danger: var(--danger, oklch(55% 0.22 25));
+    --ui-danger-hover: var(--danger-hover, oklch(49% 0.22 25));
+    --ui-danger-foreground: var(--danger-foreground, oklch(100% 0 0));
+    --ui-danger-subtle: var(--danger-subtle, oklch(95% 0.05 25));
+    --ui-danger-muted: var(--danger-muted, oklch(90% 0.08 25));
+
+    /* Info — blue hue 240 (distinct from violet primary hue 280) */
+    --ui-info:            var(--info, oklch(57% 0.20 240));
+    --ui-info-hover:      var(--info-hover, oklch(51% 0.20 240));
+    --ui-info-foreground: var(--info-foreground, oklch(100% 0 0));
+    --ui-info-subtle:     var(--info-subtle, oklch(94% 0.05 240));
+    --ui-info-muted:      var(--info-muted, oklch(88% 0.07 240));
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  COMPONENT TOKENS — INPUT                                ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-input-bg:          var(--input-bg, oklch(100% 0.002 280));
+    --ui-input-border:      var(--input-border, oklch(87% 0.010 280));
+    --ui-input-placeholder: var(--input-placeholder, oklch(70% 0.005 280));
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  COMPONENT TOKENS — BADGE (neutral)                      ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-badge-neutral-bg:   var(--badge-neutral-bg, oklch(91% 0.008 280));
+    --ui-badge-neutral-text: var(--badge-neutral-text, oklch(35% 0.012 280));
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  RADIUS                                                  ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-radius-xs: var(--radius-xs, 0.25rem);
+    --ui-radius: var(--radius, 0.375rem);
+    --ui-radius-lg: var(--radius-lg, 0.5rem);
+    --ui-radius-xl: var(--radius-xl, 0.75rem);
+    --ui-radius-2xl: var(--radius-2xl, 1rem);
+    --ui-radius-full: 9999px;
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  SHADOWS                                                 ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-shadow-xs: 0 1px 2px 0 oklch(0% 0 0 / 0.04);
+    --ui-shadow-sm: 0 1px 3px 0 oklch(0% 0 0 / 0.08), 0 1px 2px -1px oklch(0% 0 0 / 0.06);
+    --ui-shadow-md: 0 4px 6px -1px oklch(0% 0 0 / 0.10), 0 2px 4px -2px oklch(0% 0 0 / 0.08);
+    --ui-shadow-lg: 0 10px 15px -3px oklch(0% 0 0 / 0.10), 0 4px 6px -4px oklch(0% 0 0 / 0.08);
+    --ui-shadow-xl: 0 20px 25px -5px oklch(0% 0 0 / 0.12), 0 8px 10px -6px oklch(0% 0 0 / 0.08);
+    --ui-shadow-inner: inset 0 2px 4px 0 oklch(0% 0 0 / 0.06);
+
+    /* ╔══════════════════════════════════════════════════════════╗
+       ║  FOCUS RING                                              ║
+       ╚══════════════════════════════════════════════════════════╝ */
+    --ui-ring: var(--ui-primary);
+    --ui-ring-offset: var(--ui-background);
+}

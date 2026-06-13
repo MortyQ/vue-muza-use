@@ -1,0 +1,56 @@
+// Table Total Row Styles
+// ============================================
+@use './variables' as *;
+
+.v-table-total-cell {
+  position: sticky;
+  bottom: 0;
+  z-index: $z-index-total;
+  padding: $table-cell-padding-y $table-cell-padding-x;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklch, var(--ui-surface) 96%, var(--ui-primary) 4%),
+    color-mix(in oklch, var(--ui-surface) 97%, var(--ui-foreground) 3%)
+  );
+  border-top: 2px solid color-mix(in oklch, var(--ui-primary) 40%, var(--ui-border) 60%);
+  border-bottom: 1px solid color-mix(in oklch, var(--ui-primary) 20%, var(--ui-border) 80%);
+  border-right: 1px solid color-mix(in oklch, var(--ui-border) 80%, transparent);
+  font-weight: $table-font-weight-bold;
+  font-size: $table-font-size-base;
+  line-height: $table-line-height-base;
+  color: var(--ui-foreground);
+  min-width: 0;
+  box-shadow: 0 -2px 8px -2px oklch(0% 0 0 / 0.05);
+
+  &--left   { text-align: left; }
+  &--center { text-align: center; }
+  &--right  { text-align: right; }
+
+  &.v-table-fixed-column {
+    z-index: $z-index-total-fixed !important;
+  }
+}
+
+.v-table-total-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.v-table-total-text {
+  flex: 1;
+  min-width: 0;
+  font-weight: $table-font-weight-bold;
+
+  &--truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.v-table-total-spacer {
+  width: $table-expand-button-size;
+  flex-shrink: 0;
+}

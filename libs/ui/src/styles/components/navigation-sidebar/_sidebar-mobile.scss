@@ -1,0 +1,155 @@
+// ── Mobile Sidebar ─────────────────────────────────────────────────────────
+
+$sidebar-mobile-breakpoint: 1024px;
+
+// Hide mobile sidebar entirely on desktop — desktop sidebar takes over
+@media (min-width: $sidebar-mobile-breakpoint) {
+  .sidebar-mobile,
+  .sidebar-mobile-overlay {
+    display: none;
+  }
+}
+
+.sidebar-mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: 16rem;
+  height: 100dvh;
+  background-color: var(--ui-surface);
+  border-right: 1px solid var(--ui-border-subtle);
+  overflow-y: auto;
+  z-index: 50;
+
+  // Smooth slide-in/out via transform (not display:none)
+  transition: transform 300ms ease-in-out;
+  transform: translateX(-100%);
+
+  // WebKit GPU promotion
+  transform: translate3d(-100%, 0, 0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+
+  // Shadow on pseudo to avoid repaint during transform animation
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    box-shadow: 2px 0 8px color-mix(in oklch, var(--ui-foreground) 8%, transparent),
+    4px 0 16px color-mix(in oklch, var(--ui-foreground) 4%, transparent);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  &--open {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+// ── Mobile Overlay (backdrop) ──────────────────────────────────────────────
+
+.sidebar-mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--ui-overlay);
+  z-index: 40;
+}
+
+// ── Mobile Header ──────────────────────────────────────────────────────────
+
+.sidebar-mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  min-height: 65px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ui-border-subtle);
+}
+
+.sidebar-mobile-header__logo {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.sidebar-mobile-header__name {
+  flex: 1;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ui-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-mobile-header__close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--ui-foreground-secondary);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+  margin-left: auto;
+
+  &:hover {
+    background-color: var(--ui-surface-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ui-border-focus);
+    outline-offset: 2px;
+  }
+}
+
+// ── Mobile Nav ─────────────────────────────────────────────────────────────
+
+.sidebar-mobile-nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--ui-foreground) 20%, transparent) transparent;
+}
+
+// ── Mobile Footer ──────────────────────────────────────────────────────────
+
+.sidebar-mobile-footer {
+  flex-shrink: 0;
+  padding: 0.75rem;
+  border-top: 1px solid var(--ui-border-subtle);
+}
+
+.sidebar-mobile-footer__slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-mobile-footer__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}

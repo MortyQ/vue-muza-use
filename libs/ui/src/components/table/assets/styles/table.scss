@@ -1,0 +1,28 @@
+// Table Component Styles - Modern Edition 2025
+// ============================================
+// Main file that imports all modular styles
+
+// 1. Design tokens & Variables
+@use './variables' as *;
+
+// 2. Layout Components
+@use './wrapper';
+@use './grid';
+
+// 3. Table Elements
+@use './header';
+@use './row';
+@use './cell';
+@use './total';
+
+// 4. Features
+@use './fixed';
+@use './pagination';
+
+// 5. Utilities
+@use './utilities';
+
+@use './overlay';
+@use './sort';
+@use './loader';
+@use './toolbar';

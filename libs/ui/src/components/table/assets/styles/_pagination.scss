@@ -1,0 +1,187 @@
+// Table Pagination Styles
+// ============================================
+@use './variables' as *;
+
+.v-table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $table-cell-padding-y $table-cell-padding-x;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  background: linear-gradient(
+    to top,
+    color-mix(in oklch, var(--ui-surface-sunken) 30%, transparent),
+    color-mix(in oklch, var(--ui-surface) 50%, transparent)
+  );
+  border-top: 1px solid color-mix(in oklch, var(--ui-border-subtle) 40%, transparent);
+  border-bottom-left-radius: 1rem;
+  border-bottom-right-radius: 1rem;
+  min-height: 60px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
+  }
+}
+
+.v-table-pagination-info {
+  color: var(--ui-foreground-secondary);
+  font-size: $table-font-size-base;
+  line-height: $table-line-height-base;
+  font-weight: $table-font-weight-regular;
+  white-space: nowrap;
+
+  &-highlight {
+    color: var(--ui-foreground);
+    font-weight: $table-font-weight-semibold;
+  }
+}
+
+.v-table-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.v-table-pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--ui-border-subtle) 30%, transparent);
+  border-radius: 0.5rem;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklch, var(--ui-surface-sunken) 50%, transparent),
+    color-mix(in oklch, var(--ui-surface) 80%, transparent)
+  );
+  box-shadow: var(--ui-shadow-xs);
+  color: var(--ui-foreground);
+  font-size: $table-font-size-base;
+  font-weight: $table-font-weight-medium;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+
+  &:hover:not(:disabled):not(.v-table-pagination-btn--active) {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--ui-primary) 8%, transparent),
+      color-mix(in oklch, var(--ui-surface-sunken) 60%, transparent)
+    );
+    border-color: color-mix(in oklch, var(--ui-primary) 30%, transparent);
+    transform: translateY(-1px);
+    box-shadow: var(--ui-shadow-sm);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  &:disabled {
+    opacity: $opacity-disabled;
+    cursor: not-allowed;
+    color: var(--ui-foreground-secondary);
+  }
+
+  &--active {
+    background: linear-gradient(135deg, var(--ui-primary), var(--ui-primary-hover));
+    color: var(--ui-primary-foreground);
+    border-color: var(--ui-primary);
+    font-weight: $table-font-weight-semibold;
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--ui-primary) 10%, transparent),
+      0 2px 4px 0 color-mix(in oklch, var(--ui-primary) 30%, transparent),
+      0 4px 12px -2px color-mix(in oklch, var(--ui-primary) 25%, transparent);
+    cursor: default;
+
+    &:hover {
+      box-shadow:
+        0 0 0 1px color-mix(in oklch, var(--ui-primary) 15%, transparent),
+        0 2px 4px 0 color-mix(in oklch, var(--ui-primary) 35%, transparent),
+        0 6px 16px -2px color-mix(in oklch, var(--ui-primary) 30%, transparent);
+    }
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ui-primary) 20%, transparent);
+  }
+}
+
+.v-table-pagination-size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+
+  label {
+    color: var(--ui-foreground-secondary);
+    font-size: $table-font-size-base;
+    font-weight: $table-font-weight-medium;
+  }
+
+  select {
+    padding: 0.375rem 2rem 0.375rem 0.75rem;
+    min-width: 80px;
+    height: 2.25rem;
+    border: $table-border-width solid var(--ui-border);
+    border-radius: 6px;
+    background-color: var(--ui-surface);
+    color: var(--ui-foreground);
+    font-size: $table-font-size-base;
+    font-weight: $table-font-weight-medium;
+    line-height: 1;
+    cursor: pointer;
+    transition: all $transition-fast;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%2364748b' d='M4.427 6.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 6H4.604a.25.25 0 00-.177.427z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 16px;
+
+    &:hover {
+      background-color: color-mix(in oklch, var(--ui-surface) 96%, var(--ui-foreground) 4%);
+      border-color: color-mix(in oklch, var(--ui-border) 70%, var(--ui-foreground) 30%);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--ui-primary);
+      box-shadow: 0 0 0 3px color-mix(in oklch, var(--ui-primary) 20%, transparent);
+    }
+
+    option {
+      background-color: var(--ui-surface);
+      color: var(--ui-foreground);
+      padding: 0.5rem;
+    }
+  }
+}
+
+.v-table-pagination-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  color: var(--ui-foreground-secondary);
+  font-weight: $table-font-weight-medium;
+  cursor: default;
+  user-select: none;
+}
+
+@media (max-width: 768px) {
+  .v-table-pagination {
+    &-info    { order: 1; text-align: center; width: 100%; }
+    &-controls { order: 2; width: 100%; }
+    &-size    { order: 3; width: 100%; }
+  }
+}

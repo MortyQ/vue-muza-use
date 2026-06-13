@@ -1,0 +1,271 @@
+/* ============================================
+   TOASTER CONTAINER POSITIONING
+   ============================================ */
+:global([data-sonner-toaster]) {
+  position: fixed !important;
+  z-index: 9999 !important;
+  pointer-events: none;
+  padding: 16px;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  list-style: none;
+  margin: 0;
+}
+
+:global([data-sonner-toaster][data-x-position='right']) {
+  right: 0;
+}
+
+:global([data-sonner-toaster][data-x-position='left']) {
+  left: 0;
+}
+
+:global([data-sonner-toaster][data-x-position='center']) {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+:global([data-sonner-toaster][data-y-position='top']) {
+  top: 0;
+}
+
+:global([data-sonner-toaster][data-y-position='bottom']) {
+  bottom: 0;
+}
+
+/* ============================================
+   TOAST ITEM
+   ============================================ */
+:global([data-sonner-toast]) {
+  pointer-events: auto;
+  animation: slideIn 0.3s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+}
+
+:global([data-sonner-toast][data-removed='true']) {
+  animation: slideOut 0.2s ease-out forwards;
+}
+
+:global([data-sonner-toast]:not(:last-child)) {
+  margin-bottom: 12px;
+}
+
+/* ============================================
+   TOAST CUSTOM STYLES
+   ============================================ */
+:global(.toast-custom) {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: var(--ui-radius-lg);
+  background-color: var(--ui-surface-overlay);
+  border: 1px solid var(--ui-border);
+  box-shadow: var(--ui-shadow-xl);
+  min-width: 320px;
+  max-width: 450px;
+  transition: all 0.3s ease-in-out;
+  font-family: inherit;
+}
+
+/* Glass effect on desktop only for performance */
+@media (min-width: 768px) {
+  :global(.toast-custom) {
+    background: color-mix(in oklch, var(--ui-surface-overlay) 80%, transparent);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid color-mix(in oklch, var(--ui-border) 50%, transparent);
+  }
+}
+
+:global(.toast-custom:hover) {
+  box-shadow: var(--ui-shadow-xl);
+  transform: translateY(-2px);
+}
+
+/* ============================================
+   TOAST CONTENT
+   ============================================ */
+:global(.toast-title) {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ui-foreground);
+  line-height: 1.4;
+}
+
+:global(.toast-description) {
+  font-size: 0.75rem;
+  color: var(--ui-foreground-secondary);
+  margin-top: 0.25rem;
+  line-height: 1.5;
+}
+
+/* ============================================
+   TOAST VARIANTS (Success, Error, Warning, Info)
+   ============================================ */
+:global(.toast-success) {
+  border-left: 4px solid var(--ui-success);
+}
+
+:global(.toast-success [data-icon]) {
+  color: var(--ui-success);
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+:global(.toast-error) {
+  border-left: 4px solid var(--ui-danger);
+}
+
+:global(.toast-error [data-icon]) {
+  color: var(--ui-danger);
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+:global(.toast-warning) {
+  border-left: 4px solid var(--ui-warning);
+}
+
+:global(.toast-warning [data-icon]) {
+  color: var(--ui-warning);
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+:global(.toast-info) {
+  border-left: 4px solid var(--ui-info);
+}
+
+:global(.toast-info [data-icon]) {
+  color: var(--ui-info);
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+/* ============================================
+   TOAST BUTTONS
+   ============================================ */
+:global(.toast-close) {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  opacity: 0.7;
+  transition: opacity 0.2s, background-color 0.2s, color 0.2s;
+  color: var(--ui-foreground-muted);
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ui-radius);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+:global(.toast-close:hover) {
+  opacity: 1;
+  color: var(--ui-foreground);
+  background-color: var(--ui-surface-raised);
+}
+
+:global(.toast-close:focus) {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ui-primary) 50%, transparent);
+}
+
+:global(.toast-close svg) {
+  width: 16px;
+  height: 16px;
+}
+
+:global(.toast-action) {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--ui-radius);
+  background-color: var(--ui-primary);
+  color: var(--ui-primary-foreground);
+  border: none;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+:global(.toast-action:hover) {
+  background-color: var(--ui-primary-hover);
+}
+
+:global(.toast-action:focus) {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ui-primary) 50%, transparent);
+}
+
+:global(.toast-cancel) {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--ui-radius);
+  background-color: var(--ui-surface-raised);
+  color: var(--ui-foreground);
+  border: none;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  margin-left: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+:global(.toast-cancel:hover) {
+  background-color: var(--ui-surface-hover);
+}
+
+:global(.toast-cancel:focus) {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ui-primary) 50%, transparent);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+:global([data-loading-icon]) {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}

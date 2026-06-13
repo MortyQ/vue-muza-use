@@ -1,0 +1,50 @@
+// Table Loading Overlay Styles
+// ============================================
+
+.v-table-container-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+}
+
+.v-table-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.v-table-loading-backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(in oklch, var(--ui-surface) 75%, transparent);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.v-table-loading-spinner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.v-table-scroll-container--loading {
+  pointer-events: none;
+  user-select: none;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}

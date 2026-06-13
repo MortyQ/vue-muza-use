@@ -1,0 +1,10 @@
+// NavigationSidebar — Component Styles
+// Entry file: imports all partials in dependency order
+
+@use 'sidebar-container';
+@use 'sidebar-header';
+@use 'sidebar-nav';
+@use 'sidebar-item';
+@use 'sidebar-footer';
+@use 'sidebar-flyout';
+@use 'sidebar-mobile';

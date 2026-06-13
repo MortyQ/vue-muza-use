@@ -1,0 +1,110 @@
+/* ============================================
+   SWITCH WRAPPER (root label element)
+   ============================================ */
+.v-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  gap: 0.75rem;
+
+  &--disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+/* ============================================
+   CONTAINER
+   ============================================ */
+.v-switch__container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Hidden native input — visually replaced by .v-switch__track */
+.v-switch__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ============================================
+   TRACK
+   ============================================ */
+.v-switch__track {
+  width: 44px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 2px solid;
+  box-sizing: border-box;
+  background-color: var(--ui-border-subtle);
+  border-color: var(--ui-border-subtle);
+  box-shadow: var(--ui-shadow-sm);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &--checked {
+    background-color: var(--ui-primary);
+    border-color: var(--ui-primary);
+  }
+
+  &--disabled {
+    background-color: var(--ui-border-strong);
+    border-color: var(--ui-border-strong);
+  }
+
+  /* Custom color override — applied via --v-switch-color CSS variable */
+  &--custom-color {
+    background-color: var(--v-switch-color);
+    border-color: var(--v-switch-color);
+  }
+}
+
+/* ============================================
+   THUMB
+   ============================================ */
+.v-switch__thumb {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background-color: white;
+  box-shadow:
+    0 3px 8px 0 oklch(0% 0 0 / 0.15),
+    0 1px 4px 0 oklch(0% 0 0 / 0.10);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  transform: translateX(0);
+
+  &--checked {
+    transform: translateX(20px);
+  }
+}
+
+/* ============================================
+   LABEL TEXT
+   ============================================ */
+.v-switch__label {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--ui-foreground-secondary);
+}

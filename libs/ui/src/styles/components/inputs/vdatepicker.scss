@@ -1,0 +1,407 @@
+/* ============================================
+   ROOT WRAPPER
+   ============================================ */
+.v-datepicker-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  width: 100%;
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-xs);
+}
+
+/* ============================================
+   LABEL
+   ============================================ */
+.v-datepicker-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ui-foreground);
+  margin-bottom: 0.125rem;
+  transition: color 0.2s ease;
+}
+
+/* ============================================
+   HELPER TEXT & ERRORS
+   ============================================ */
+.v-datepicker-helper-text {
+  font-size: 0.75rem;
+  color: var(--ui-foreground-muted);
+  margin-top: 0.125rem;
+  transition: color 0.2s ease;
+}
+
+.form-error {
+  font-size: 0.75rem;
+  color: var(--ui-danger);
+  font-weight: 500;
+  margin-top: 0.125rem;
+}
+
+/* ============================================
+   ICONS
+   ============================================ */
+.v-datepicker-icon,
+.v-datepicker-clear-icon,
+.v-datepicker-arrow-icon,
+.v-datepicker-clock-icon,
+.v-datepicker-calendar-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--ui-foreground-muted);
+  transition: color 0.2s ease;
+}
+
+.v-datepicker-clear-icon:hover,
+.v-datepicker-arrow-icon:hover {
+  color: var(--ui-primary);
+  cursor: pointer;
+}
+
+.v-datepicker-icon-wrapper,
+.v-datepicker-clear-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.v-datepicker-icon-wrapper {
+  margin-left: 0;
+}
+
+.v-datepicker-clear-wrapper {
+  margin-right: 0.5rem;
+}
+
+/* ============================================
+   ERROR TRANSITION
+   ============================================ */
+.error-slide-enter-active,
+.error-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.error-slide-enter-from,
+.error-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ============================================
+   MAIN DATEPICKER — CSS VARIABLES MAPPING
+   ============================================ */
+.v-datepicker {
+  --dp-font-family: inherit;
+  --dp-border-radius: var(--ui-radius-lg);
+  --dp-cell-border-radius: var(--ui-radius);
+  --dp-month-year-row-height: 2.25rem;
+  --dp-month-year-row-button-size: 2.25rem;
+  --dp-button-icon-height: 1.25rem;
+  --dp-cell-size: 2.25rem;
+  --dp-cell-padding: 0.25rem;
+  --dp-common-padding: 0.75rem;
+  --dp-preview-font-size: 0.5rem;
+  --dp-time-font-size: 0.875rem;
+
+  /* Default MD size */
+  --dp-font-size: 1rem;
+  --dp-input-padding: 0.625rem 1.5rem;
+  --dp-input-icon-padding: 2.75rem;
+  --dp-button-height: 2.75rem;
+
+  /* Colors → --ui-* tokens */
+  --dp-background-color: var(--ui-surface-raised);
+  --dp-text-color: var(--ui-foreground);
+  --dp-hover-color: var(--ui-primary-subtle);
+  --dp-hover-text-color: var(--ui-primary);
+  --dp-hover-icon-color: var(--ui-primary);
+  --dp-primary-color: var(--ui-primary);
+  --dp-primary-disabled-color: var(--ui-primary-muted);
+  --dp-primary-text-color: var(--ui-primary-foreground);
+  --dp-secondary-color: var(--ui-foreground-subtle);
+  --dp-border-color: var(--ui-border);
+  --dp-menu-border-color: var(--ui-border);
+  --dp-border-color-hover: var(--ui-primary);
+  --dp-border-color-focus: var(--ui-primary);
+  --dp-disabled-color: var(--ui-border);
+  --dp-disabled-color-text: var(--ui-foreground-subtle);
+  --dp-scroll-bar-background: var(--ui-background);
+  --dp-scroll-bar-color: var(--ui-border-strong);
+  --dp-success-color: var(--ui-success);
+  --dp-success-color-disabled: var(--ui-success-subtle);
+  --dp-icon-color: var(--ui-foreground-muted);
+  --dp-danger-color: var(--ui-danger);
+  --dp-marker-color: var(--ui-danger);
+  --dp-tooltip-color: var(--ui-foreground-secondary);
+  --dp-highlight-color: var(--ui-primary-subtle);
+  --dp-range-between-dates-background-color: var(--ui-primary-subtle);
+  --dp-range-between-dates-text-color: var(--ui-primary);
+  --dp-range-between-border-color: var(--ui-primary-muted);
+
+  width: 100%;
+}
+
+/* ============================================
+   SIZE VARIANTS
+   ============================================ */
+
+/* Small */
+.v-datepicker--sm .v-datepicker {
+  --dp-font-size: 0.875rem;
+  --dp-input-padding: 0.4375rem 2.5rem 0.4375rem 2.25rem;
+  --dp-input-icon-padding: 2.25rem;
+  --dp-button-height: 2.25rem;
+}
+
+.v-datepicker--sm .v-datepicker-no-clear {
+  --dp-input-padding: 0.4375rem 0.75rem 0.4375rem 2.25rem;
+}
+
+.v-datepicker--sm :deep(.dp__input_icon svg),
+.v-datepicker--sm :deep(.dp__clear_icon svg) {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Medium */
+.v-datepicker--md .v-datepicker {
+  --dp-font-size: 1rem;
+  --dp-input-padding: 0.625rem 1.5rem 0.625rem 2.25rem;
+  --dp-input-icon-padding: 2.25rem;
+  --dp-button-height: 2.75rem;
+}
+
+.v-datepicker--md .v-datepicker-no-clear {
+  --dp-input-padding: 0.625rem 0.75rem 0.625rem 2.25rem;
+}
+
+.v-datepicker--md :deep(.dp__input_icon svg),
+.v-datepicker--md :deep(.dp__clear_icon svg) {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Large */
+.v-datepicker--lg .v-datepicker {
+  --dp-font-size: 1.125rem;
+  --dp-input-padding: 0.6875rem 3rem;
+  --dp-input-icon-padding: 3rem;
+  --dp-button-height: 3rem;
+}
+
+.v-datepicker--lg .v-datepicker-no-clear {
+  --dp-input-padding: 0.6875rem 0.875rem 0.6875rem 3rem;
+}
+
+.v-datepicker--lg :deep(.dp__input_icon svg),
+.v-datepicker--lg :deep(.dp__clear_icon svg) {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* ============================================
+   VUEDATEPICKER INTERNAL OVERRIDES (:deep)
+   ============================================ */
+:deep(.dp--preset-dates) {
+  min-width: 140px;
+  width: 100%;
+  border-color: var(--ui-border);
+}
+
+:deep(.dp__disabled) {
+  background-color: color-mix(in oklch, var(--ui-surface-hover) 30%, transparent);
+  cursor: not-allowed;
+  color: var(--ui-foreground-muted);
+}
+
+:deep(.dp__menu) {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow-md);
+}
+
+:deep(.dp__menu_inner),
+:deep(.dp__instance_calendar),
+:deep(.dp__overlay),
+:deep(.dp--overlay-relative) {
+  background-color: var(--ui-surface-raised);
+  border-radius: var(--ui-radius-xs);
+}
+
+:deep(.dp__menu_content_wrapper) {
+  background-color: var(--ui-surface-raised);
+  border-radius: var(--ui-radius-xs);
+  color: var(--ui-foreground);
+  border: none;
+}
+
+:deep(.dp__btn),
+:deep(.dp--preset-range),
+:deep(.dp__calendar_header_item),
+:deep(.dp__cell_inner),
+:deep(.dp__pointer .dp--future),
+:deep(.dp__overlay_cell),
+:deep(.dp__overlay_cell_pad) {
+  color: var(--ui-foreground);
+}
+
+:deep(.dp__overlay_cell_disabled) {
+  background-color: var(--ui-surface-raised);
+  color: color-mix(in oklch, var(--ui-foreground-muted) 50%, transparent);
+}
+
+:deep(.dp__range_between),
+:deep(.dp__cell_in_between) {
+  color: var(--ui-foreground-muted);
+  background-color: var(--ui-surface-hover);
+  border: none;
+}
+
+:deep(.dp__range_end),
+:deep(.dp__range_start),
+:deep(.dp__overlay_cell_active) {
+  color: var(--ui-primary-foreground);
+  background-color: var(--ui-primary);
+}
+
+:deep(.dp__overlay_cell:hover) {
+  background-color: var(--ui-surface-hover);
+  color: var(--ui-foreground);
+}
+
+:deep(.dp--preset-range:hover) {
+  background-color: var(--ui-surface-hover);
+  color: var(--ui-foreground);
+}
+
+:deep(.dp__overlay_cell_active:hover) {
+  background-color: var(--ui-primary);
+  color: var(--ui-primary-foreground);
+}
+
+:deep(.dp__month_year_select:hover) {
+  background-color: var(--ui-surface-hover);
+  color: var(--ui-foreground);
+}
+
+:deep(.dp--year-select:hover) {
+  background-color: var(--ui-surface-hover);
+  color: var(--ui-foreground);
+}
+
+:deep(.dp__date_hover) {
+  background-color: var(--ui-surface-hover);
+  color: var(--ui-foreground);
+}
+
+:deep(.dp__input) {
+  width: 100%;
+  background-color: var(--ui-surface-raised);
+  color: var(--ui-foreground);
+  border: 0;
+  font-family: inherit;
+  transition: all 0.2s ease-in-out;
+  padding-left: 2rem;
+  padding-right: 1rem;
+}
+
+:deep(.dp__input::placeholder) {
+  color: var(--ui-foreground-muted);
+}
+
+:deep(.dp__input:focus) {
+  outline: none;
+}
+
+:deep(.dp__input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--ui-surface-raised);
+}
+
+:deep(.dp__arrow_top) {
+  background-color: var(--ui-surface-raised);
+  border-top-color: var(--ui-border);
+  border-left-color: var(--ui-border);
+}
+
+:deep(.dp__range_start),
+:deep(.dp__range_end) {
+  background-color: var(--ui-primary);
+  color: var(--ui-primary-foreground);
+}
+
+:deep(.dp__today) {
+  color: color-mix(in oklch, var(--ui-warning) 90%, transparent);
+}
+
+:deep(.dp__cell_disabled) {
+  color: color-mix(in oklch, var(--ui-foreground-muted) 80%, transparent);
+}
+
+/* ============================================
+   MENU / INPUT CONTAINER
+   ============================================ */
+.v-datepicker-menu {
+  box-shadow: var(--ui-shadow-xl);
+  border-radius: var(--ui-radius-lg);
+  overflow: hidden;
+}
+
+.v-datepicker-calendar {
+  font-family: inherit;
+}
+
+:deep(.dp__input_wrap) {
+  position: relative;
+  box-shadow: var(--ui-shadow-lg);
+  border-radius: var(--ui-radius-lg);
+}
+
+:deep(.dp__input_icon) {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+:deep(.dp__clear_icon) {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+/* ============================================
+   DARK THEME
+   ============================================ */
+:global(.dark) .v-datepicker,
+.v-datepicker:global(.dp__theme_dark) {
+  --dp-background-color: var(--ui-nav);
+  --dp-text-color: var(--ui-foreground-inverted);
+  --dp-hover-color: color-mix(in oklch, var(--ui-primary) 20%, var(--ui-nav));
+  --dp-hover-text-color: var(--ui-primary-muted);
+  --dp-hover-icon-color: var(--ui-primary);
+  --dp-primary-color: var(--ui-primary);
+  --dp-primary-disabled-color: color-mix(in oklch, var(--ui-primary) 40%, var(--ui-nav));
+  --dp-primary-text-color: var(--ui-nav);
+  --dp-secondary-color: var(--ui-foreground-muted);
+  --dp-border-color: var(--ui-nav-border);
+  --dp-menu-border-color: var(--ui-nav-border);
+  --dp-border-color-hover: var(--ui-primary);
+  --dp-border-color-focus: var(--ui-primary);
+  --dp-disabled-color: var(--ui-nav-hover);
+  --dp-disabled-color-text: var(--ui-foreground-muted);
+  --dp-scroll-bar-background: var(--ui-nav);
+  --dp-scroll-bar-color: var(--ui-nav-active);
+  --dp-icon-color: var(--ui-foreground-subtle);
+  --dp-danger-color: var(--ui-danger-hover);
+  --dp-marker-color: var(--ui-danger-hover);
+  --dp-tooltip-color: var(--ui-foreground-secondary);
+  --dp-highlight-color: color-mix(in oklch, var(--ui-primary) 30%, var(--ui-nav));
+  --dp-range-between-dates-background-color: color-mix(in oklch, var(--ui-primary) 20%, var(--ui-nav));
+  --dp-range-between-dates-text-color: var(--ui-primary-muted);
+  --dp-range-between-border-color: color-mix(in oklch, var(--ui-primary) 40%, var(--ui-nav));
+}
+

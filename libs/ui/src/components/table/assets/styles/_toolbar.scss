@@ -1,0 +1,126 @@
+// Table Toolbar Styles
+// ============================================
+
+.v-toolbar {
+  background: transparent;
+  transition: all 0.2s ease;
+
+  &--split {
+    container-type: inline-size;
+    container-name: toolbar;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.5rem;
+    flex-wrap: wrap;
+  }
+}
+
+.v-toolbar-split-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.v-toolbar-split-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 0 0 auto;
+}
+
+.v-toolbar-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ui-foreground);
+  margin: 0;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.v-toolbar-subtitle {
+  font-size: 0.875rem;
+  color: var(--ui-foreground-secondary);
+  margin: 0.25rem 0 0;
+  line-height: 1.4;
+}
+
+.v-toolbar-search-split {
+  flex: 1 1 200px;
+  min-width: 150px;
+  max-width: 400px;
+}
+
+.v-toolbar-export-dropdown {
+  position: relative;
+}
+
+.v-toolbar-export-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 200px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border-subtle);
+  border-radius: 0.5rem;
+  box-shadow: var(--ui-shadow-md);
+  padding: 0.5rem;
+  z-index: 50;
+  overflow: hidden;
+}
+
+.v-toolbar-export-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--ui-foreground);
+  background: transparent;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+
+  &:hover:not(:disabled) {
+    background: var(--ui-surface-sunken);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.2s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-0.5rem);
+}
+
+@container toolbar (max-width: 500px) {
+  .v-toolbar-split-left {
+    flex: 1 1 100%;
+  }
+
+  .v-toolbar-split-right {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+
+  .v-toolbar-search-split {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}
