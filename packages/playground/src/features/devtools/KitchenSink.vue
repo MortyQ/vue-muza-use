@@ -4,32 +4,32 @@ import { useApi, useApiBatch } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 // 1. Polling instance
-const { loading: pollingLoading } = useApi("/users/1", { immediate: true, poll: 3000 });
+const { loading: pollingLoading } = useApi("/analytics/summary", { immediate: true, poll: 3000 });
 
 // 2. SWR cache instance
-const { revalidating } = useApi("/users/2", { immediate: true, cache: { id: "ks-swr", staleTime: 10000, swr: true } });
+const { revalidating } = useApi("/lists", { immediate: true, cache: { id: "ks-swr", staleTime: 10000, swr: true } });
 
 // 3. Lazy instance (manual trigger)
-const { execute: lazyFetch, data: lazyData } = useApi("/users/3", { lazy: true });
+const { execute: lazyFetch, data: lazyData } = useApi("/me", { lazy: true });
 
 // 4. Error instance
-const { error: err404 } = useApi("/users/99999", { immediate: true, skipErrorNotification: true });
+const { error: err404 } = useApi("/lists/00000000-0000-0000-0000-000000000000", { immediate: true, skipErrorNotification: true });
 
 // 5. Batch (5 requests)
 const { loading: batchLoading, execute: runBatch } = useApiBatch(
-    ["/users/1", "/users/2", "/users/3", "/users/4", "/users/5"],
+    ["/me", "/lists", "/analytics/summary", "/analytics/popular-tags", "/analytics/tasks-by-priority"],
     { immediate: true },
 );
 
 // 6. Debounce instance
 const search = ref("");
-const { loading: debounceLoading } = useApi(() => `/users?q=${search.value}`, { debounce: 400 });
+const { loading: debounceLoading } = useApi(() => `/lists?q=${search.value}`, { debounce: 400 });
 </script>
 
 <template>
     <DemoWrapper
         title="Kitchen Sink"
-        description="8 useApi instances running simultaneously. Open the devtools panel to see Instances, Network, and Timeline all populated."
+        description="6 useApi instances running simultaneously. Open the devtools panel to see Instances, Network, and Timeline all populated."
     >
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
             <div style="padding: 10px; background: var(--ui-surface-sunken); border-radius: 6px;">

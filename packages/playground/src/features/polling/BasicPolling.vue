@@ -5,7 +5,7 @@ import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 const requestCount = ref(0);
 const lastFetched = ref<string | null>(null);
-const { loading, abort } = useApi("/users/1", {
+const { loading, abort } = useApi("/analytics/summary", {
     immediate: true,
     poll: 3000,
     onSuccess: () => {
@@ -14,7 +14,7 @@ const { loading, abort } = useApi("/users/1", {
     },
 });
 
-const code = `const { loading, abort } = useApi('/users/1', {
+const code = `const { loading, abort } = useApi('/analytics/summary', {
   immediate: true,
   poll: 3000, // re-fetch every 3 seconds
 })`;

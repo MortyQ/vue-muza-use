@@ -6,12 +6,12 @@ import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 const labels = ["200 OK", "404 Not Found", "404 (retry x2)", "Aborted", "Public (no auth)", "Optional auth"];
 
 const instances: UseApiReturn<unknown, unknown>[] = [
-    useApi("/users/1", { immediate: true, skipErrorNotification: true }),
-    useApi("/users/99999", { immediate: true, skipErrorNotification: true }),
-    useApi("/users/88888", { immediate: true, skipErrorNotification: true, retry: 2, retryDelay: 300 }),
-    useApi("/users/2", { immediate: true, skipErrorNotification: true }),
-    useApi("/users/3", { immediate: true, skipErrorNotification: true, authMode: "public" }),
-    useApi("/users/4", { immediate: true, skipErrorNotification: true, authMode: "optional" }),
+    useApi("/me", { immediate: true, skipErrorNotification: true }),
+    useApi("/lists/00000000-0000-0000-0000-000000000001", { immediate: true, skipErrorNotification: true }),
+    useApi("/lists/00000000-0000-0000-0000-000000000002", { immediate: true, skipErrorNotification: true, retry: 2, retryDelay: 300 }),
+    useApi("/analytics/summary", { immediate: true, skipErrorNotification: true }),
+    useApi("/health", { immediate: true, skipErrorNotification: true, authMode: "public" }),
+    useApi("/lists", { immediate: true, skipErrorNotification: true, authMode: "optional" }),
 ];
 
 function abortFourth(): void {

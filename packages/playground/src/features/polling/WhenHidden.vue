@@ -5,14 +5,14 @@ import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 const pollWhenHidden = ref(false);
 const requestCount = ref(0);
-useApi("/users/1", {
+useApi("/analytics/summary", {
     immediate: true,
     poll: { interval: 2000, whenHidden: pollWhenHidden },
     onSuccess: () => requestCount.value++,
 });
 
 const code = `const pollWhenHidden = ref(false)
-useApi('/users/1', {
+useApi('/analytics/summary', {
   poll: { interval: 2000, whenHidden: pollWhenHidden },
 })
 // whenHidden: false → polling pauses when browser tab is hidden`;

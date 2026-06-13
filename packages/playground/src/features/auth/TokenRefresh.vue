@@ -4,11 +4,11 @@ import { useAuthDemoStore } from "./store/useAuthDemoStore";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 const auth = useAuthDemoStore();
-const { data, loading, execute } = useApi("/users/me", { skipErrorNotification: true });
+const { data, loading, execute } = useApi("/me", { skipErrorNotification: true });
 
 const code = `// createApiClient handles 401 → token refresh automatically
-// When /users/me returns 401, the interceptor:
-// 1. Calls POST /auth/refresh with the refreshToken
+// When /me returns 401, the interceptor:
+// 1. Calls POST /auth/refresh with { refreshToken }
 // 2. Updates tokens via tokenManager.setTokens()
 // 3. Retries the original request with the new accessToken`;
 </script>
@@ -24,7 +24,7 @@ const code = `// createApiClient handles 401 → token refresh automatically
             </div>
             <div v-if="loading">Fetching protected endpoint...</div>
             <div v-else-if="data">Response: {{ JSON.stringify(data).slice(0, 100) }}</div>
-            <button style="margin-top: 12px; padding: 8px 16px; cursor: pointer;" @click="execute()">Call /users/me</button>
+            <button style="margin-top: 12px; padding: 8px 16px; cursor: pointer;" @click="execute()">Call /me</button>
         </div>
     </DemoWrapper>
 </template>

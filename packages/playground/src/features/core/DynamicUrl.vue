@@ -3,27 +3,27 @@ import { ref } from "vue";
 import { useApi } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
-interface User { id: number; name: string; email: string }
+interface PaginatedLists { items: { id: string; title: string }[]; total: number }
 
-const userId = ref(1);
-const { data, loading } = useApi<User>(() => `/users/${userId.value}`, { immediate: true });
+const limit = ref(3);
+const { data, loading } = useApi<PaginatedLists>(() => `/lists?limit=${limit.value}`, { immediate: true });
 
-const code = `const userId = ref(1)
-const { data, loading } = useApi<User>(() => \`/users/\${userId.value}\`, {
+const code = `const limit = ref(3)
+const { data, loading } = useApi<PaginatedLists>(() => \`/lists?limit=\${limit.value}\`, {
   immediate: true,
 })
-// changing userId.value auto-triggers a new request`;
+// changing limit.value auto-triggers a new request`;
 </script>
 
 <template>
-    <DemoWrapper title="Dynamic URL" description="Reactive URL — changing userId triggers a new request automatically." :code="code">
+    <DemoWrapper title="Dynamic URL" description="Reactive URL — changing the limit triggers a new request automatically." :code="code">
         <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-            <button v-for="id in [1, 2, 3]" :key="id" @click="userId = id"
-                :style="{ padding: '6px 14px', cursor: 'pointer', fontWeight: userId === id ? 700 : 400 }">
-                User {{ id }}
+            <button v-for="n in [1, 3, 5]" :key="n" @click="limit = n"
+                :style="{ padding: '6px 14px', cursor: 'pointer', fontWeight: limit === n ? 700 : 400 }">
+                Limit {{ n }}
             </button>
         </div>
         <div v-if="loading">Loading...</div>
-        <div v-else-if="data">{{ data.name }} — {{ data.email }}</div>
+        <div v-else-if="data">{{ data.items.length }} lists (total: {{ data.total }})</div>
     </DemoWrapper>
 </template>

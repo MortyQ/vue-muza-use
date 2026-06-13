@@ -3,12 +3,14 @@ import { ref } from "vue";
 import { useApiBatch } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
+const ENDPOINTS = ["/me", "/lists", "/analytics/summary", "/analytics/popular-tags", "/analytics/tasks-by-priority", "/analytics/daily-activity"];
+
 const batchSize = ref(20);
 const pollerCount = ref(0);
 const activePollers = ref<ReturnType<typeof setInterval>[]>([]);
 
 const { loading, progress, execute } = useApiBatch(
-    () => Array.from({ length: batchSize.value }, (_, i) => `/users/${(i % 10) + 1}`),
+    () => Array.from({ length: batchSize.value }, (_, i) => ENDPOINTS[i % ENDPOINTS.length]),
     { immediate: false, concurrency: 5 },
 );
 
@@ -16,7 +18,7 @@ function startPollers(): void {
     stopPollers();
     for (let i = 0; i < pollerCount.value; i++) {
         activePollers.value.push(setInterval(() => {
-            fetch(import.meta.env.VITE_API_URL + `/users/${i + 1}`).catch(() => {});
+            fetch(import.meta.env.VITE_API_URL + ENDPOINTS[i % ENDPOINTS.length]).catch(() => {});
         }, 1000 + i * 200));
     }
 }

@@ -5,14 +5,14 @@ import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 const interval = ref(3000);
 const requestCount = ref(0);
-useApi("/users/1", {
+useApi("/analytics/summary", {
     immediate: true,
     poll: interval,
     onSuccess: () => requestCount.value++,
 });
 
 const code = `const interval = ref(3000)
-useApi('/users/1', {
+useApi('/analytics/summary', {
   poll: interval, // reactive — change and polling restarts with new interval
 })`;
 </script>

@@ -4,13 +4,13 @@ import { useApi } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 const refetchCount = ref(0);
-useApi("/users/1", {
+useApi("/analytics/summary", {
     immediate: true,
     refetchOnFocus: { throttle: 5000 },
     onSuccess: () => refetchCount.value++,
 });
 
-const code = `useApi('/users/1', {
+const code = `useApi('/analytics/summary', {
   refetchOnFocus: { throttle: 5000 },
   // throttle: 5000 — won't refetch again within 5s of last fetch
 })`;

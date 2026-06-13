@@ -5,7 +5,7 @@ import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 const concurrency = ref(2);
 const { loading, progress, execute } = useApiBatch(
-    ["/users/1", "/users/2", "/users/3", "/users/4", "/users/5", "/users/6"],
+    ["/me", "/lists", "/analytics/summary", "/analytics/popular-tags", "/analytics/tasks-by-priority", "/analytics/daily-activity"],
     { immediate: false, concurrency: concurrency.value },
 );
 

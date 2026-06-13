@@ -4,13 +4,13 @@ import { useApi } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 const refetchCount = ref(0);
-useApi("/users/1", {
+useApi("/analytics/summary", {
     immediate: true,
     refetchOnReconnect: true,
     onSuccess: () => refetchCount.value++,
 });
 
-const code = `useApi('/users/1', {
+const code = `useApi('/analytics/summary', {
   refetchOnReconnect: true,
   // fires on browser 'online' event — no throttle, reconnect is already rare
 })`;

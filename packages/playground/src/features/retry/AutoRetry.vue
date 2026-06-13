@@ -4,14 +4,14 @@ import { useApi } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 const attemptLog = ref<string[]>([]);
-const { loading, error, execute } = useApi("/users/999", {
+const { loading, error, execute } = useApi("/lists/00000000-0000-0000-0000-000000000000", {
     retry: 3,
     retryDelay: 800,
     skipErrorNotification: true,
     onError: (err) => attemptLog.value.unshift(`[${new Date().toLocaleTimeString()}] ${err.message}`),
 });
 
-const code = `const { loading, error } = useApi('/users/999', {
+const code = `const { loading, error } = useApi('/lists/nonexistent-id', {
   retry: 3,        // up to 3 retries
   retryDelay: 800, // 800ms between attempts
 })`;

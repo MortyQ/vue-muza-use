@@ -3,12 +3,12 @@ import { useApiBatch } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
 const { data, loading, execute } = useApiBatch(
-    ["/users/1", "/users/999", "/users/2", "/users/998"],
+    ["/me", "/lists/00000000-0000-0000-0000-000000000001", "/analytics/summary", "/tasks/00000000-0000-0000-0000-000000000002"],
     { immediate: true, settled: true, skipErrorNotification: true },
 );
 
 const code = `const { data } = useApiBatch(
-  ['/users/1', '/users/999', '/users/2', '/users/998'],
+  ['/me', '/lists/nonexistent', '/analytics/summary', '/tasks/nonexistent'],
   { settled: true }, // failed requests don't stop the batch
 )`;
 </script>

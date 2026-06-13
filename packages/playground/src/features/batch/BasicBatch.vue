@@ -2,13 +2,12 @@
 import { useApiBatch } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
-const { data, loading, progress, execute } = useApiBatch(
-    ["/users/1", "/users/2", "/users/3", "/users/4", "/users/5"],
-    { immediate: true },
-);
+const urls = ["/me", "/lists", "/analytics/summary", "/analytics/popular-tags", "/analytics/tasks-by-priority"];
+
+const { data, loading, progress, execute } = useApiBatch(urls, { immediate: true });
 
 const code = `const { data, loading, progress } = useApiBatch(
-  ['/users/1', '/users/2', '/users/3', '/users/4', '/users/5'],
+  ['/me', '/lists', '/analytics/summary', '/analytics/popular-tags', '/analytics/tasks-by-priority'],
   { immediate: true },
 )`;
 </script>
@@ -27,7 +26,7 @@ const code = `const { data, loading, progress } = useApiBatch(
         <div v-if="loading" style="color: var(--ui-foreground-muted)">Loading...</div>
         <ul v-else style="margin: 0; padding: 0 0 0 16px;">
             <li v-for="item in data" :key="item.index">
-                {{ item.success ? (item.data as { name: string }).name : `Error: ${item.error?.message}` }}
+                {{ item.url }}: {{ item.success ? 'OK' : `Error: ${item.error?.message}` }}
             </li>
         </ul>
         <button style="margin-top: 12px; padding: 8px 16px; cursor: pointer;" @click="execute()">Re-run</button>

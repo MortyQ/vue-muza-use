@@ -2,14 +2,14 @@
 import { useApi } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
-const { data: publicData, execute: fetchPublic } = useApi("/users", { authMode: "public", skipErrorNotification: true });
-const { data: optionalData, execute: fetchOptional } = useApi("/users/1", { authMode: "optional", skipErrorNotification: true });
-const { data: defaultData, execute: fetchDefault } = useApi("/users/me", { authMode: "default", skipErrorNotification: true });
+const { data: publicData, execute: fetchPublic } = useApi("/health", { authMode: "public", skipErrorNotification: true });
+const { data: optionalData, execute: fetchOptional } = useApi("/lists", { authMode: "optional", skipErrorNotification: true });
+const { data: defaultData, execute: fetchDefault } = useApi("/me", { authMode: "default", skipErrorNotification: true });
 
 const code = `// authMode controls whether Authorization header is attached
-useApi('/public-endpoint',  { authMode: 'public' })   // never sends token
-useApi('/optional-endpoint',{ authMode: 'optional' })  // sends token if present
-useApi('/protected',        { authMode: 'default' })   // always requires token`;
+useApi('/health', { authMode: 'public' })   // never sends token → open endpoint
+useApi('/lists',  { authMode: 'optional' }) // sends token if present → enriched data
+useApi('/me',     { authMode: 'default' })  // always requires token → 401 if missing`;
 </script>
 
 <template>

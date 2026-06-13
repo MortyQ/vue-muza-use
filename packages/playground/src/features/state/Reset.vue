@@ -2,16 +2,16 @@
 import { useApi } from "@ametie/vue-muza-use";
 import DemoWrapper from "@/shared/components/DemoWrapper.vue";
 
-interface User { id: number; name: string }
+interface PaginatedLists { items: { id: string; title: string }[]; total: number }
 
-const { data, loading, error, execute, reset } = useApi<User[]>("/users", {
+const { data, loading, error, execute, reset } = useApi<PaginatedLists>("/lists", {
     immediate: false,
-    initialData: [],
+    initialData: { items: [], total: 0 },
 });
 
-const code = `const { data, execute, reset } = useApi<User[]>('/users', {
+const code = `const { data, execute, reset } = useApi<PaginatedLists>('/lists', {
   immediate: false,
-  initialData: [], // data starts as [] not null
+  initialData: { items: [], total: 0 },
 })
 reset() // clears data, error, aborts in-flight request`;
 </script>
@@ -24,7 +24,7 @@ reset() // clears data, error, aborts in-flight request`;
         </div>
         <div style="font-size: 13px;">
             <div>loading: {{ loading }}</div>
-            <div>data: {{ data?.length ?? 0 }} items</div>
+            <div>data: {{ data?.items.length ?? 0 }} items</div>
             <div v-if="error" style="color: var(--ui-danger)">error: {{ error.message }}</div>
         </div>
     </DemoWrapper>
