@@ -125,7 +125,7 @@ export const baseConfig = [
               position: 'before',
             },
             {
-              pattern: '@muzakit/**',
+              pattern: '@ametie/**',
               group: 'internal',
               position: 'before',
             },
