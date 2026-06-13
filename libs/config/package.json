@@ -1,0 +1,20 @@
+{
+  "name": "@ametie/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tailwind/theme.css": "./src/tailwind/theme.css",
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./eslint.base.mjs": "./src/eslint/eslint.base.mjs"
+  },
+  "devDependencies": {
+    "@types/nprogress": "^0.2.3",
+    "tailwindcss": "^4.1.0"
+  },
+  "dependencies": {
+    "nprogress": "^0.2.0"
+  }
+}
+
