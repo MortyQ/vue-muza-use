@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
-import type { RequestRecord } from "../../../shared/types/index";
+import type { RequestRecord, DevtoolsInstanceOptions } from "../../../shared/types/index";
+import { useDevtoolsStore } from "../../../shared/composables/useDevtoolsStore";
 import RequestRow from "./RequestRow.vue";
 
 const props = defineProps<{
@@ -10,20 +11,27 @@ const props = defineProps<{
 }>();
 defineEmits<{ (e: "select", id: string): void }>();
 
+const { instances } = useDevtoolsStore();
+
+function getInstanceOptions(instanceId: string | null): DevtoolsInstanceOptions | undefined {
+    if (!instanceId) return undefined;
+    return instances.value.get(instanceId)?.options;
+}
+
 const parentRef = ref<HTMLElement | null>(null);
 
 const rowVirtualizer = useVirtualizer(
     computed(() => ({
         count: props.requests.length,
         getScrollElement: () => parentRef.value,
-        estimateSize: () => 32,
+        estimateSize: () => 52,
         overscan: 10,
     })),
 );
 </script>
 
 <template>
-    <div ref="parentRef" class="flex-1 overflow-auto">
+    <div ref="parentRef" class="flex-1 overflow-auto" style="background: var(--dt-surface-sunken);">
         <div :style="{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }">
             <div
                 v-for="vRow in rowVirtualizer.getVirtualItems()"
@@ -33,6 +41,7 @@ const rowVirtualizer = useVirtualizer(
                 <RequestRow
                     :request="requests[vRow.index]"
                     :is-active="requests[vRow.index].id === activeRequestId"
+                    :instance-options="getInstanceOptions(requests[vRow.index].instanceId)"
                     @select="$emit('select', $event)"
                 />
             </div>
