@@ -3,6 +3,7 @@ import { get, set } from "idb-keyval";
 const KEYS = {
     panelPosition: "vmd:panel-position",
     panelSize: "vmd:panel-size",
+    panelHeight: "vmd:panel-height",
     activeTab: "vmd:active-tab",
 } as const;
 
@@ -46,4 +47,18 @@ export async function loadActiveTab(): Promise<string | undefined> {
  */
 export async function saveActiveTab(id: string): Promise<void> {
     return set(KEYS.activeTab, id);
+}
+
+/**
+ * Loads the saved panel height from IndexedDB. Returns undefined if not previously saved.
+ */
+export async function loadPanelHeight(): Promise<number | undefined> {
+    return get<number>(KEYS.panelHeight);
+}
+
+/**
+ * Saves the panel height to IndexedDB.
+ */
+export async function savePanelHeight(height: number): Promise<void> {
+    return set(KEYS.panelHeight, height);
 }
