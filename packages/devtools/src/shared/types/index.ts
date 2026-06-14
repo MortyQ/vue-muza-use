@@ -122,6 +122,10 @@ export interface DevtoolsInstanceOptions {
     poll: number;
     immediate: boolean;
     lazy: boolean;
+    /** Debounce delay in milliseconds; undefined if debouncing is not configured. */
+    debounce?: number;
+    /** True if this instance belongs to a useApiBatch call. */
+    batch?: boolean;
 }
 
 /**
