@@ -38,6 +38,10 @@ export const requests: ComputedRef<ReadonlyArray<RequestRecord>> = computed(
     () => state.requests as ReadonlyArray<RequestRecord>,
 );
 
+/**
+ * Initialize (or reset) the store with new configuration.
+ * Clears all instances and request history.
+ */
 export function initDevtoolsStore(config: Pick<DevtoolsOptions, "maxHistory" | "maxPayloadSize">): void {
     state.instances.clear();
     state.requests.splice(0);
@@ -45,6 +49,10 @@ export function initDevtoolsStore(config: Pick<DevtoolsOptions, "maxHistory" | "
     state.config.maxPayloadSize = config.maxPayloadSize ?? 50_000;
 }
 
+/**
+ * Register a new useApi composable instance.
+ * Called when a useApi composable is created.
+ */
 export function registerInstance(
     id: string,
     url: string | undefined,
@@ -62,16 +70,29 @@ export function registerInstance(
     });
 }
 
+/**
+ * Remove a useApi composable instance from the store.
+ * Called when a useApi composable is destroyed.
+ */
 export function unregisterInstance(id: string): void {
     state.instances.delete(id);
 }
 
+/**
+ * Merge a partial state update into an existing instance.
+ * Silently ignores unknown instance ids.
+ */
 export function updateInstanceState(id: string, partial: Partial<DevtoolsInstanceState>): void {
     const instance = state.instances.get(id);
     if (!instance) return;
     instance.state = { ...instance.state, ...partial };
 }
 
+/**
+ * Add a new request record to the circular buffer.
+ * Evicts the oldest record when maxHistory is reached.
+ * Payload is truncated if it exceeds maxPayloadSize.
+ */
 export function addRequest(
     partial: Omit<RequestRecord, "duration" | "response" | "error" | "truncated">,
 ): void {
@@ -98,6 +119,10 @@ export function addRequest(
     }
 }
 
+/**
+ * Update a completed request with its result (success, error, or aborted).
+ * Silently ignores unknown request ids.
+ */
 export function updateRequest(id: string, result: RequestEndResult): void {
     const idx = state.requests.findIndex((r) => r.id === id);
     if (idx === -1) return;
@@ -129,10 +154,16 @@ export function updateRequest(id: string, result: RequestEndResult): void {
     }
 }
 
+/**
+ * Remove all request records from the store.
+ */
 export function clearRequests(): void {
     state.requests.splice(0);
 }
 
+/**
+ * Return all request records for a given instance id.
+ */
 export function getRequestsByInstance(instanceId: string): ReadonlyArray<RequestRecord> {
     return state.requests.filter((r) => r.instanceId === instanceId);
 }
