@@ -58,6 +58,20 @@ describe("devtoolsBridge — before init", () => {
             })
         ).not.toThrow();
     });
+
+    it("onStateUpdate is a no-op when bridge is null", async () => {
+        const { devtoolsBridge } = await import("../devtools");
+        expect(() =>
+            devtoolsBridge.onStateUpdate("id", { loading: true })
+        ).not.toThrow();
+    });
+
+    it("onInstanceDestroyed is a no-op when bridge is null", async () => {
+        const { devtoolsBridge } = await import("../devtools");
+        expect(() =>
+            devtoolsBridge.onInstanceDestroyed("id")
+        ).not.toThrow();
+    });
 });
 
 describe("devtoolsBridge — after init", () => {
@@ -74,6 +88,20 @@ describe("devtoolsBridge — after init", () => {
         await initDevtools({ enabled: true }, mockApp);
         devtoolsBridge.onRequestEnd("r1", { status: "aborted", duration: 10 });
         expect(mockBridge.onRequestEnd).toHaveBeenCalledWith("r1", { status: "aborted", duration: 10 });
+    });
+
+    it("forwards onStateUpdate to the bridge", async () => {
+        const { initDevtools, devtoolsBridge } = await import("../devtools");
+        await initDevtools({ enabled: true }, mockApp);
+        devtoolsBridge.onStateUpdate("id-1", { loading: true });
+        expect(mockBridge.onStateUpdate).toHaveBeenCalledWith("id-1", { loading: true });
+    });
+
+    it("forwards onInstanceDestroyed to the bridge", async () => {
+        const { initDevtools, devtoolsBridge } = await import("../devtools");
+        await initDevtools({ enabled: true }, mockApp);
+        devtoolsBridge.onInstanceDestroyed("id-1");
+        expect(mockBridge.onInstanceDestroyed).toHaveBeenCalledWith("id-1");
     });
 });
 
