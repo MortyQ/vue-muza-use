@@ -1,2 +1,2 @@
-// Filled in Part 7 (App Layer)
-export type { DevtoolsBridge } from "./shared/types/index";
+export { createBridge } from "./app/index";
+export type { DevtoolsBridge, DevtoolsOptions } from "./shared/types/index";
