@@ -26,7 +26,7 @@ function statusClass(code: number | null): string {
             <span v-if="request.duration !== null">{{ request.duration }}ms</span>
             <span>{{ new Date(request.startedAt).toLocaleTimeString() }}</span>
         </div>
-        <button class="close-btn" @click="$emit('close')">
+        <button class="close-btn" aria-label="Close detail" @click="$emit('close')">
             <Icon icon="lucide:x" width="14" height="14" />
         </button>
     </div>
