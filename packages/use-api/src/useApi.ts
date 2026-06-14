@@ -1,6 +1,6 @@
 import { debounceFn, DebounceCancelledError } from "./utils/debounce";
 import { type AxiosRequestConfig, type AxiosResponse, isAxiosError } from "axios";
-import { ref, computed, effectScope, getCurrentScope, onScopeDispose, toValue, watch, type MaybeRefOrGetter } from "vue";
+import { ref, computed, effectScope, getCurrentScope, onScopeDispose, toValue, watch, useId, type MaybeRefOrGetter } from "vue";
 
 import type {
     UseApiOptions,
@@ -14,6 +14,8 @@ import { useApiState } from "./composables/useApiState";
 import { useAbortController } from "./composables/useAbortController";
 import { readCache, writeCache, invalidateCache as cacheInvalidate, DEFAULT_STALE_TIME } from "./features/cacheManager";
 import { useRefetchTriggers } from "./composables/useRefetchTriggers";
+import { devtoolsBridge, nextRequestId } from "./devtools";
+import type { RequestEndResult } from "./types";
 
 const DEFAULT_RETRY_STATUS_CODES = [408, 429, 500, 502, 503, 504];
 
@@ -86,6 +88,30 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     const startLoading = initialLoading ?? immediate;
     const state = useApiState<TSelected>(initialData as TSelected | null, { initialLoading: startLoading });
     const revalidating = ref(false);
+
+    // Devtools: track this instance
+    const instanceId = useId();
+    devtoolsBridge.onInstanceCreated(instanceId, toValue(url), {
+        authMode: options.authMode ?? "default",
+        cache: options.cache,
+        retry: options.retry ?? false,
+        poll: (() => { const v = toValue(options.poll); return typeof v === "number" ? v : 0; })(),
+        immediate: options.immediate ?? false,
+        lazy: options.lazy ?? false,
+    });
+    if (getCurrentScope()) {
+        watch(
+            () => ({
+                loading: state.loading.value,
+                error: state.error.value,
+                statusCode: state.statusCode.value,
+                data: state.data.value,
+            }),
+            (s) => devtoolsBridge.onStateUpdate(instanceId, s),
+            { deep: true },
+        );
+    }
+
     const abortController = ref<AbortController | null>(null);
     const globalAbort = useGlobalAbort ? useAbortController() : null;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -191,6 +217,10 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         let wasCancelled = false;
         let retryCount = 0;
 
+        let devtoolsRequestId: string | null = null;
+        let devtoolsRequestStartedAt = 0;
+        let devtoolsRequestEndResult: RequestEndResult | null = null;
+
         try {
             if (!requestUrl) {
                 throw new Error("Request URL is missing");
@@ -201,6 +231,21 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
 
             const rawParams = config?.params !== undefined ? config.params : axiosConfig.params;
             const resolvedParams = toValue(rawParams);
+
+            // Devtools: record the outgoing request
+            devtoolsRequestId = nextRequestId();
+            devtoolsRequestStartedAt = Date.now();
+            devtoolsBridge.onRequestStart({
+                id: devtoolsRequestId,
+                instanceId,
+                url: requestUrl,
+                method,
+                startedAt: devtoolsRequestStartedAt,
+                status: "pending",
+                statusCode: null,
+                requestHeaders: {},
+                payload: resolvedData ?? resolvedParams ?? null,
+            });
 
             // eslint-disable-next-line no-constant-condition
             while (true) {
@@ -234,6 +279,12 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
 
                     onSuccess?.(response);
                     notifyFetched(); // reset focus-throttle clock — only on success, not on error
+                    devtoolsRequestEndResult = {
+                        status: "success",
+                        statusCode: response.status,
+                        response: response.data,
+                        duration: Date.now() - devtoolsRequestStartedAt,
+                    };
                     return selected;
 
                 } catch (err: unknown) {
@@ -262,6 +313,12 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                     }
 
                     // All retries exhausted (or retry disabled) — surface the error
+                    devtoolsRequestEndResult = {
+                        status: "error",
+                        error: apiError,
+                        statusCode: apiError.status ?? null,
+                        duration: Date.now() - devtoolsRequestStartedAt,
+                    };
                     if (!skipErrorNotification && globalErrorHandler) {
                         globalErrorHandler(apiError, err);
                     }
@@ -278,6 +335,12 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                 return null;
             }
             const apiError = errorParser ? errorParser(err) : parseApiError(err);
+            devtoolsRequestEndResult = {
+                status: "error",
+                error: apiError,
+                statusCode: null,
+                duration: Date.now() - devtoolsRequestStartedAt,
+            };
             if (!skipErrorNotification && globalErrorHandler) {
                 globalErrorHandler(apiError, err);
             }
@@ -286,6 +349,12 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             onError?.(apiError);
             return null;
         } finally {
+            if (devtoolsRequestId !== null) {
+                devtoolsBridge.onRequestEnd(
+                    devtoolsRequestId,
+                    devtoolsRequestEndResult ?? { status: "aborted", duration: Date.now() - devtoolsRequestStartedAt },
+                );
+            }
             if (globalAbortHandler && subscribedSignal) subscribedSignal.removeEventListener("abort", globalAbortHandler);
             revalidating.value = false;
             if (!wasCancelled) {
@@ -387,7 +456,10 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     }
 
     if (getCurrentScope()) {
-        onScopeDispose(() => abort("Scope disposed"));
+        onScopeDispose(() => {
+            abort("Scope disposed");
+            devtoolsBridge.onInstanceDestroyed(instanceId);
+        });
     }
 
     // Initial check for polling if immediate is false but pollInterval is set?
