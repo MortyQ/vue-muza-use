@@ -6,19 +6,19 @@ const { instanceTimelines, timeRange, statusFilter, zoom, zoomIn, zoomOut } = us
 </script>
 
 <template>
-    <div class="vmd:flex vmd:flex-col vmd:h-full">
-        <div class="vmd:flex vmd:items-center vmd:gap-3 vmd:px-3 vmd:py-2 vmd:border-b vmd:border-neutral-700">
-            <select v-model="statusFilter" class="vmd:bg-neutral-800 vmd:text-xs vmd:text-white vmd:px-2 vmd:py-1 vmd:rounded">
+    <div class="flex flex-col h-full">
+        <div class="flex items-center gap-3 px-3 py-2 border-b border-neutral-700">
+            <select v-model="statusFilter" class="bg-neutral-800 text-xs text-white px-2 py-1 rounded">
                 <option value="all">All</option>
                 <option v-for="s in ['pending','success','error','aborted']" :key="s" :value="s">{{ s }}</option>
             </select>
-            <div class="vmd:flex vmd:gap-1 vmd:ml-auto">
-                <button class="vmd:text-xs vmd:text-neutral-400 vmd:hover:text-white vmd:px-2" @click="zoomOut">−</button>
-                <span class="vmd:text-xs vmd:text-neutral-500">{{ (zoom * 100).toFixed(0) }}%</span>
-                <button class="vmd:text-xs vmd:text-neutral-400 vmd:hover:text-white vmd:px-2" @click="zoomIn">+</button>
+            <div class="flex gap-1 ml-auto">
+                <button class="text-xs text-neutral-400 hover:text-white px-2" @click="zoomOut">−</button>
+                <span class="text-xs text-neutral-500">{{ (zoom * 100).toFixed(0) }}%</span>
+                <button class="text-xs text-neutral-400 hover:text-white px-2" @click="zoomIn">+</button>
             </div>
         </div>
-        <div class="vmd:flex-1 vmd:overflow-auto vmd:p-3">
+        <div class="flex-1 overflow-auto p-3">
             <TimelineTrack
                 v-for="{ instance, requests } in instanceTimelines"
                 :key="instance.id"
@@ -27,7 +27,7 @@ const { instanceTimelines, timeRange, statusFilter, zoom, zoomIn, zoomOut } = us
                 :time-range="timeRange"
                 :zoom="zoom"
             />
-            <div v-if="instanceTimelines.length === 0" class="vmd:text-xs vmd:text-neutral-500 vmd:p-4">
+            <div v-if="instanceTimelines.length === 0" class="text-xs text-neutral-500 p-4">
                 No instances recorded yet.
             </div>
         </div>

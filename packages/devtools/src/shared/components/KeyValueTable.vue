@@ -15,19 +15,19 @@ const rows = computed((): KvRow[] => {
 });
 
 const typeClass: Record<string, string> = {
-    string:  "vmd:text-green-400",
-    number:  "vmd:text-blue-400",
-    boolean: "vmd:text-yellow-400",
-    object:  "vmd:text-neutral-400",
+    string:  "text-green-400",
+    number:  "text-blue-400",
+    boolean: "text-yellow-400",
+    object:  "text-neutral-400",
 };
 </script>
 
 <template>
-    <table class="vmd:w-full vmd:text-xs">
+    <table class="w-full text-xs">
         <tbody>
-            <tr v-for="row in rows" :key="row.key" class="vmd:border-b vmd:border-neutral-800">
-                <td class="vmd:py-1 vmd:pr-3 vmd:text-purple-400 vmd:align-top vmd:whitespace-nowrap">{{ row.key }}</td>
-                <td :class="['vmd:py-1 vmd:break-all', typeClass[row.type] ?? 'vmd:text-neutral-300']">{{ row.value }}</td>
+            <tr v-for="row in rows" :key="row.key" class="border-b border-neutral-800">
+                <td class="py-1 pr-3 text-purple-400 align-top whitespace-nowrap">{{ row.key }}</td>
+                <td :class="['py-1 break-all', typeClass[row.type] ?? 'text-neutral-300']">{{ row.value }}</td>
             </tr>
         </tbody>
     </table>

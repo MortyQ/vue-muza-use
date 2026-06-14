@@ -17,9 +17,22 @@ function onResize(delta: { dw: number; dh: number }): void {
 </script>
 
 <template>
+    <!-- Launcher button — always fixed bottom-right, shown when panel is closed -->
+    <button
+        v-if="!isOpen"
+        data-vmd-launcher
+        class="fixed z-[9999] bottom-4 right-4 w-10 h-10 rounded-full bg-surface-raised border border-border shadow-lg cursor-pointer flex items-center justify-center text-foreground text-lg hover:bg-surface-hover transition-colors pointer-events-auto"
+        title="Open vue-muza devtools"
+        @click="toggle"
+    >
+        ⚡
+    </button>
+
+    <!-- Full panel — draggable, fixed positioning -->
     <div
+        v-else
         data-vmd-panel
-        class="vmd:fixed vmd:z-[9999] vmd:rounded-lg vmd:shadow-2xl vmd:overflow-hidden vmd:font-mono vmd:text-sm vmd:bg-neutral-900 vmd:text-white vmd:border vmd:border-neutral-700"
+        class="fixed z-[9999] rounded-lg shadow-2xl overflow-hidden font-mono text-sm bg-surface-overlay text-foreground border border-border pointer-events-auto"
         :style="{
             left: `${position.x}px`,
             top: `${position.y}px`,
@@ -29,9 +42,9 @@ function onResize(delta: { dw: number; dh: number }): void {
     >
         <PanelHeader :on-drag-start="onDragStart" :on-close="close" :on-toggle="toggle" />
 
-        <div v-if="isOpen" data-vmd-panel-body class="vmd:flex vmd:h-[calc(100%-36px)]">
+        <div data-vmd-panel-body class="flex h-[calc(100%-36px)]">
             <TabBar :tabs="registeredTabs" :active-tab-id="activeTabId ?? null" :on-select-tab="setActiveTab" />
-            <div class="vmd:flex-1 vmd:overflow-auto vmd:p-3">
+            <div class="flex-1 overflow-auto p-3">
                 <component :is="activeTab?.component" v-if="activeTab" />
             </div>
         </div>

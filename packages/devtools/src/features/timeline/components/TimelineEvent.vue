@@ -4,10 +4,10 @@ import type { RequestRecord } from "../../../shared/types/index";
 const props = defineProps<{ request: RequestRecord; timeRange: { start: number; duration: number }; zoom: number }>();
 
 const statusColor: Record<string, string> = {
-    success: "vmd:bg-green-500",
-    error:   "vmd:bg-red-500",
-    pending: "vmd:bg-yellow-500",
-    aborted: "vmd:bg-neutral-500",
+    success: "bg-green-500",
+    error:   "bg-red-500",
+    pending: "bg-yellow-500",
+    aborted: "bg-neutral-500",
 };
 
 function left(): string {
@@ -24,7 +24,7 @@ function width(): string {
 <template>
     <div
         :title="`${request.method} ${request.url} (${request.duration ?? '…'}ms)`"
-        :class="['vmd:absolute vmd:h-4 vmd:rounded-sm vmd:opacity-80 vmd:hover:opacity-100 vmd:cursor-pointer', statusColor[request.status]]"
+        :class="['absolute h-4 rounded-sm opacity-80 hover:opacity-100 cursor-pointer', statusColor[request.status]]"
         :style="{ left: left(), width: width() }"
     />
 </template>

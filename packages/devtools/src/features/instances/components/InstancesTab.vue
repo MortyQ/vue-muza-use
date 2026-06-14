@@ -11,14 +11,14 @@ const {
 </script>
 
 <template>
-    <div class="vmd:flex vmd:h-full">
-        <div class="vmd:w-1/2 vmd:flex vmd:flex-col vmd:border-r vmd:border-neutral-800">
+    <div class="flex h-full">
+        <div class="w-1/2 flex flex-col border-r border-neutral-800">
             <input
                 v-model="searchTerm"
                 placeholder="Search by URL…"
-                class="vmd:w-full vmd:bg-neutral-800 vmd:text-xs vmd:text-white vmd:px-3 vmd:py-2 vmd:border-b vmd:border-neutral-700 vmd:outline-none"
+                class="w-full bg-neutral-800 text-xs text-white px-3 py-2 border-b border-neutral-700 outline-none"
             />
-            <div class="vmd:flex-1 vmd:overflow-auto">
+            <div class="flex-1 overflow-auto">
                 <InstanceRow
                     v-for="inst in filteredInstances"
                     :key="inst.id"
@@ -26,19 +26,19 @@ const {
                     :is-active="selectedInstance?.id === inst.id"
                     @select="selectInstance"
                 />
-                <div v-if="filteredInstances.length === 0" class="vmd:text-xs vmd:text-neutral-500 vmd:p-4">
+                <div v-if="filteredInstances.length === 0" class="text-xs text-neutral-500 p-4">
                     No active instances.
                 </div>
             </div>
         </div>
-        <div class="vmd:flex-1 vmd:overflow-auto">
+        <div class="flex-1 overflow-auto">
             <InstanceDetail
                 v-if="selectedInstance"
                 :instance="selectedInstance"
                 :requests="instanceRequests"
                 @close="clearSelection"
             />
-            <div v-else class="vmd:text-xs vmd:text-neutral-500 vmd:p-4">Select an instance to inspect.</div>
+            <div v-else class="text-xs text-neutral-500 p-4">Select an instance to inspect.</div>
         </div>
     </div>
 </template>

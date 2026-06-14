@@ -25,7 +25,7 @@ describe("initial state", () => {
         const { result, unmount } = withSetup(() => useFloatingPanel());
         expect(result.position.value).toEqual({ x: 100, y: 100 });
         expect(result.size.value).toEqual({ width: 800, height: 500 });
-        expect(result.isOpen.value).toBe(true);
+        expect(result.isOpen.value).toBe(false);
         unmount();
     });
 });
@@ -54,9 +54,9 @@ describe("toggle / close", () => {
     it("toggle flips isOpen", () => {
         const { result, unmount } = withSetup(() => useFloatingPanel());
         result.toggle();
-        expect(result.isOpen.value).toBe(false);
-        result.toggle();
         expect(result.isOpen.value).toBe(true);
+        result.toggle();
+        expect(result.isOpen.value).toBe(false);
         unmount();
     });
 

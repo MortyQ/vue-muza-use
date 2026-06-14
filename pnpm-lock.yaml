@@ -140,6 +140,9 @@ importers:
       '@ametie/ui':
         specifier: workspace:*
         version: link:../../libs/ui
+      '@ametie/vue-muza-devtools':
+        specifier: workspace:*
+        version: link:../devtools
       '@ametie/vue-muza-use':
         specifier: workspace:*
         version: link:../use-api

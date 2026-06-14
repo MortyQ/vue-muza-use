@@ -23,7 +23,7 @@ const rowVirtualizer = useVirtualizer(
 </script>
 
 <template>
-    <div ref="parentRef" class="vmd:flex-1 vmd:overflow-auto">
+    <div ref="parentRef" class="flex-1 overflow-auto">
         <div :style="{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }">
             <div
                 v-for="vRow in rowVirtualizer.getVirtualItems()"

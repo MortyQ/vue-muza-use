@@ -37,7 +37,7 @@ export interface UseFloatingPanelReturn {
 export function useFloatingPanel(): UseFloatingPanelReturn {
     const position = ref<{ x: number; y: number }>({ x: 100, y: 100 });
     const size = ref<{ width: number; height: number }>({ width: 800, height: 500 });
-    const isOpen = ref(true);
+    const isOpen = ref(false);
 
     onMounted(async () => {
         const [savedPos, savedSize] = await Promise.all([loadPanelPosition(), loadPanelSize()]);
@@ -45,8 +45,8 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
         if (savedSize) size.value = savedSize;
     });
 
-    watch(position, (pos) => savePanelPosition(pos), { deep: true });
-    watch(size, (s) => savePanelSize(s), { deep: true });
+    watch(position, (pos) => savePanelPosition({ x: pos.x, y: pos.y }), { deep: true });
+    watch(size, (s) => savePanelSize({ width: s.width, height: s.height }), { deep: true });
 
     let drag: { mouseX: number; mouseY: number; posX: number; posY: number } | null = null;
 

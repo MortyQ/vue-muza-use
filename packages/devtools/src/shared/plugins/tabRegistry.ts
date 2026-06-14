@@ -1,4 +1,4 @@
-import { reactive, computed, type ComputedRef } from "vue";
+import { reactive, computed, markRaw, type ComputedRef } from "vue";
 import type { DevtoolsTab } from "../types/index";
 
 interface RegisteredTab extends DevtoolsTab {
@@ -21,7 +21,7 @@ export const registeredTabs: ComputedRef<ReadonlyArray<RegisteredTab>> = compute
 export function registerTab(tab: DevtoolsTab): void {
     if (state.tabs.some((t) => t.id === tab.id)) return;
     const order = tab.order ?? state.tabs.length + 10;
-    state.tabs.push({ ...tab, order });
+    state.tabs.push({ ...tab, order, component: markRaw(tab.component) });
 }
 
 /**

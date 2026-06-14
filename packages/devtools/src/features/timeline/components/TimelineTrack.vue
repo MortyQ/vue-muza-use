@@ -11,11 +11,11 @@ defineProps<{
 </script>
 
 <template>
-    <div class="vmd:flex vmd:items-center vmd:border-b vmd:border-neutral-800 vmd:py-1">
-        <div class="vmd:w-40 vmd:shrink-0 vmd:pr-2 vmd:text-xs vmd:text-neutral-400 vmd:truncate">
+    <div class="flex items-center border-b border-neutral-800 py-1">
+        <div class="w-40 shrink-0 pr-2 text-xs text-neutral-400 truncate">
             {{ instance.url ?? instance.id }}
         </div>
-        <div class="vmd:flex-1 vmd:relative vmd:h-6 vmd:bg-neutral-800 vmd:rounded vmd:overflow-hidden">
+        <div class="flex-1 relative h-6 bg-neutral-800 rounded overflow-hidden">
             <TimelineEvent
                 v-for="req in requests"
                 :key="req.id"

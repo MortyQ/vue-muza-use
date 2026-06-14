@@ -16,36 +16,36 @@ const instanceList = computed(() => [...instances.value.values()]);
 </script>
 
 <template>
-    <div class="vmd:flex vmd:flex-col vmd:h-full">
+    <div class="flex flex-col h-full">
         <!-- Filter bar -->
-        <div class="vmd:flex vmd:items-center vmd:gap-2 vmd:px-3 vmd:py-2 vmd:border-b vmd:border-neutral-700 vmd:bg-neutral-900">
+        <div class="flex items-center gap-2 px-3 py-2 border-b border-neutral-700 bg-neutral-900">
             <input
                 v-model="urlFilter"
                 placeholder="Filter URL…"
-                class="vmd:flex-1 vmd:bg-neutral-800 vmd:text-xs vmd:text-white vmd:px-2 vmd:py-1 vmd:rounded vmd:outline-none"
+                class="flex-1 bg-neutral-800 text-xs text-white px-2 py-1 rounded outline-none"
             />
-            <select v-model="statusFilter" class="vmd:bg-neutral-800 vmd:text-xs vmd:text-white vmd:px-2 vmd:py-1 vmd:rounded">
+            <select v-model="statusFilter" class="bg-neutral-800 text-xs text-white px-2 py-1 rounded">
                 <option value="all">All</option>
                 <option v-for="s in ['pending','success','error','aborted']" :key="s" :value="s">{{ s }}</option>
             </select>
-            <select v-model="instanceFilter" class="vmd:bg-neutral-800 vmd:text-xs vmd:text-white vmd:px-2 vmd:py-1 vmd:rounded">
+            <select v-model="instanceFilter" class="bg-neutral-800 text-xs text-white px-2 py-1 rounded">
                 <option value="all">All instances</option>
                 <option v-for="inst in instanceList" :key="inst.id" :value="inst.id">{{ inst.url ?? inst.id }}</option>
             </select>
-            <button class="vmd:text-xs vmd:text-neutral-400 vmd:hover:text-white" @click="clearFilters">Clear</button>
+            <button class="text-xs text-neutral-400 hover:text-white" @click="clearFilters">Clear</button>
         </div>
 
         <!-- List + Detail split -->
-        <div class="vmd:flex vmd:flex-1 vmd:overflow-hidden">
-            <div :class="selectedRequest ? 'vmd:w-2/5' : 'vmd:w-full'" class="vmd:flex vmd:flex-col vmd:border-r vmd:border-neutral-800">
+        <div class="flex flex-1 overflow-hidden">
+            <div :class="selectedRequest ? 'w-2/5' : 'w-full'" class="flex flex-col border-r border-neutral-800">
                 <RequestList
                     :requests="filteredRequests"
                     :active-request-id="selectedRequestId"
                     @select="selectRequest"
                 />
-                <div v-if="filteredRequests.length === 0" class="vmd:text-xs vmd:text-neutral-500 vmd:p-4">No requests.</div>
+                <div v-if="filteredRequests.length === 0" class="text-xs text-neutral-500 p-4">No requests.</div>
             </div>
-            <div v-if="selectedRequest" class="vmd:flex-1 vmd:overflow-hidden">
+            <div v-if="selectedRequest" class="flex-1 overflow-hidden">
                 <RequestDetail
                     :request="selectedRequest"
                     :view-mode="viewMode"

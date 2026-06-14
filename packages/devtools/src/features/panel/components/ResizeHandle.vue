@@ -21,7 +21,7 @@ function onMouseDown(e: MouseEvent): void {
 
 <template>
     <div
-        class="vmd:absolute vmd:bottom-0 vmd:right-0 vmd:w-4 vmd:h-4 vmd:cursor-se-resize vmd:opacity-40 vmd:hover:opacity-100"
+        class="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize opacity-40 hover:opacity-100"
         @mousedown.prevent="onMouseDown"
     >⠿</div>
 </template>

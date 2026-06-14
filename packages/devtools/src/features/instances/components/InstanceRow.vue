@@ -8,13 +8,13 @@ defineEmits<{ (e: "select", id: string): void }>();
 <template>
     <div
         data-vmd-instance-row
-        :class="['vmd:flex vmd:items-center vmd:gap-3 vmd:px-3 vmd:py-2 vmd:cursor-pointer vmd:border-b vmd:border-neutral-800 vmd:text-xs',
-                 isActive ? 'vmd:bg-neutral-800' : 'vmd:hover:bg-neutral-850']"
+        :class="['flex items-center gap-3 px-3 py-2 cursor-pointer border-b border-neutral-800 text-xs',
+                 isActive ? 'bg-neutral-800' : 'hover:bg-neutral-850']"
         @click="$emit('select', instance.id)"
     >
         <StateDisplay :state="instance.state" />
-        <span class="vmd:flex-1 vmd:truncate vmd:text-neutral-200">{{ instance.url ?? "(no url)" }}</span>
-        <span class="vmd:text-neutral-500">{{ instance.method }}</span>
-        <span class="vmd:text-neutral-500">{{ instance.requestCount }}r</span>
+        <span class="flex-1 truncate text-neutral-200">{{ instance.url ?? "(no url)" }}</span>
+        <span class="text-neutral-500">{{ instance.method }}</span>
+        <span class="text-neutral-500">{{ instance.requestCount }}r</span>
     </div>
 </template>

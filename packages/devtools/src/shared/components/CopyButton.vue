@@ -13,7 +13,7 @@ async function copy(): Promise<void> {
 
 <template>
     <button
-        class="vmd:text-xs vmd:text-neutral-400 vmd:hover:text-white vmd:px-1"
+        class="text-xs text-neutral-400 hover:text-white px-1"
         @click="copy"
     >{{ copied ? "✓" : "copy" }}</button>
 </template>
