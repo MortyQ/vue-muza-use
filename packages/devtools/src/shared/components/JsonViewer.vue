@@ -4,9 +4,13 @@ import { computed } from "vue";
 
 const props = defineProps<{ value: unknown }>();
 
+function escapeHtml(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 const highlighted = computed(() => {
     try {
-        const json = JSON.stringify(props.value, null, 2);
+        const json = escapeHtml(JSON.stringify(props.value, null, 2));
         return json.replace(
             /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
             (match) => {

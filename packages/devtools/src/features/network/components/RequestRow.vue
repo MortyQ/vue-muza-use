@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RequestRecord, DevtoolsInstanceOptions, CacheOptions } from "../../../shared/types/index";
+import type { RequestRecord, DevtoolsInstanceOptions } from "../../../shared/types/index";
 import StatusBadge from "./StatusBadge.vue";
 
 const props = defineProps<{
@@ -17,13 +17,10 @@ function formatTime(ts: number): string {
     return new Date(ts).toLocaleTimeString();
 }
 function getCacheId(opts: DevtoolsInstanceOptions): string | undefined {
-    if (!opts.cache) return undefined;
-    if (typeof opts.cache === "string") return opts.cache;
-    return (opts.cache as CacheOptions).id;
+    return typeof opts.cache === "string" ? opts.cache : opts.cache?.id;
 }
 function hasSwr(opts: DevtoolsInstanceOptions): boolean {
-    if (!opts.cache || typeof opts.cache === "string") return false;
-    return (opts.cache as CacheOptions).swr === true;
+    return typeof opts.cache === "object" && opts.cache !== null && opts.cache.swr === true;
 }
 </script>
 

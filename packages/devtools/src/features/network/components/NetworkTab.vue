@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onScopeDispose } from "vue";
 import { useNetworkTab } from "../composables/useNetworkTab";
 import RequestList from "./RequestList.vue";
 import RequestDetail from "./RequestDetail.vue";
@@ -27,6 +27,7 @@ const STATUS_PILLS: Array<{ value: RequestStatus | "all"; label: string }> = [
 const listWidth = ref(320);
 const MIN_LIST_WIDTH = 180;
 const splitRef = ref<HTMLElement | null>(null);
+let dragCleanup: (() => void) | null = null;
 
 function startListResize(e: MouseEvent): void {
     const startX = e.clientX;
@@ -41,11 +42,18 @@ function startListResize(e: MouseEvent): void {
     function onUp(): void {
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
+        dragCleanup = null;
     }
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+    dragCleanup = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+    };
     e.preventDefault();
 }
+
+onScopeDispose(() => { dragCleanup?.(); });
 </script>
 
 <template>
