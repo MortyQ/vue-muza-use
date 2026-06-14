@@ -2,11 +2,13 @@
 const emit = defineEmits<{ resize: [delta: { dw: number; dh: number }] }>();
 
 function onMouseDown(e: MouseEvent): void {
-    const startX = e.clientX;
-    const startY = e.clientY;
+    let prevX = e.clientX;
+    let prevY = e.clientY;
 
     const onMove = (mv: MouseEvent) => {
-        emit("resize", { dw: mv.clientX - startX, dh: mv.clientY - startY });
+        emit("resize", { dw: mv.clientX - prevX, dh: mv.clientY - prevY });
+        prevX = mv.clientX;
+        prevY = mv.clientY;
     };
     const onUp = () => {
         window.removeEventListener("mousemove", onMove);
