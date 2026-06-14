@@ -9,6 +9,7 @@ export default defineConfig({
         alias: {
             "@": resolve(__dirname, "src"),
             "@ametie/vue-muza-use": resolve(__dirname, "../use-api/src/index.ts"),
+            "@ametie/vue-muza-devtools": resolve(__dirname, "../devtools/src/index.ts"),
         },
     },
     server: {

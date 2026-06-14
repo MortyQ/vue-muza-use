@@ -16,6 +16,11 @@ const { error } = useToast();
 app.use(createApi({
     axios: apiAxios,
     onError: (err) => error(err.message),
+    devtools: {
+        enabled: true,
+        maxHistory: 200,
+        maxPayloadSize: 10_000,
+    },
 }));
 
 app.component("VToaster", VToaster);

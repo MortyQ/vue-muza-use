@@ -12,6 +12,7 @@
   "dependencies": {
     "@ametie/config": "workspace:*",
     "@ametie/ui": "workspace:*",
+    "@ametie/vue-muza-devtools": "workspace:*",
     "@ametie/vue-muza-use": "workspace:*",
     "axios": "^1.6.0",
     "highlight.js": "^11.10.0",
