@@ -10,6 +10,7 @@ import type {
 
 let bridge: DevtoolsBridge | null = null;
 let requestCounter = 0;
+const pendingCalls: Array<() => void> = [];
 
 /**
  * Increments and returns a unique request ID for devtools tracking.
@@ -34,6 +35,8 @@ export async function initDevtools(options: DevtoolsOptions, app: App): Promise<
     try {
         const { createBridge } = await import("@ametie/vue-muza-devtools");
         bridge = createBridge(options, app);
+        for (const fn of pendingCalls) fn();
+        pendingCalls.length = 0;
     } catch {
         console.warn("[vue-muza-use] devtools enabled but @ametie/vue-muza-devtools is not installed");
     }
@@ -52,7 +55,11 @@ export async function initDevtools(options: DevtoolsOptions, app: App): Promise<
  */
 export const devtoolsBridge = {
     onInstanceCreated(id: string, url: string | undefined, options: DevtoolsInstanceOptions): void {
-        bridge?.onInstanceCreated(id, url, options);
+        if (bridge) {
+            bridge.onInstanceCreated(id, url, options);
+        } else {
+            pendingCalls.push(() => bridge?.onInstanceCreated(id, url, options));
+        }
     },
     onInstanceDestroyed(id: string): void {
         bridge?.onInstanceDestroyed(id);

@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { Icon } from "@iconify/vue";
 import type { DevtoolsTab } from "../../../shared/types/index";
+import LogoBadge from "../../../shared/components/LogoBadge.vue";
 
 defineProps<{
     tabs: readonly DevtoolsTab[];
@@ -13,6 +14,9 @@ defineEmits<{ close: [] }>();
 
 <template>
     <div class="tab-bar">
+        <div class="logo-slot">
+            <LogoBadge />
+        </div>
         <div class="tab-list">
             <button
                 v-for="tab in tabs"
@@ -50,6 +54,13 @@ defineEmits<{ close: [] }>();
     background: var(--dt-nav);
     border-bottom: 1px solid var(--dt-border-subtle);
     flex-shrink: 0;
+}
+.logo-slot {
+    display: flex;
+    align-items: center;
+    padding: 0 10px 0 12px;
+    flex-shrink: 0;
+    opacity: 0.85;
 }
 .tab-list {
     display: flex;

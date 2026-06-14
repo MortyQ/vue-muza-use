@@ -11,7 +11,7 @@ const contentMargin = computed(() => ({
 
 <template>
     <div class="flex min-h-screen bg-background overflow-x-hidden">
-<!--        <NavigationSidebar :sidebar="sidebar" />-->
+        <NavigationSidebar :sidebar="sidebar" />
 
         <div
             :class="contentMargin"
