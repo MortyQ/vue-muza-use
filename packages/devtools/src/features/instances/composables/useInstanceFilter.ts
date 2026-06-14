@@ -1,9 +1,17 @@
-import { ref, computed } from "vue";
+import { ref, computed, type Ref, type ComputedRef } from "vue";
 import { instances } from "../../../shared/store/devtoolsStore";
 import type { DevtoolsInstance } from "../../../shared/types/index";
 
 /**
- * Composable for filtering the list of registered useApi instances.
+ * Return type for {@link useInstanceFilter}.
+ */
+export interface UseInstanceFilterReturn {
+    searchTerm: Ref<string>;
+    filteredInstances: ComputedRef<DevtoolsInstance[]>;
+}
+
+/**
+ * Composable for filtering the devtools instance list by URL substring.
  *
  * @example
  * ```ts
@@ -12,7 +20,7 @@ import type { DevtoolsInstance } from "../../../shared/types/index";
  * // filteredInstances.value now contains only instances whose URL contains "users"
  * ```
  */
-export function useInstanceFilter() {
+export function useInstanceFilter(): UseInstanceFilterReturn {
     const searchTerm = ref("");
 
     const filteredInstances = computed((): DevtoolsInstance[] => {

@@ -1,17 +1,27 @@
-import { ref, computed } from "vue";
+import { ref, computed, type Ref, type ComputedRef } from "vue";
 import { instances, getRequestsByInstance } from "../../../shared/store/devtoolsStore";
+import type { DevtoolsInstance, RequestRecord } from "../../../shared/types/index";
 
 /**
- * Composable for managing the selected instance in the detail panel.
+ * Return type for {@link useInstanceDetail}.
+ */
+export interface UseInstanceDetailReturn {
+    selectedInstance: ComputedRef<DevtoolsInstance | null>;
+    instanceRequests: ComputedRef<ReadonlyArray<RequestRecord>>;
+    selectInstance: (id: string) => void;
+    clearSelection: () => void;
+}
+
+/**
+ * Composable for tracking the selected instance in the Instances tab.
  *
  * @example
  * ```ts
- * const { selectedInstance, selectInstance, clearSelection } = useInstanceDetail();
- * selectInstance("instance-id");
- * // selectedInstance.value is now populated
+ * const { selectedInstance, selectInstance } = useInstanceDetail();
+ * selectInstance("my-id");
  * ```
  */
-export function useInstanceDetail() {
+export function useInstanceDetail(): UseInstanceDetailReturn {
     const selectedInstanceId = ref<string | null>(null);
 
     const selectedInstance = computed(() =>
