@@ -1,29 +1,29 @@
 @import "tailwindcss" prefix(vmd);
 
 #vue-muza-devtools-root {
-  --dt-background:           oklch(16% 0.025 270);
-  --dt-surface-sunken:       oklch(13% 0.022 270);
-  --dt-surface:              oklch(20% 0.025 270);
-  --dt-surface-raised:       oklch(24% 0.025 270);
-  --dt-surface-active:       oklch(27% 0.025 270);
-  --dt-primary:              oklch(65% 0.25 280);
-  --dt-primary-subtle:       oklch(28% 0.10 280);
-  --dt-foreground:           oklch(93% 0.006 280);
-  --dt-foreground-secondary: oklch(73% 0.010 280);
-  --dt-foreground-muted:     oklch(52% 0.007 280);
-  --dt-foreground-subtle:    oklch(40% 0.005 280);
-  --dt-border-subtle:        oklch(24% 0.020 270);
-  --dt-border:               oklch(30% 0.022 270);
-  --dt-border-strong:        oklch(40% 0.018 270);
-  --dt-vue-green:            oklch(63% 0.17 145);
-  --dt-vue-green-subtle:     oklch(24% 0.07 145);
-  --dt-nav:                  oklch(13% 0.022 270);
+  --dt-background:           oklch(22% 0.025 250);
+  --dt-surface-sunken:       oklch(15% 0.022 250);
+  --dt-surface:              oklch(19% 0.023 250);
+  --dt-surface-raised:       oklch(26% 0.024 250);
+  --dt-surface-active:       oklch(29% 0.022 250);
+  --dt-primary:              oklch(65% 0.25 282);
+  --dt-primary-subtle:       oklch(24% 0.10 282);
+  --dt-foreground:           oklch(90% 0.014 250);
+  --dt-foreground-secondary: oklch(65% 0.018 250);
+  --dt-foreground-muted:     oklch(50% 0.018 250);
+  --dt-foreground-subtle:    oklch(38% 0.015 250);
+  --dt-border-subtle:        oklch(26% 0.020 250);
+  --dt-border:               oklch(32% 0.022 250);
+  --dt-border-strong:        oklch(42% 0.018 250);
+  --dt-vue-green:            oklch(78% 0.17 155);
+  --dt-vue-green-subtle:     oklch(24% 0.07 155);
+  --dt-nav:                  oklch(19% 0.023 250);
   --dt-danger:               oklch(63% 0.22 25);
   --dt-danger-subtle:        oklch(24% 0.08 25);
   --dt-warning:              oklch(74% 0.17 75);
   --dt-warning-subtle:       oklch(24% 0.07 75);
   --dt-info:                 oklch(66% 0.18 240);
   --dt-info-subtle:          oklch(24% 0.07 240);
-  --dt-success:              oklch(63% 0.17 145);
-  --dt-success-subtle:       oklch(24% 0.07 145);
+  --dt-success:              oklch(78% 0.17 155);
+  --dt-success-subtle:       oklch(24% 0.07 155);
 }
