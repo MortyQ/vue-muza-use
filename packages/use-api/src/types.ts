@@ -245,6 +245,8 @@ export interface ApiPluginOptions {
      * Useful if your backend has a different error structure.
      */
     errorParser?: (error: unknown) => ApiError;
+    /** Devtools panel configuration. Panel is disabled by default. */
+    devtools?: DevtoolsOptions;
     globalOptions?: {
         retry?: number | boolean;
         retryDelay?: number;
@@ -405,4 +407,77 @@ export interface UseApiBatchReturn<T = unknown> {
     abort: (message?: string) => void;
     /** Reset state to initial */
     reset: () => void;
+}
+
+// ─── Devtools ────────────────────────────────────────────────────────────────
+
+/** Lifecycle status of an HTTP request tracked by devtools. */
+export type RequestStatus = "pending" | "success" | "error" | "aborted";
+
+/** Current reactive state of a useApi instance as seen by devtools. */
+export interface DevtoolsInstanceState {
+    loading: boolean;
+    error: ApiError | null;
+    statusCode: number | null;
+    data: unknown;
+}
+
+/** Configuration options of a useApi instance as seen by devtools. */
+export interface DevtoolsInstanceOptions {
+    authMode: AuthMode;
+    cache: CacheOptions | string | undefined;
+    retry: boolean | number;
+    poll: number;
+    immediate: boolean;
+    lazy: boolean;
+}
+
+/** An outgoing HTTP request record sent to devtools on request start. */
+export interface DevtoolsRequestRecord {
+    id: string;
+    instanceId: string | null;
+    url: string;
+    method: string;
+    startedAt: number;
+    status: RequestStatus;
+    statusCode: null;
+    requestHeaders: Record<string, string>;
+    payload: unknown;
+}
+
+/** Result of a completed HTTP request, sent to devtools on request end. */
+export type RequestEndResult =
+    | { status: "success"; statusCode: number; response: unknown; duration: number }
+    | { status: "error"; error: ApiError; statusCode: number | null; duration: number }
+    | { status: "aborted"; duration: number };
+
+/** Event callbacks implemented by the devtools panel, called by useApi instrumentation. */
+export interface DevtoolsBridge {
+    onInstanceCreated: (id: string, url: string | undefined, options: DevtoolsInstanceOptions) => void;
+    onInstanceDestroyed: (id: string) => void;
+    onStateUpdate: (id: string, state: Partial<DevtoolsInstanceState>) => void;
+    onRequestStart: (record: DevtoolsRequestRecord) => void;
+    onRequestEnd: (id: string, result: RequestEndResult) => void;
+}
+
+/**
+ * Options for the `@ametie/vue-muza-devtools` panel.
+ *
+ * @example
+ * ```ts
+ * app.use(createApi({
+ *   axios: apiClient,
+ *   devtools: { enabled: process.env.NODE_ENV !== 'production' },
+ * }))
+ * ```
+ */
+export interface DevtoolsOptions {
+    /** Enable the devtools panel. Default: false. */
+    enabled: boolean;
+    /** Maximum number of network requests kept in history. Default: 100. */
+    maxHistory?: number;
+    /** Maximum payload/response size in bytes before truncation. Default: 50_000. */
+    maxPayloadSize?: number;
+    /** Custom tabs appended after built-in tabs. */
+    tabs?: Array<{ id: string; label: string; component: unknown; icon?: unknown; order?: number }>;
 }
