@@ -21,7 +21,7 @@ export function createBridge(options: DevtoolsOptions, _app: App): DevtoolsBridg
     initDevtoolsStore(options);
     mountDevtoolsPanel();
 
-    options.tabs?.forEach((tab) => registerTab(tab as DevtoolsOptions["tabs"] extends Array<infer T> ? T : never));
+    options.tabs?.forEach((tab) => registerTab(tab));
 
     return {
         onInstanceCreated,
