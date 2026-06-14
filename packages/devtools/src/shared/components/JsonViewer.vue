@@ -1,3 +1,4 @@
+<!-- Syntax-highlighted JSON with horizontal scroll (no text wrap). -->
 <script setup lang="ts">
 import { computed } from "vue";
 
@@ -10,11 +11,11 @@ const highlighted = computed(() => {
             /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
             (match) => {
                 if (/^"/.test(match)) {
-                    if (/:$/.test(match)) return `<span class="text-purple-400">${match}</span>`;
-                    return `<span class="text-green-400">${match}</span>`;
+                    if (/:$/.test(match)) return `<span class="json-key">${match}</span>`;
+                    return `<span class="json-string">${match}</span>`;
                 }
-                if (/true|false|null/.test(match)) return `<span class="text-yellow-400">${match}</span>`;
-                return `<span class="text-blue-400">${match}</span>`;
+                if (/true|false|null/.test(match)) return `<span class="json-bool">${match}</span>`;
+                return `<span class="json-number">${match}</span>`;
             },
         );
     } catch {
@@ -24,8 +25,21 @@ const highlighted = computed(() => {
 </script>
 
 <template>
-    <pre
-        class="text-xs leading-relaxed whitespace-pre-wrap break-all"
-        v-html="highlighted"
-    />
+    <pre class="json-root" v-html="highlighted" />
 </template>
+
+<style scoped>
+.json-root {
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--dt-foreground);
+    margin: 0;
+}
+.json-root :deep(.json-key)    { color: oklch(72% 0.17 260); }
+.json-root :deep(.json-string) { color: oklch(72% 0.17 145); }
+.json-root :deep(.json-number) { color: oklch(74% 0.18 55); }
+.json-root :deep(.json-bool)   { color: oklch(72% 0.18 25); }
+</style>
