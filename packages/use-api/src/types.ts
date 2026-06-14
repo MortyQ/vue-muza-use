@@ -453,10 +453,15 @@ export type RequestEndResult =
 
 /** Event callbacks implemented by the devtools panel, called by useApi instrumentation. */
 export interface DevtoolsBridge {
+    /** Fired when a useApi instance is created. */
     onInstanceCreated: (id: string, url: string | undefined, options: DevtoolsInstanceOptions) => void;
+    /** Fired when a useApi instance is destroyed (scope disposed). */
     onInstanceDestroyed: (id: string) => void;
+    /** Fired when instance state (loading, error, statusCode, data) changes. */
     onStateUpdate: (id: string, state: Partial<DevtoolsInstanceState>) => void;
+    /** Fired when an HTTP request starts. */
     onRequestStart: (record: DevtoolsRequestRecord) => void;
+    /** Fired when an HTTP request completes (success, error, or abort). */
     onRequestEnd: (id: string, result: RequestEndResult) => void;
 }
 
