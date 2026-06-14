@@ -1,3 +1,4 @@
+<!-- vue-muza logo — two inverted V chevrons (∧∧), two-tone white. -->
 <script setup lang="ts">
 defineProps<{
     width?: number | string;

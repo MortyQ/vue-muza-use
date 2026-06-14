@@ -1,3 +1,4 @@
+<!-- Bottom-drawer devtools panel with launcher pill. -->
 <script setup lang="ts">
 import { useFloatingPanel } from "../composables/useFloatingPanel";
 import { useTabManager } from "../composables/useTabManager";
@@ -35,7 +36,7 @@ const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager()
         <TabBar
             :tabs="registeredTabs"
             :active-tab-id="activeTabId ?? null"
-            :on-select-tab="setActiveTab"
+            :select-tab="setActiveTab"
             @close="close"
         />
 
@@ -51,7 +52,7 @@ const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager()
     position: fixed;
     bottom: 20px;
     right: 20px;
-    z-index: 9999;
+    z-index: 99999;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -79,7 +80,7 @@ const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager()
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 9998;
+    z-index: 99998;
     display: flex;
     flex-direction: column;
     background: var(--dt-surface-sunken);

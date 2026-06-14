@@ -1,3 +1,4 @@
+<!-- Horizontal tab strip with close button. -->
 <script setup lang="ts">
 import { Icon } from "@iconify/vue";
 import type { DevtoolsTab } from "../../../shared/types/index";
@@ -5,7 +6,7 @@ import type { DevtoolsTab } from "../../../shared/types/index";
 defineProps<{
     tabs: readonly DevtoolsTab[];
     activeTabId: string | null;
-    onSelectTab: (id: string) => void;
+    selectTab: (id: string) => void;
 }>();
 defineEmits<{ close: [] }>();
 </script>
@@ -19,11 +20,17 @@ defineEmits<{ close: [] }>();
                 data-vmd-tab
                 class="tab-btn"
                 :class="tab.id === activeTabId ? 'tab-btn--active' : 'tab-btn--inactive'"
-                @click="onSelectTab(tab.id)"
+                @click="selectTab(tab.id)"
             >
                 <Icon
                     v-if="typeof tab.icon === 'string'"
                     :icon="tab.icon"
+                    width="13"
+                    height="13"
+                />
+                <component
+                    :is="tab.icon"
+                    v-else-if="tab.icon"
                     width="13"
                     height="13"
                 />
