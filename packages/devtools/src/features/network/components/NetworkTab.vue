@@ -8,8 +8,7 @@ import type { RequestStatus } from "../../../shared/types/index";
 const {
     urlFilter, statusFilter, instanceFilter, filteredRequests, clearFilters,
     selectedRequest, selectedRequestId,
-    viewMode, payloadFormat, responseFormat,
-    selectRequest, setViewMode, togglePayloadFormat, toggleResponseFormat,
+    selectRequest,
     instances,
 } = useNetworkTab();
 
@@ -116,13 +115,7 @@ onScopeDispose(() => { dragCleanup?.(); });
             <div v-if="selectedRequest" class="detail-pane">
                 <RequestDetail
                     :request="selectedRequest"
-                    :view-mode="viewMode"
-                    :payload-format="payloadFormat"
-                    :response-format="responseFormat"
                     @close="selectRequest(null)"
-                    @set-view-mode="setViewMode"
-                    @toggle-payload-format="togglePayloadFormat"
-                    @toggle-response-format="toggleResponseFormat"
                 />
             </div>
         </div>

@@ -1,64 +1,102 @@
+<!-- Full request detail panel: header, tabs, and content view. -->
 <script setup lang="ts">
+import { ref } from "vue";
 import type { RequestRecord } from "../../../shared/types/index";
-import PayloadView from "./PayloadView.vue";
-import ResponseView from "./ResponseView.vue";
-import StatusBadge from "./StatusBadge.vue";
+import DetailHeader from "./DetailHeader.vue";
+import DetailTabs from "./DetailTabs.vue";
+import SplitView from "./SplitView.vue";
+import DataPane from "./DataPane.vue";
 
-defineProps<{
-    request: RequestRecord;
-    viewMode: "split" | "payload" | "response" | "headers";
-    payloadFormat: "json" | "kv";
-    responseFormat: "json" | "kv";
-}>();
-defineEmits<{
-    (e: "close"): void;
-    (e: "setViewMode", mode: "split" | "payload" | "response" | "headers"): void;
-    (e: "togglePayloadFormat"): void;
-    (e: "toggleResponseFormat"): void;
-}>();
+defineProps<{ request: RequestRecord }>();
+defineEmits<{ close: [] }>();
+
+type TabId = "split" | "payload" | "response" | "headers";
+const activeTab = ref<TabId>("split");
 </script>
 
 <template>
-    <div class="flex flex-col h-full">
-        <div class="flex items-center gap-2 px-3 py-2 border-b border-neutral-700">
-            <StatusBadge :status="request.status" :status-code="request.statusCode" />
-            <span class="text-xs text-neutral-300 flex-1 truncate">
-                {{ request.method }} {{ request.url }}
-            </span>
-            <div class="flex gap-1 text-xs">
-                <button
-                    v-for="mode in ['split', 'payload', 'response', 'headers']"
-                    :key="mode"
-                    :class="viewMode === mode ? 'text-white' : 'text-neutral-500 hover:text-white'"
-                    @click="$emit('setViewMode', mode as never)"
-                >{{ mode }}</button>
-            </div>
-            <button class="text-neutral-400 hover:text-white" @click="$emit('close')">✕</button>
-        </div>
+    <div class="request-detail">
+        <DetailHeader :request="request" @close="$emit('close')" />
+        <DetailTabs :active-tab="activeTab" @select="activeTab = $event" />
 
-        <div class="flex flex-1 overflow-hidden">
-            <PayloadView
-                v-if="viewMode === 'split' || viewMode === 'payload'"
-                :class="viewMode === 'split' ? 'w-1/2 border-r border-neutral-800' : 'w-full'"
-                :payload="request.payload"
-                :format="payloadFormat"
+        <div class="detail-content">
+            <SplitView v-if="activeTab === 'split'" :request="request" />
+
+            <DataPane
+                v-else-if="activeTab === 'payload'"
+                title="Payload"
+                :data="request.payload"
                 :truncated="request.truncated"
-                @toggle-format="$emit('togglePayloadFormat')"
             />
-            <ResponseView
-                v-if="viewMode === 'split' || viewMode === 'response'"
-                :class="viewMode === 'split' ? 'w-1/2' : 'w-full'"
-                :response="request.response"
-                :format="responseFormat"
+
+            <DataPane
+                v-else-if="activeTab === 'response'"
+                title="Response"
+                :data="request.response"
                 :truncated="request.truncated"
-                @toggle-format="$emit('toggleResponseFormat')"
             />
-            <div v-if="viewMode === 'headers'" class="p-3 text-xs w-full">
-                <div v-for="(val, key) in request.requestHeaders" :key="key" class="flex gap-2 py-1 border-b border-neutral-800">
-                    <span class="text-purple-400">{{ key }}</span>
-                    <span class="text-neutral-300">{{ val }}</span>
+
+            <div v-else-if="activeTab === 'headers'" class="headers-view">
+                <div
+                    v-for="(val, key) in request.requestHeaders"
+                    :key="key"
+                    class="header-row"
+                >
+                    <span class="header-key">{{ key }}</span>
+                    <span class="header-val">{{ val }}</span>
                 </div>
+                <p v-if="!Object.keys(request.requestHeaders ?? {}).length" class="empty-msg">
+                    No request headers captured.
+                </p>
             </div>
         </div>
     </div>
 </template>
+
+<style scoped>
+.request-detail {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: var(--dt-surface-sunken);
+}
+.detail-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.headers-view {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    font-size: 12px;
+}
+.headers-view::-webkit-scrollbar { width: 4px; }
+.headers-view::-webkit-scrollbar-thumb { background: var(--dt-border-strong); border-radius: 2px; }
+.header-row {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--dt-border-subtle);
+}
+.header-row:last-child { border-bottom: none; }
+.header-key {
+    color: oklch(72% 0.17 260);
+    width: 38%;
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.header-val {
+    color: var(--dt-foreground-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+.empty-msg { color: var(--dt-foreground-subtle); font-size: 12px; }
+</style>
