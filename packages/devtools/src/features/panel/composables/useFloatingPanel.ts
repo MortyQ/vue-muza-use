@@ -1,82 +1,73 @@
-import { ref, watch, onMounted, onScopeDispose } from "vue";
+import { ref, onMounted, onScopeDispose } from "vue";
 import type { Ref } from "vue";
-import {
-    loadPanelPosition,
-    savePanelPosition,
-    loadPanelSize,
-    savePanelSize,
-} from "../../../shared/storage/devtoolsStorage";
+import { loadPanelHeight, savePanelHeight } from "../../../shared/storage/devtoolsStorage";
 
 /**
  * Return type for the useFloatingPanel composable.
  */
 export interface UseFloatingPanelReturn {
-    /** Reactive panel position in viewport coordinates. */
-    position: Ref<{ x: number; y: number }>;
-    /** Reactive panel dimensions. */
-    size: Ref<{ width: number; height: number }>;
+    /** Panel height in pixels. */
+    height: Ref<number>;
     /** Whether the panel is currently visible. */
     isOpen: Ref<boolean>;
-    /** Begin drag on mousedown — attaches mousemove/mouseup listeners to window. */
-    onDragStart: (e: MouseEvent) => void;
+    /** Begin top-edge drag to resize panel height. Attach to the resize handle's mousedown. */
+    startResizeHeight: (e: MouseEvent) => void;
     /** Toggle panel visibility. */
     toggle: () => void;
     /** Hide the panel. */
     close: () => void;
 }
 
+const DEFAULT_HEIGHT = 360;
+const MIN_HEIGHT = 200;
+
 /**
- * Composable for a draggable, resizable floating panel.
- * Persists position and size to IndexedDB via devtoolsStorage.
+ * Composable for the bottom-drawer devtools panel.
+ * Manages open/close state and height-only resize, persisted to IndexedDB.
  *
  * @example
  * ```ts
- * const { position, size, isOpen, onDragStart, toggle, close } = useFloatingPanel();
+ * const { height, isOpen, startResizeHeight, toggle, close } = useFloatingPanel();
  * ```
  */
 export function useFloatingPanel(): UseFloatingPanelReturn {
-    const position = ref<{ x: number; y: number }>({ x: 100, y: 100 });
-    const size = ref<{ width: number; height: number }>({ width: 800, height: 500 });
+    const height = ref(DEFAULT_HEIGHT);
     const isOpen = ref(false);
 
     onMounted(async () => {
-        const [savedPos, savedSize] = await Promise.all([loadPanelPosition(), loadPanelSize()]);
-        if (savedPos) position.value = savedPos;
-        if (savedSize) size.value = savedSize;
+        const saved = await loadPanelHeight();
+        if (saved !== undefined) height.value = saved;
     });
-
-    watch(position, (pos) => savePanelPosition({ x: pos.x, y: pos.y }), { deep: true });
-    watch(size, (s) => savePanelSize({ width: s.width, height: s.height }), { deep: true });
-
-    let drag: { mouseX: number; mouseY: number; posX: number; posY: number } | null = null;
-
-    function onDragMove(e: MouseEvent): void {
-        if (!drag) return;
-        position.value = {
-            x: drag.posX + (e.clientX - drag.mouseX),
-            y: drag.posY + (e.clientY - drag.mouseY),
-        };
-    }
-
-    function onDragEnd(): void {
-        drag = null;
-        window.removeEventListener("mousemove", onDragMove);
-        window.removeEventListener("mouseup", onDragEnd);
-    }
-
-    function onDragStart(e: MouseEvent): void {
-        drag = { mouseX: e.clientX, mouseY: e.clientY, posX: position.value.x, posY: position.value.y };
-        window.addEventListener("mousemove", onDragMove);
-        window.addEventListener("mouseup", onDragEnd);
-    }
 
     function toggle(): void { isOpen.value = !isOpen.value; }
     function close(): void { isOpen.value = false; }
 
-    onScopeDispose(() => {
-        window.removeEventListener("mousemove", onDragMove);
-        window.removeEventListener("mouseup", onDragEnd);
-    });
+    let resizing = false;
 
-    return { position, size, isOpen, onDragStart, toggle, close };
+    function startResizeHeight(e: MouseEvent): void {
+        const startY = e.clientY;
+        const startH = height.value;
+        resizing = true;
+
+        function onMove(ev: MouseEvent): void {
+            if (!resizing) return;
+            const maxH = Math.floor(window.innerHeight * 0.8);
+            height.value = Math.max(MIN_HEIGHT, Math.min(startH + (startY - ev.clientY), maxH));
+        }
+
+        function onUp(): void {
+            resizing = false;
+            savePanelHeight(height.value);
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        }
+
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+        e.preventDefault();
+    }
+
+    onScopeDispose(() => { /* onUp closures self-clean on mouseup */ });
+
+    return { height, isOpen, startResizeHeight, toggle, close };
 }

@@ -2,13 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createApp, nextTick } from "vue";
 
 vi.mock("../../../shared/storage/devtoolsStorage", () => ({
-    loadPanelPosition: vi.fn().mockResolvedValue(undefined),
-    savePanelPosition: vi.fn().mockResolvedValue(undefined),
-    loadPanelSize: vi.fn().mockResolvedValue(undefined),
-    savePanelSize: vi.fn().mockResolvedValue(undefined),
+    loadPanelHeight: vi.fn().mockResolvedValue(undefined),
+    savePanelHeight: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { loadPanelPosition, savePanelPosition, loadPanelSize } from "../../../shared/storage/devtoolsStorage";
+import { loadPanelHeight, savePanelHeight } from "../../../shared/storage/devtoolsStorage";
 import { useFloatingPanel } from "./useFloatingPanel";
 
 function withSetup<T>(composable: () => T): { result: T; unmount: () => void } {
@@ -21,31 +19,30 @@ function withSetup<T>(composable: () => T): { result: T; unmount: () => void } {
 beforeEach(() => { vi.clearAllMocks(); });
 
 describe("initial state", () => {
-    it("starts with default position and size", () => {
+    it("starts with height 360 and closed", () => {
         const { result, unmount } = withSetup(() => useFloatingPanel());
-        expect(result.position.value).toEqual({ x: 100, y: 100 });
-        expect(result.size.value).toEqual({ width: 800, height: 500 });
+        expect(result.height.value).toBe(360);
         expect(result.isOpen.value).toBe(false);
         unmount();
     });
 });
 
 describe("storage hydration", () => {
-    it("loads saved position on mount", async () => {
-        vi.mocked(loadPanelPosition).mockResolvedValue({ x: 300, y: 200 });
+    it("loads saved height on mount", async () => {
+        vi.mocked(loadPanelHeight).mockResolvedValue(500);
         const { result, unmount } = withSetup(() => useFloatingPanel());
         await nextTick();
-        await nextTick(); // wait for async onMounted
-        expect(result.position.value).toEqual({ x: 300, y: 200 });
+        await nextTick();
+        expect(result.height.value).toBe(500);
         unmount();
     });
 
-    it("loads saved size on mount", async () => {
-        vi.mocked(loadPanelSize).mockResolvedValue({ width: 1000, height: 700 });
+    it("ignores undefined saved height", async () => {
+        vi.mocked(loadPanelHeight).mockResolvedValue(undefined);
         const { result, unmount } = withSetup(() => useFloatingPanel());
         await nextTick();
         await nextTick();
-        expect(result.size.value).toEqual({ width: 1000, height: 700 });
+        expect(result.height.value).toBe(360);
         unmount();
     });
 });
@@ -60,46 +57,78 @@ describe("toggle / close", () => {
         unmount();
     });
 
-    it("close sets isOpen to false", () => {
+    it("close sets isOpen to false when open", () => {
         const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.toggle();
         result.close();
         expect(result.isOpen.value).toBe(false);
         unmount();
     });
 });
 
-describe("drag", () => {
-    it("onDragStart + mousemove updates position", async () => {
+describe("height resize", () => {
+    it("dragging up increases height", async () => {
         const { result, unmount } = withSetup(() => useFloatingPanel());
-        result.position.value = { x: 100, y: 100 };
+        result.height.value = 360;
 
-        result.onDragStart({ clientX: 200, clientY: 150 } as MouseEvent);
-
-        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 250, clientY: 180 }));
+        result.startResizeHeight({ clientY: 400, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientY: 300 }));
         await nextTick();
 
-        expect(result.position.value).toEqual({ x: 150, y: 130 });
-        unmount();
-    });
-
-    it("mouseup stops drag — further mousemove has no effect", async () => {
-        const { result, unmount } = withSetup(() => useFloatingPanel());
-        result.position.value = { x: 100, y: 100 };
-
-        result.onDragStart({ clientX: 200, clientY: 150 } as MouseEvent);
+        expect(result.height.value).toBe(460);
         window.dispatchEvent(new MouseEvent("mouseup"));
-        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 999, clientY: 999 }));
-        await nextTick();
-
-        expect(result.position.value).toEqual({ x: 100, y: 100 });
         unmount();
     });
 
-    it("saves position to storage when it changes", async () => {
+    it("dragging down decreases height", async () => {
         const { result, unmount } = withSetup(() => useFloatingPanel());
-        result.position.value = { x: 42, y: 42 };
+        result.height.value = 400;
+
+        result.startResizeHeight({ clientY: 300, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientY: 350 }));
         await nextTick();
-        expect(savePanelPosition).toHaveBeenCalledWith({ x: 42, y: 42 });
+
+        expect(result.height.value).toBe(350);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("height cannot go below MIN_HEIGHT (200)", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.height.value = 220;
+
+        result.startResizeHeight({ clientY: 100, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientY: 500 }));
+        await nextTick();
+
+        expect(result.height.value).toBe(200);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("saves height to storage on mouseup", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.height.value = 400;
+
+        result.startResizeHeight({ clientY: 400, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientY: 350 }));
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        await nextTick();
+
+        expect(savePanelHeight).toHaveBeenCalledWith(450);
+        unmount();
+    });
+
+    it("mouseup stops resize — further mousemove has no effect", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.height.value = 360;
+
+        result.startResizeHeight({ clientY: 400, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientY: 100 }));
+        await nextTick();
+
+        expect(result.height.value).toBe(360);
         unmount();
     });
 });
