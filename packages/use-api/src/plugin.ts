@@ -1,5 +1,6 @@
 import { type App, type InjectionKey, inject } from "vue";
 import type { ApiPluginOptions } from "./types";
+import { initDevtools } from "./devtools";
 
 export const API_INJECTION_KEY: InjectionKey<ApiPluginOptions> = Symbol("use-api-config");
 
@@ -13,6 +14,11 @@ export function createApi(options: ApiPluginOptions) {
     return {
         install(app: App) {
             app.provide(API_INJECTION_KEY, options);
+            if (options.devtools) {
+                // Fire-and-forget: bridge loads asynchronously via dynamic import.
+                // Bridge methods use optional chaining — safe to call before load completes.
+                void initDevtools(options.devtools, app);
+            }
         },
     };
 }

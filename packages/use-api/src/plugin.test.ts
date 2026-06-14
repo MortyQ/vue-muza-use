@@ -11,9 +11,23 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { defineComponent, inject } from 'vue'
+import type { App } from 'vue'
 import { mount } from '@vue/test-utils'
 import type { AxiosInstance } from 'axios'
 import { createApi, useApiConfig, API_INJECTION_KEY } from './plugin'
+
+vi.mock("./devtools", () => ({
+    initDevtools: vi.fn().mockResolvedValue(undefined),
+    devtoolsBridge: {
+        onInstanceCreated: vi.fn(),
+        onInstanceDestroyed: vi.fn(),
+        onStateUpdate: vi.fn(),
+        onRequestStart: vi.fn(),
+        onRequestEnd: vi.fn(),
+    },
+}));
+
+import { initDevtools } from "./devtools";
 
 // ---------------------------------------------------------------------------
 // Shared mock
@@ -134,3 +148,24 @@ describe('useApiConfig — outside component', () => {
         expect(config.axios).toBe(axiosB)
     })
 })
+
+// ---------------------------------------------------------------------------
+// createApi — devtools integration
+// ---------------------------------------------------------------------------
+
+describe("createApi — devtools integration", () => {
+    it("calls initDevtools on install when devtools.enabled is true", () => {
+        const plugin = createApi({ axios: mockAxios, devtools: { enabled: true } });
+        const mockApp = { provide: vi.fn() } as unknown as App;
+        plugin.install(mockApp);
+        expect(initDevtools).toHaveBeenCalledWith({ enabled: true }, mockApp);
+    });
+
+    it("does not call initDevtools when devtools option is absent", () => {
+        vi.clearAllMocks();
+        const plugin = createApi({ axios: mockAxios });
+        const mockApp = { provide: vi.fn() } as unknown as App;
+        plugin.install(mockApp);
+        expect(initDevtools).not.toHaveBeenCalled();
+    });
+});
