@@ -1,9 +1,10 @@
 <!-- Request detail header: status chip + method + URL + meta + close. -->
 <script setup lang="ts">
 import { Icon } from "@iconify/vue";
-import type { RequestRecord } from "../../../shared/types/index";
+import type { RequestRecord, DevtoolsInstanceOptions } from "../../../shared/types/index";
+import FeatureBadges from "../../../shared/components/FeatureBadges.vue";
 
-defineProps<{ request: RequestRecord }>();
+defineProps<{ request: RequestRecord; instanceOptions?: DevtoolsInstanceOptions }>();
 defineEmits<{ close: [] }>();
 
 function statusClass(code: number | null): string {
@@ -22,6 +23,7 @@ function statusClass(code: number | null): string {
         </span>
         <span class="req-method">{{ request.method }}</span>
         <span class="req-url" :title="request.url">{{ request.url }}</span>
+        <FeatureBadges v-if="instanceOptions" :options="instanceOptions" />
         <div class="req-meta">
             <span v-if="request.duration !== null">{{ request.duration }}ms</span>
             <span>{{ new Date(request.startedAt).toLocaleTimeString() }}</span>

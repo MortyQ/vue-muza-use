@@ -3,7 +3,7 @@ import { ref, computed, onScopeDispose } from "vue";
 import { useNetworkTab } from "../composables/useNetworkTab";
 import RequestList from "./RequestList.vue";
 import RequestDetail from "./RequestDetail.vue";
-import type { RequestStatus } from "../../../shared/types/index";
+import type { RequestStatus, DevtoolsInstanceOptions } from "../../../shared/types/index";
 
 const {
     urlFilter, statusFilter, instanceFilter, filteredRequests, clearFilters,
@@ -13,6 +13,11 @@ const {
 } = useNetworkTab();
 
 const instanceList = computed(() => [...instances.value.values()]);
+const selectedInstanceOptions = computed<DevtoolsInstanceOptions | undefined>(() =>
+    selectedRequest.value?.instanceId
+        ? instances.value.get(selectedRequest.value.instanceId)?.options
+        : undefined,
+);
 
 const STATUS_PILLS: Array<{ value: RequestStatus | "all"; label: string }> = [
     { value: "all", label: "All" },
@@ -115,6 +120,7 @@ onScopeDispose(() => { dragCleanup?.(); });
             <div v-if="selectedRequest" class="detail-pane">
                 <RequestDetail
                     :request="selectedRequest"
+                    :instance-options="selectedInstanceOptions"
                     @close="selectRequest(null)"
                 />
             </div>

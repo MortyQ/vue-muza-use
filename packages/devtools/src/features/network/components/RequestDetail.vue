@@ -1,13 +1,13 @@
 <!-- Full request detail panel: header, tabs, and content view. -->
 <script setup lang="ts">
 import { ref } from "vue";
-import type { RequestRecord } from "../../../shared/types/index";
+import type { RequestRecord, DevtoolsInstanceOptions } from "../../../shared/types/index";
 import DetailHeader from "./DetailHeader.vue";
 import DetailTabs from "./DetailTabs.vue";
 import SplitView from "./SplitView.vue";
 import DataPane from "./DataPane.vue";
 
-defineProps<{ request: RequestRecord }>();
+defineProps<{ request: RequestRecord; instanceOptions?: DevtoolsInstanceOptions }>();
 defineEmits<{ close: [] }>();
 
 type TabId = "split" | "payload" | "response" | "headers";
@@ -16,7 +16,7 @@ const activeTab = ref<TabId>("split");
 
 <template>
     <div class="request-detail">
-        <DetailHeader :request="request" @close="$emit('close')" />
+        <DetailHeader :request="request" :instance-options="instanceOptions" @close="$emit('close')" />
         <DetailTabs :active-tab="activeTab" @select="activeTab = $event" />
 
         <div class="detail-content">

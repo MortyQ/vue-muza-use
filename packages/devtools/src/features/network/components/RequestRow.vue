@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RequestRecord, DevtoolsInstanceOptions } from "../../../shared/types/index";
 import StatusBadge from "./StatusBadge.vue";
+import FeatureBadges from "../../../shared/components/FeatureBadges.vue";
 
 const props = defineProps<{
     request: RequestRecord;
@@ -15,12 +16,6 @@ function formatDuration(ms: number | null): string {
 }
 function formatTime(ts: number): string {
     return new Date(ts).toLocaleTimeString();
-}
-function getCacheId(opts: DevtoolsInstanceOptions): string | undefined {
-    return typeof opts.cache === "string" ? opts.cache : opts.cache?.id;
-}
-function hasSwr(opts: DevtoolsInstanceOptions): boolean {
-    return typeof opts.cache === "object" && opts.cache !== null && opts.cache.swr === true;
 }
 </script>
 
@@ -40,19 +35,7 @@ function hasSwr(opts: DevtoolsInstanceOptions): boolean {
                     {{ request.method }}
                 </span>
                 <span class="row-url">{{ request.url }}</span>
-                <div v-if="instanceOptions" class="feature-badges">
-                    <span v-if="instanceOptions.cache" class="feature-badge fb-cache">
-                        cache<template v-if="getCacheId(instanceOptions)">
-                            <span class="fb-sep">·</span>{{ getCacheId(instanceOptions) }}
-                        </template>
-                    </span>
-                    <span v-if="hasSwr(instanceOptions)" class="feature-badge fb-swr">swr</span>
-                    <span v-if="instanceOptions.poll" class="feature-badge fb-polling">polling</span>
-                    <span v-if="instanceOptions.retry" class="feature-badge fb-retry">retry</span>
-                    <span v-if="instanceOptions.batch" class="feature-badge fb-batch">batch</span>
-                    <span v-if="instanceOptions.debounce" class="feature-badge fb-debounce">debounce</span>
-                    <span v-if="!instanceOptions.immediate || instanceOptions.lazy" class="feature-badge fb-lazy">lazy</span>
-                </div>
+                <FeatureBadges v-if="instanceOptions" :options="instanceOptions" />
             </div>
             <!-- Bottom: status + duration + time -->
             <div class="row-meta">
@@ -134,30 +117,4 @@ function hasSwr(opts: DevtoolsInstanceOptions): boolean {
 .method-patch  { background: oklch(24% 0.07 200); color: oklch(66% 0.18 200); }
 .method-delete { background: var(--dt-danger-subtle);  color: var(--dt-danger); }
 
-/* Feature badges */
-.feature-badges {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-    overflow: hidden;
-}
-.feature-badge {
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    padding: 1px 5px;
-    border-radius: 3px;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.fb-sep { opacity: 0.4; margin: 0 2px; }
-.fb-cache    { background: oklch(22% 0.06 220); color: oklch(66% 0.18 220); border: 1px solid oklch(32% 0.08 220); }
-.fb-swr      { background: oklch(22% 0.08 190); color: oklch(66% 0.20 190); border: 1px solid oklch(32% 0.10 190); }
-.fb-polling  { background: var(--dt-primary-subtle); color: var(--dt-primary); border: 1px solid oklch(38% 0.14 280); }
-.fb-retry    { background: var(--dt-warning-subtle); color: var(--dt-warning); border: 1px solid oklch(34% 0.10 75); }
-.fb-batch    { background: oklch(22% 0.06 300); color: oklch(68% 0.18 300); border: 1px solid oklch(32% 0.09 300); }
-.fb-debounce { background: oklch(22% 0.06 50);  color: oklch(70% 0.16 50);  border: 1px solid oklch(32% 0.09 50); }
-.fb-lazy     { background: oklch(20% 0.04 270); color: oklch(58% 0.08 270); border: 1px solid oklch(30% 0.06 270); }
 </style>
