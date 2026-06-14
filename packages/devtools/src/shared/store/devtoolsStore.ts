@@ -1,0 +1,138 @@
+import { reactive, computed, type ComputedRef } from "vue";
+import type {
+    DevtoolsInstance,
+    DevtoolsInstanceOptions,
+    DevtoolsInstanceState,
+    DevtoolsOptions,
+    RequestRecord,
+    RequestEndResult,
+} from "../types/index";
+
+interface StoreState {
+    instances: Map<string, DevtoolsInstance>;
+    requests: RequestRecord[];
+    config: { maxHistory: number; maxPayloadSize: number };
+}
+
+const state = reactive<StoreState>({
+    instances: new Map(),
+    requests: [],
+    config: { maxHistory: 100, maxPayloadSize: 50_000 },
+});
+
+function truncateValue(value: unknown, maxBytes: number): { value: unknown; truncated: boolean } {
+    try {
+        const serialized = JSON.stringify(value);
+        if (!serialized || serialized.length <= maxBytes) return { value, truncated: false };
+        return { value: `[truncated — ${serialized.length} bytes, max ${maxBytes}]`, truncated: true };
+    } catch {
+        return { value: "[non-serializable]", truncated: true };
+    }
+}
+
+export const instances: ComputedRef<ReadonlyMap<string, DevtoolsInstance>> = computed(
+    () => state.instances as ReadonlyMap<string, DevtoolsInstance>,
+);
+
+export const requests: ComputedRef<ReadonlyArray<RequestRecord>> = computed(
+    () => state.requests as ReadonlyArray<RequestRecord>,
+);
+
+export function initDevtoolsStore(config: Pick<DevtoolsOptions, "maxHistory" | "maxPayloadSize">): void {
+    state.instances.clear();
+    state.requests.splice(0);
+    state.config.maxHistory = config.maxHistory ?? 100;
+    state.config.maxPayloadSize = config.maxPayloadSize ?? 50_000;
+}
+
+export function registerInstance(
+    id: string,
+    url: string | undefined,
+    options: DevtoolsInstanceOptions,
+): void {
+    state.instances.set(id, {
+        id,
+        url,
+        method: "GET",
+        createdAt: Date.now(),
+        state: { loading: false, error: null, statusCode: null, data: null },
+        options,
+        requestCount: 0,
+        lastRequestAt: null,
+    });
+}
+
+export function unregisterInstance(id: string): void {
+    state.instances.delete(id);
+}
+
+export function updateInstanceState(id: string, partial: Partial<DevtoolsInstanceState>): void {
+    const instance = state.instances.get(id);
+    if (!instance) return;
+    instance.state = { ...instance.state, ...partial };
+}
+
+export function addRequest(
+    partial: Omit<RequestRecord, "duration" | "response" | "error" | "truncated">,
+): void {
+    const { value: truncatedPayload, truncated } = truncateValue(partial.payload, state.config.maxPayloadSize);
+    const record: RequestRecord = {
+        ...partial,
+        payload: truncatedPayload,
+        duration: null,
+        response: null,
+        error: null,
+        truncated,
+    };
+    if (state.requests.length >= state.config.maxHistory) {
+        state.requests.shift();
+    }
+    state.requests.push(record);
+
+    if (partial.instanceId) {
+        const instance = state.instances.get(partial.instanceId);
+        if (instance) {
+            instance.requestCount++;
+            instance.lastRequestAt = partial.startedAt;
+        }
+    }
+}
+
+export function updateRequest(id: string, result: RequestEndResult): void {
+    const idx = state.requests.findIndex((r) => r.id === id);
+    if (idx === -1) return;
+    const record = state.requests[idx];
+
+    if (result.status === "success") {
+        const { value: truncatedResponse, truncated } = truncateValue(
+            result.response,
+            state.config.maxPayloadSize,
+        );
+        state.requests[idx] = {
+            ...record,
+            status: "success",
+            statusCode: result.statusCode,
+            response: truncatedResponse,
+            duration: result.duration,
+            truncated: record.truncated || truncated,
+        };
+    } else if (result.status === "error") {
+        state.requests[idx] = {
+            ...record,
+            status: "error",
+            statusCode: result.statusCode,
+            error: result.error,
+            duration: result.duration,
+        };
+    } else {
+        state.requests[idx] = { ...record, status: "aborted", duration: result.duration };
+    }
+}
+
+export function clearRequests(): void {
+    state.requests.splice(0);
+}
+
+export function getRequestsByInstance(instanceId: string): ReadonlyArray<RequestRecord> {
+    return state.requests.filter((r) => r.instanceId === instanceId);
+}
