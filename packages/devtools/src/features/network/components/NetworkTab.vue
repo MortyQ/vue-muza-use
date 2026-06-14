@@ -123,7 +123,7 @@ onScopeDispose(() => { dragCleanup?.(); });
 </template>
 
 <style scoped>
-.network-tab { display: flex; flex-direction: column; height: 100%; background: var(--dt-surface-sunken); }
+.network-tab { display: flex; flex-direction: column; height: 100%; background: var(--dt-background); }
 .toolbar { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--dt-nav); border-bottom: 1px solid var(--dt-border-subtle); flex-shrink: 0; }
 .toolbar-input { flex: 1; height: 30px; background: var(--dt-surface); border: 1px solid var(--dt-border); border-radius: 7px; color: var(--dt-foreground); font-size: 12px; padding: 0 10px; outline: none; }
 .toolbar-input::placeholder { color: var(--dt-foreground-subtle); }
