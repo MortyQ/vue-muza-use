@@ -1,19 +1,30 @@
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, type ComputedRef, type Ref } from "vue";
 import { registeredTabs } from "../../../shared/plugins/tabRegistry";
 import { loadActiveTab, saveActiveTab } from "../../../shared/storage/devtoolsStorage";
 
+type TabEntry = (typeof registeredTabs.value)[number];
+
+/**
+ * Return type for {@link useTabManager}.
+ */
+export interface UseTabManagerReturn {
+    registeredTabs: typeof registeredTabs;
+    activeTabId: Ref<string | null>;
+    activeTab: ComputedRef<TabEntry | null>;
+    setActiveTab: (id: string) => void;
+}
+
 /**
  * Composable for managing which tab is active in the devtools panel.
- * Restores the last active tab from IndexedDB on mount and persists
- * any tab change back to storage.
+ * Persists the active tab id to IndexedDB.
  *
  * @example
  * ```ts
- * const { activeTabId, activeTab, setActiveTab } = useTabManager();
- * setActiveTab("requests");
+ * const { activeTabId, setActiveTab } = useTabManager();
+ * setActiveTab("network");
  * ```
  */
-export function useTabManager() {
+export function useTabManager(): UseTabManagerReturn {
     const activeTabId = ref<string | null>(null);
 
     onMounted(async () => {
@@ -29,7 +40,7 @@ export function useTabManager() {
         if (id) saveActiveTab(id);
     });
 
-    const activeTab = computed(
+    const activeTab = computed<TabEntry | null>(
         () => registeredTabs.value.find((t) => t.id === activeTabId.value) ?? registeredTabs.value[0] ?? null,
     );
 
