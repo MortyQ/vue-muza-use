@@ -1,1 +1,29 @@
 @import "tailwindcss" prefix(vmd);
+
+:root {
+  --dt-background:           oklch(16% 0.025 270);
+  --dt-surface-sunken:       oklch(13% 0.022 270);
+  --dt-surface:              oklch(20% 0.025 270);
+  --dt-surface-raised:       oklch(24% 0.025 270);
+  --dt-surface-active:       oklch(27% 0.025 270);
+  --dt-primary:              oklch(65% 0.25 280);
+  --dt-primary-subtle:       oklch(28% 0.10 280);
+  --dt-foreground:           oklch(93% 0.006 280);
+  --dt-foreground-secondary: oklch(73% 0.010 280);
+  --dt-foreground-muted:     oklch(52% 0.007 280);
+  --dt-foreground-subtle:    oklch(40% 0.005 280);
+  --dt-border-subtle:        oklch(24% 0.020 270);
+  --dt-border:               oklch(30% 0.022 270);
+  --dt-border-strong:        oklch(40% 0.018 270);
+  --dt-vue-green:            oklch(63% 0.17 145);
+  --dt-vue-green-subtle:     oklch(24% 0.07 145);
+  --dt-nav:                  oklch(13% 0.022 270);
+  --dt-danger:               oklch(63% 0.22 25);
+  --dt-danger-subtle:        oklch(24% 0.08 25);
+  --dt-warning:              oklch(74% 0.17 75);
+  --dt-warning-subtle:       oklch(24% 0.07 75);
+  --dt-info:                 oklch(66% 0.18 240);
+  --dt-info-subtle:          oklch(24% 0.07 240);
+  --dt-success:              oklch(63% 0.17 145);
+  --dt-success-subtle:       oklch(24% 0.07 145);
+}
