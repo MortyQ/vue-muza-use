@@ -1,6 +1,6 @@
 @import "tailwindcss" prefix(vmd);
 
-:root {
+#vue-muza-devtools-root {
   --dt-background:           oklch(16% 0.025 270);
   --dt-surface-sunken:       oklch(13% 0.022 270);
   --dt-surface:              oklch(20% 0.025 270);

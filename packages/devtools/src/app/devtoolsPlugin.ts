@@ -1,5 +1,6 @@
 import { createApp } from "vue";
 import FloatingPanel from "../features/panel/components/FloatingPanel.vue";
+import "../style.css";
 
 const ROOT_ID = "vue-muza-devtools-root";
 

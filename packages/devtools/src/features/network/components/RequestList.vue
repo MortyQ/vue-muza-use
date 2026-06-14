@@ -31,7 +31,7 @@ const rowVirtualizer = useVirtualizer(
 </script>
 
 <template>
-    <div ref="parentRef" class="flex-1 overflow-auto" style="background: var(--dt-surface-sunken);">
+    <div ref="parentRef" style="flex: 1; overflow: auto; background: var(--dt-surface-sunken);">
         <div :style="{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }">
             <div
                 v-for="vRow in rowVirtualizer.getVirtualItems()"
