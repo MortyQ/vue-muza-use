@@ -1,6 +1,6 @@
 import { debounceFn, DebounceCancelledError } from "./utils/debounce";
 import { type AxiosRequestConfig, type AxiosResponse, isAxiosError } from "axios";
-import { ref, computed, effectScope, getCurrentScope, onScopeDispose, toValue, watch, useId, type MaybeRefOrGetter } from "vue";
+import { ref, computed, effectScope, getCurrentInstance, getCurrentScope, onScopeDispose, toValue, watch, useId, type MaybeRefOrGetter } from "vue";
 
 import type {
     UseApiOptions,
@@ -90,7 +90,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     const revalidating = ref(false);
 
     // Devtools: track this instance
-    const instanceId = useId();
+    const instanceId = getCurrentInstance() != null ? useId() : nextRequestId();
     devtoolsBridge.onInstanceCreated(instanceId, toValue(url), {
         authMode: options.authMode ?? "default",
         cache: options.cache,
