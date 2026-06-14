@@ -6,26 +6,44 @@ const KEYS = {
     activeTab: "vmd:active-tab",
 } as const;
 
+/**
+ * Loads the saved panel position from IndexedDB. Returns undefined if not previously saved.
+ */
 export async function loadPanelPosition(): Promise<{ x: number; y: number } | undefined> {
     return get<{ x: number; y: number }>(KEYS.panelPosition);
 }
 
+/**
+ * Saves the panel position to IndexedDB.
+ */
 export async function savePanelPosition(pos: { x: number; y: number }): Promise<void> {
     return set(KEYS.panelPosition, pos);
 }
 
+/**
+ * Loads the saved panel size from IndexedDB. Returns undefined if not previously saved.
+ */
 export async function loadPanelSize(): Promise<{ width: number; height: number } | undefined> {
     return get<{ width: number; height: number }>(KEYS.panelSize);
 }
 
+/**
+ * Saves the panel size to IndexedDB.
+ */
 export async function savePanelSize(size: { width: number; height: number }): Promise<void> {
     return set(KEYS.panelSize, size);
 }
 
+/**
+ * Loads the last active tab id from IndexedDB. Returns undefined if not previously saved.
+ */
 export async function loadActiveTab(): Promise<string | undefined> {
     return get<string>(KEYS.activeTab);
 }
 
+/**
+ * Saves the active tab id to IndexedDB.
+ */
 export async function saveActiveTab(id: string): Promise<void> {
     return set(KEYS.activeTab, id);
 }
