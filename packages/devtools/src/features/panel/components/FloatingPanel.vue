@@ -30,7 +30,7 @@ function onResize(delta: { dw: number; dh: number }): void {
         <PanelHeader :on-drag-start="onDragStart" :on-close="close" :on-toggle="toggle" />
 
         <div v-if="isOpen" data-vmd-panel-body class="vmd:flex vmd:h-[calc(100%-36px)]">
-            <TabBar :tabs="registeredTabs" :active-tab-id="activeTabId" :on-select-tab="setActiveTab" />
+            <TabBar :tabs="registeredTabs" :active-tab-id="activeTabId ?? null" :on-select-tab="setActiveTab" />
             <div class="vmd:flex-1 vmd:overflow-auto vmd:p-3">
                 <component :is="activeTab?.component" v-if="activeTab" />
             </div>

@@ -70,12 +70,12 @@ describe("PanelHeader", () => {
 describe("TabBar", () => {
     it("renders a tab for each registered tab", () => {
         const stubComp = defineComponent({ template: "<div/>" });
-        const tabs = ref([
+        const tabs = [
             { id: "a", label: "Alpha", component: stubComp, order: 1 },
             { id: "b", label: "Beta", component: stubComp, order: 2 },
-        ]);
+        ] as const;
         const wrapper = mount(TabBar, {
-            props: { tabs, activeTabId: ref("a"), onSelectTab: vi.fn() },
+            props: { tabs, activeTabId: "a", onSelectTab: vi.fn() },
         });
         expect(wrapper.findAll("[data-vmd-tab]")).toHaveLength(2);
     });

@@ -1,4 +1,4 @@
-import type { ComputedRef, ReadonlyMap } from "vue";
+import type { ComputedRef } from "vue";
 import type { DevtoolsInstance, RequestRecord } from "../types/index";
 import { instances, requests, getRequestsByInstance } from "../store/devtoolsStore";
 

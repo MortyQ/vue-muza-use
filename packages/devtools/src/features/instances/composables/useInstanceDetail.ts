@@ -1,4 +1,4 @@
-import { ref, computed, type Ref, type ComputedRef } from "vue";
+import { ref, computed, type ComputedRef } from "vue";
 import { instances, getRequestsByInstance } from "../../../shared/store/devtoolsStore";
 import type { DevtoolsInstance, RequestRecord } from "../../../shared/types/index";
 

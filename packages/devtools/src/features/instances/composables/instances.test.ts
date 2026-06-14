@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createApp, nextTick, defineComponent } from "vue";
+import { createApp, nextTick } from "vue";
 import { initDevtoolsStore, registerInstance } from "../../../shared/store/devtoolsStore";
 
 function withSetup<T>(composable: () => T): { result: T; unmount: () => void } {
