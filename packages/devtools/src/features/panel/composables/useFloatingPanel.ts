@@ -20,6 +20,7 @@ export interface UseFloatingPanelReturn {
 
 const DEFAULT_HEIGHT = 360;
 const MIN_HEIGHT = 200;
+const MAX_HEIGHT_RATIO = 0.8;
 
 /**
  * Composable for the bottom-drawer devtools panel.
@@ -43,6 +44,7 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
     function close(): void { isOpen.value = false; }
 
     let resizing = false;
+    let cleanup: (() => void) | null = null;
 
     function startResizeHeight(e: MouseEvent): void {
         const startY = e.clientY;
@@ -51,23 +53,29 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
 
         function onMove(ev: MouseEvent): void {
             if (!resizing) return;
-            const maxH = Math.floor(window.innerHeight * 0.8);
+            const maxH = Math.floor(window.innerHeight * MAX_HEIGHT_RATIO);
             height.value = Math.max(MIN_HEIGHT, Math.min(startH + (startY - ev.clientY), maxH));
         }
 
         function onUp(): void {
             resizing = false;
+            cleanup = null;
             savePanelHeight(height.value);
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
         }
+
+        cleanup = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
 
         window.addEventListener("mousemove", onMove);
         window.addEventListener("mouseup", onUp);
         e.preventDefault();
     }
 
-    onScopeDispose(() => { /* onUp closures self-clean on mouseup */ });
+    onScopeDispose(() => { cleanup?.(); });
 
     return { height, isOpen, startResizeHeight, toggle, close };
 }

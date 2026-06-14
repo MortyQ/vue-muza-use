@@ -13,6 +13,8 @@ import {
     savePanelSize,
     loadActiveTab,
     saveActiveTab,
+    loadPanelHeight,
+    savePanelHeight,
 } from "./devtoolsStorage";
 
 beforeEach(() => {
@@ -58,5 +60,19 @@ describe("active tab", () => {
     it("saveActiveTab calls set with correct key", async () => {
         await saveActiveTab("instances");
         expect(set).toHaveBeenCalledWith("vmd:active-tab", "instances");
+    });
+});
+
+describe("panel height", () => {
+    it("loadPanelHeight calls get with correct key", async () => {
+        vi.mocked(get).mockResolvedValue(400);
+        const result = await loadPanelHeight();
+        expect(get).toHaveBeenCalledWith("vmd:panel-height");
+        expect(result).toBe(400);
+    });
+
+    it("savePanelHeight calls set with correct key", async () => {
+        await savePanelHeight(400);
+        expect(set).toHaveBeenCalledWith("vmd:panel-height", 400);
     });
 });
