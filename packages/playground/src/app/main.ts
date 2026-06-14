@@ -19,7 +19,7 @@ app.use(createApi({
     devtools: {
         enabled: true,
         maxHistory: 200,
-        maxPayloadSize: 10_000,
+        maxPayloadSize: 100_000,
     },
 }));
 

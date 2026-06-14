@@ -24,7 +24,10 @@ function truncateValue(value: unknown, maxBytes: number): { value: unknown; trun
     try {
         const serialized = JSON.stringify(value);
         if (!serialized || serialized.length <= maxBytes) return { value, truncated: false };
-        return { value: `[truncated — ${serialized.length} bytes, max ${maxBytes}]`, truncated: true };
+        return {
+            value: serialized.slice(0, maxBytes) + `\n…[+${serialized.length - maxBytes} bytes truncated]`,
+            truncated: true,
+        };
     } catch {
         return { value: "[non-serializable]", truncated: true };
     }

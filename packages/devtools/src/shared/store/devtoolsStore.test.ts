@@ -70,13 +70,16 @@ describe("addRequest — circular buffer", () => {
 });
 
 describe("addRequest — payload truncation", () => {
-    it("truncates payload exceeding maxPayloadSize", () => {
+    it("truncates payload exceeding maxPayloadSize, keeping the first maxPayloadSize chars", () => {
         const bigPayload = "x".repeat(200);
         addRequest({ id: "r1", instanceId: null, url: "/u", method: "POST",
             startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: bigPayload });
+        const stored = requests.value[0].payload as string;
         expect(requests.value[0].truncated).toBe(true);
-        expect(typeof requests.value[0].payload).toBe("string");
-        expect((requests.value[0].payload as string).startsWith("[truncated")).toBe(true);
+        expect(typeof stored).toBe("string");
+        // Starts with the first 100 chars (the configured test limit), not a replacement message
+        expect(stored.startsWith('"' + "x".repeat(99))).toBe(true);
+        expect(stored).toContain("bytes truncated");
     });
 
     it("does not truncate payload within maxPayloadSize", () => {
