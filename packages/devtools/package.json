@@ -1,0 +1,45 @@
+{
+  "name": "@ametie/vue-muza-devtools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Developer tools panel for @ametie/vue-muza-use",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      }
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@iconify/vue": "^4.2.0",
+    "@tanstack/vue-virtual": "^3.10.0",
+    "idb-keyval": "^6.2.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^20.5.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.3.0",
+    "vitest": "^4.0.18",
+    "vue": "^3.5.27"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  }
+}
