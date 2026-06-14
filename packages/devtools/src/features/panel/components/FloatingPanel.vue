@@ -1,54 +1,109 @@
 <script setup lang="ts">
 import { useFloatingPanel } from "../composables/useFloatingPanel";
 import { useTabManager } from "../composables/useTabManager";
-import PanelHeader from "./PanelHeader.vue";
 import TabBar from "./TabBar.vue";
-import ResizeHandle from "./ResizeHandle.vue";
+import MIcon from "../../../shared/components/MIcon.vue";
 
-const { position, size, isOpen, onDragStart, toggle, close } = useFloatingPanel();
+const { height, isOpen, startResizeHeight, toggle, close } = useFloatingPanel();
 const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager();
-
-function onResize(delta: { dw: number; dh: number }): void {
-    size.value = {
-        width: Math.max(400, size.value.width + delta.dw),
-        height: Math.max(300, size.value.height + delta.dh),
-    };
-}
 </script>
 
 <template>
-    <!-- Launcher button — always fixed bottom-right, shown when panel is closed -->
+    <!-- Launcher pill — fixed bottom-right, shown when panel is closed -->
     <button
         v-if="!isOpen"
         data-vmd-launcher
-        class="fixed z-[9999] bottom-4 right-4 w-10 h-10 rounded-full bg-surface-raised border border-border shadow-lg cursor-pointer flex items-center justify-center text-foreground text-lg hover:bg-surface-hover transition-colors pointer-events-auto"
+        class="launcher-pill"
         title="Open vue-muza devtools"
         @click="toggle"
     >
-        ⚡
+        <MIcon :width="22" :height="10" />
+        <span>vue-muza</span>
     </button>
 
-    <!-- Full panel — draggable, fixed positioning -->
+    <!-- Bottom drawer panel -->
     <div
         v-else
         data-vmd-panel
-        class="fixed z-[9999] rounded-lg shadow-2xl overflow-hidden font-mono text-sm bg-surface-overlay text-foreground border border-border pointer-events-auto"
-        :style="{
-            left: `${position.x}px`,
-            top: `${position.y}px`,
-            width: `${size.width}px`,
-            height: `${size.height}px`,
-        }"
+        class="devtools-panel"
+        :style="{ height: `${height}px` }"
     >
-        <PanelHeader :on-drag-start="onDragStart" :on-close="close" :on-toggle="toggle" />
+        <!-- Top resize handle (drag up/down to resize) -->
+        <div class="resize-handle" @mousedown="startResizeHeight" />
 
-        <div data-vmd-panel-body class="flex h-[calc(100%-36px)]">
-            <TabBar :tabs="registeredTabs" :active-tab-id="activeTabId ?? null" :on-select-tab="setActiveTab" />
-            <div class="flex-1 overflow-auto p-3">
-                <component :is="activeTab?.component" v-if="activeTab" />
-            </div>
+        <!-- Horizontal tab bar -->
+        <TabBar
+            :tabs="registeredTabs"
+            :active-tab-id="activeTabId ?? null"
+            :on-select-tab="setActiveTab"
+            @close="close"
+        />
+
+        <!-- Active tab content -->
+        <div class="panel-content">
+            <component :is="activeTab?.component" v-if="activeTab" />
         </div>
-
-        <ResizeHandle @resize="onResize" />
     </div>
 </template>
+
+<style scoped>
+.launcher-pill {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px 0 10px;
+    background: var(--dt-primary);
+    border-radius: 99px;
+    border: none;
+    cursor: pointer;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    box-shadow: 0 2px 12px oklch(65% 0.25 280 / 0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+    pointer-events: auto;
+}
+.launcher-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px oklch(65% 0.25 280 / 0.5);
+}
+
+.devtools-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9998;
+    display: flex;
+    flex-direction: column;
+    background: var(--dt-surface-sunken);
+    color: var(--dt-foreground);
+    border-top: 1px solid var(--dt-border);
+    border-radius: 12px 12px 0 0;
+    overflow: hidden;
+    pointer-events: auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.resize-handle {
+    height: 4px;
+    flex-shrink: 0;
+    cursor: row-resize;
+    background: var(--dt-border-subtle);
+    transition: background 0.15s;
+}
+.resize-handle:hover { background: var(--dt-primary); }
+
+.panel-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+</style>

@@ -4,10 +4,9 @@ import { defineComponent, ref } from "vue";
 
 vi.mock("../composables/useFloatingPanel", () => ({
     useFloatingPanel: vi.fn(() => ({
-        position: ref({ x: 100, y: 100 }),
-        size: ref({ width: 800, height: 500 }),
+        height: ref(400),
         isOpen: ref(true),
-        onDragStart: vi.fn(),
+        startResizeHeight: vi.fn(),
         toggle: vi.fn(),
         close: vi.fn(),
     })),
@@ -46,15 +45,27 @@ describe("FloatingPanel", () => {
     it("hides the panel when isOpen is false", async () => {
         const { useFloatingPanel } = await import("../composables/useFloatingPanel");
         vi.mocked(useFloatingPanel).mockReturnValueOnce({
-            position: ref({ x: 0, y: 0 }),
-            size: ref({ width: 800, height: 500 }),
+            height: ref(400),
             isOpen: ref(false),
-            onDragStart: vi.fn(),
+            startResizeHeight: vi.fn(),
             toggle: vi.fn(),
             close: vi.fn(),
         });
         const wrapper = mount(FloatingPanel);
-        expect(wrapper.find("[data-vmd-panel-body]").exists()).toBe(false);
+        expect(wrapper.find("[data-vmd-panel]").exists()).toBe(false);
+    });
+
+    it("shows the launcher pill when isOpen is false", async () => {
+        const { useFloatingPanel } = await import("../composables/useFloatingPanel");
+        vi.mocked(useFloatingPanel).mockReturnValueOnce({
+            height: ref(400),
+            isOpen: ref(false),
+            startResizeHeight: vi.fn(),
+            toggle: vi.fn(),
+            close: vi.fn(),
+        });
+        const wrapper = mount(FloatingPanel);
+        expect(wrapper.find("[data-vmd-launcher]").exists()).toBe(true);
     });
 });
 
