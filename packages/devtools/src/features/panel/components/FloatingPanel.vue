@@ -77,19 +77,20 @@ const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager()
 
 .devtools-panel {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: 8px;
+    left: 12px;
+    right: 12px;
     z-index: 99998;
     display: flex;
     flex-direction: column;
-    background: var(--dt-surface-sunken);
+    background: var(--dt-background);
     color: var(--dt-foreground);
-    border-top: 1px solid var(--dt-border);
-    border-radius: 12px 12px 0 0;
+    border: 1px solid var(--dt-border);
+    border-radius: 12px;
     overflow: hidden;
     pointer-events: auto;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .resize-handle {
