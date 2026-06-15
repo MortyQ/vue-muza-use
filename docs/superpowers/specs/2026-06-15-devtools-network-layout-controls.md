@@ -554,6 +554,60 @@ git commit -m "test(devtools): add useNetworkLayout composable tests"
 
 ---
 
+## Task 7: Newest requests on top
+
+New requests should appear at the top of the list so the most recent activity is immediately visible without scrolling.
+
+**Files:**
+- Modify: `packages/devtools/src/features/network/composables/useNetworkFilter.ts`
+
+- [ ] **Step 1: Reverse the filtered array in the computed**
+
+Change the `filteredRequests` computed from:
+
+```ts
+const filteredRequests = computed((): ReadonlyArray<RequestRecord> => {
+    return requests.value.filter((r) => {
+        if (urlFilter.value && !r.url.toLowerCase().includes(urlFilter.value.toLowerCase())) return false;
+        if (statusFilter.value !== "all" && r.status !== statusFilter.value) return false;
+        if (instanceFilter.value !== "all" && r.instanceId !== instanceFilter.value) return false;
+        return true;
+    });
+});
+```
+
+To:
+
+```ts
+const filteredRequests = computed((): ReadonlyArray<RequestRecord> => {
+    return requests.value.filter((r) => {
+        if (urlFilter.value && !r.url.toLowerCase().includes(urlFilter.value.toLowerCase())) return false;
+        if (statusFilter.value !== "all" && r.status !== statusFilter.value) return false;
+        if (instanceFilter.value !== "all" && r.instanceId !== instanceFilter.value) return false;
+        return true;
+    }).reverse();
+});
+```
+
+`.filter()` returns a new array, so `.reverse()` mutates only that copy — the underlying `requests` store is untouched.
+
+- [ ] **Step 2: Run existing tests to confirm no regressions**
+
+```bash
+pnpm --filter @ametie/vue-muza-devtools test --run
+```
+
+Expected: all existing tests pass.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add packages/devtools/src/features/network/composables/useNetworkFilter.ts
+git commit -m "feat(devtools): show newest network requests at the top of the list"
+```
+
+---
+
 ## Self-Review Checklist
 
 - [x] No TBDs or placeholders
@@ -563,3 +617,4 @@ git commit -m "test(devtools): add useNetworkLayout composable tests"
 - [x] Backdrop uses Teleport to avoid z-index conflicts with panel content
 - [x] Split width only saved in row mode (avoids stacked-mode height pollution)
 - [x] Tests cover default, load, toggle, and settings open/close
+- [x] `.reverse()` applied to copy from `.filter()`, not to the store array directly
