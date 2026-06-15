@@ -99,14 +99,16 @@ export function updateInstanceState(id: string, partial: Partial<DevtoolsInstanc
 export function addRequest(
     partial: Omit<RequestRecord, "duration" | "response" | "error" | "truncated">,
 ): void {
-    const { value: truncatedPayload, truncated } = truncateValue(partial.payload, state.config.maxPayloadSize);
+    const { value: truncatedPayload, truncated: payloadTruncated } = truncateValue(partial.payload, state.config.maxPayloadSize);
+    const { value: truncatedQueryParams, truncated: queryParamsTruncated } = truncateValue(partial.queryParams, state.config.maxPayloadSize);
     const record: RequestRecord = {
         ...partial,
         payload: truncatedPayload,
+        queryParams: truncatedQueryParams,
         duration: null,
         response: null,
         error: null,
-        truncated,
+        truncated: payloadTruncated || queryParamsTruncated,
     };
     if (state.requests.length >= state.config.maxHistory) {
         state.requests.shift();

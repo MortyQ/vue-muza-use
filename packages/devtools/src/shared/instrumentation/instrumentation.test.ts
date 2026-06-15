@@ -42,7 +42,7 @@ describe("instanceTracker", () => {
 describe("requestTracker", () => {
     it("onRequestStart calls addRequest", () => {
         const record = { id: "r1", instanceId: "id-1", url: "/users", method: "GET",
-            startedAt: 1000, status: "pending" as const, statusCode: null, requestHeaders: {}, payload: null };
+            startedAt: 1000, status: "pending" as const, statusCode: null, requestHeaders: {}, payload: null, queryParams: null };
         onRequestStart(record);
         expect(addRequest).toHaveBeenCalledWith(record);
     });

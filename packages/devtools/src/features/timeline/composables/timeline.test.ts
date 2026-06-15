@@ -52,7 +52,7 @@ describe("useTimelineTab", () => {
         const { useTimelineTab } = await import("./useTimelineTab");
         registerInstance("i1", "/users", defaultOpts);
         addRequest({ id: "r1", instanceId: "i1", url: "/users", method: "GET",
-            startedAt: 1000, status: "success", statusCode: null, requestHeaders: {}, payload: null });
+            startedAt: 1000, status: "success", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
         const { result } = withSetup(() => useTimelineTab());
         await nextTick();
         expect(result.instanceTimelines.value).toHaveLength(1);
@@ -62,10 +62,10 @@ describe("useTimelineTab", () => {
     it("timeRange covers all requests", async () => {
         const { useTimelineTab } = await import("./useTimelineTab");
         addRequest({ id: "r1", instanceId: "i1", url: "/u", method: "GET",
-            startedAt: 1000, status: "success", statusCode: null, requestHeaders: {}, payload: null });
+            startedAt: 1000, status: "success", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
         updateRequest("r1", { status: "success", statusCode: 200, response: null, duration: 200 });
         addRequest({ id: "r2", instanceId: "i1", url: "/u", method: "GET",
-            startedAt: 2000, status: "success", statusCode: null, requestHeaders: {}, payload: null });
+            startedAt: 2000, status: "success", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
         updateRequest("r2", { status: "success", statusCode: 200, response: null, duration: 100 });
         const { result } = withSetup(() => useTimelineTab());
         await nextTick();

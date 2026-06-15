@@ -12,7 +12,7 @@ function withSetup<T>(composable: () => T): { result: T; unmount: () => void } {
 function makeRequest(overrides: Partial<Parameters<typeof addRequest>[0]> = {}) {
     addRequest({
         id: `r-${Math.random()}`, instanceId: "i1", url: "/users", method: "GET",
-        startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null,
+        startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null,
         ...overrides,
     });
 }

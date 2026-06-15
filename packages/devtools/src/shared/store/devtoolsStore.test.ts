@@ -54,7 +54,7 @@ describe("updateInstanceState", () => {
 describe("addRequest — circular buffer", () => {
     it("adds a request record", () => {
         addRequest({ id: "r1", instanceId: "id-1", url: "/users", method: "GET",
-            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null });
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
         expect(requests.value).toHaveLength(1);
         expect(requests.value[0].id).toBe("r1");
     });
@@ -62,7 +62,7 @@ describe("addRequest — circular buffer", () => {
     it("evicts oldest when maxHistory is exceeded", () => {
         for (let i = 0; i < 6; i++) {
             addRequest({ id: `r${i}`, instanceId: null, url: "/u", method: "GET",
-                startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null });
+                startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
         }
         expect(requests.value).toHaveLength(5);
         expect(requests.value[0].id).toBe("r1");
@@ -73,7 +73,7 @@ describe("addRequest — payload truncation", () => {
     it("truncates payload exceeding maxPayloadSize, keeping the first maxPayloadSize chars", () => {
         const bigPayload = "x".repeat(200);
         addRequest({ id: "r1", instanceId: null, url: "/u", method: "POST",
-            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: bigPayload });
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: bigPayload, queryParams: null });
         const stored = requests.value[0].payload as string;
         expect(requests.value[0].truncated).toBe(true);
         expect(typeof stored).toBe("string");
@@ -84,16 +84,25 @@ describe("addRequest — payload truncation", () => {
 
     it("does not truncate payload within maxPayloadSize", () => {
         addRequest({ id: "r1", instanceId: null, url: "/u", method: "POST",
-            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: { x: 1 } });
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: { x: 1 }, queryParams: null });
         expect(requests.value[0].truncated).toBe(false);
         expect(requests.value[0].payload).toEqual({ x: 1 });
+    });
+
+    it("truncates queryParams that exceed maxPayloadSize", () => {
+        const bigParams = { q: "a".repeat(200) };
+        addRequest({ id: "r1", instanceId: null, url: "/u", method: "GET",
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {},
+            payload: null, queryParams: bigParams });
+        expect(requests.value[0].truncated).toBe(true);
+        expect(typeof requests.value[0].queryParams).toBe("string");
     });
 });
 
 describe("updateRequest", () => {
     beforeEach(() => {
         addRequest({ id: "r1", instanceId: "id-1", url: "/users", method: "GET",
-            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null });
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
     });
 
     it("updates to success", () => {
@@ -124,7 +133,7 @@ describe("updateRequest", () => {
 describe("clearRequests", () => {
     it("removes all requests", () => {
         addRequest({ id: "r1", instanceId: null, url: "/u", method: "GET",
-            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null });
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
         clearRequests();
         expect(requests.value).toHaveLength(0);
     });
@@ -133,9 +142,9 @@ describe("clearRequests", () => {
 describe("getRequestsByInstance", () => {
     it("returns requests filtered by instanceId", () => {
         addRequest({ id: "r1", instanceId: "a", url: "/u", method: "GET",
-            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null });
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
         addRequest({ id: "r2", instanceId: "b", url: "/u", method: "GET",
-            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null });
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
         expect(getRequestsByInstance("a")).toHaveLength(1);
         expect(getRequestsByInstance("a")[0].id).toBe("r1");
     });
