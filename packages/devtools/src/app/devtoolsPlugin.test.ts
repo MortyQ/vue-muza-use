@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("idb-keyval", () => ({
+    get: vi.fn().mockResolvedValue(undefined),
+    set: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Stub FloatingPanel so we don't need real SFC in this unit test
 vi.mock("../features/panel/components/FloatingPanel.vue", () => ({
     default: { template: "<div/>" },

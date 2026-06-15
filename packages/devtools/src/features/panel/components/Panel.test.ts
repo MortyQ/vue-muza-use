@@ -9,6 +9,10 @@ vi.mock("../composables/useFloatingPanel", () => ({
         startResizeHeight: vi.fn(),
         toggle: vi.fn(),
         close: vi.fn(),
+        panelMode: ref("bottom"),
+        switchMode: vi.fn(),
+        sideWidth: ref(380),
+        startResizeSideWidth: vi.fn(),
     })),
 }));
 
@@ -50,6 +54,10 @@ describe("FloatingPanel", () => {
             startResizeHeight: vi.fn(),
             toggle: vi.fn(),
             close: vi.fn(),
+            panelMode: ref("bottom"),
+            switchMode: vi.fn(),
+            sideWidth: ref(380),
+            startResizeSideWidth: vi.fn(),
         });
         const wrapper = mount(FloatingPanel);
         expect(wrapper.find("[data-vmd-panel]").exists()).toBe(false);
@@ -63,6 +71,10 @@ describe("FloatingPanel", () => {
             startResizeHeight: vi.fn(),
             toggle: vi.fn(),
             close: vi.fn(),
+            panelMode: ref("bottom"),
+            switchMode: vi.fn(),
+            sideWidth: ref(380),
+            startResizeSideWidth: vi.fn(),
         });
         const wrapper = mount(FloatingPanel);
         expect(wrapper.find("[data-vmd-launcher]").exists()).toBe(true);
@@ -86,7 +98,7 @@ describe("TabBar", () => {
             { id: "b", label: "Beta", component: stubComp, order: 2 },
         ] as const;
         const wrapper = mount(TabBar, {
-            props: { tabs, activeTabId: "a", selectTab: vi.fn() },
+            props: { tabs, activeTabId: "a", selectTab: vi.fn(), panelMode: "bottom" },
         });
         expect(wrapper.findAll("[data-vmd-tab]")).toHaveLength(2);
     });
