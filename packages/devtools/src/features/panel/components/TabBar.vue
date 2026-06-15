@@ -14,6 +14,7 @@ defineProps<{
 defineEmits<{
     close: [];
     "update:panelMode": [PanelMode];
+    settings: [];
 }>();
 </script>
 
@@ -75,6 +76,10 @@ defineEmits<{
 
         <div class="mode-divider" />
 
+        <button class="settings-btn" title="Layout settings" @click="$emit('settings')">
+            <span class="dots"><span /><span /><span /></span>
+        </button>
+
         <button class="close-btn" title="Close devtools" @click="$emit('close')">
             <Icon icon="lucide:x" width="14" height="14" />
         </button>
@@ -102,7 +107,10 @@ defineEmits<{
     flex: 1;
     padding: 0 6px;
     gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
 }
+.tab-list::-webkit-scrollbar { display: none; }
 .tab-btn {
     display: flex;
     align-items: center;
@@ -165,6 +173,37 @@ defineEmits<{
     background: var(--dt-border-subtle);
     margin-right: 4px;
     flex-shrink: 0;
+}
+.settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    border: none;
+    background: transparent;
+    color: var(--dt-foreground-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+}
+.settings-btn:hover {
+    background: var(--dt-surface-raised);
+    color: var(--dt-foreground-secondary);
+}
+.dots {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5px;
+    align-items: center;
+}
+.dots span {
+    display: block;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
 }
 .close-btn {
     display: flex;
