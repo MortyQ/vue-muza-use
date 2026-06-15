@@ -41,7 +41,7 @@ const MAX_SIDE_WIDTH_RATIO = 0.6;
 
 // Module-level singletons so state persists across mode switches (DevtoolsApp unmounts/remounts wrappers)
 const _isOpen = ref(false);
-const _panelMode = ref<PanelMode>("bottom");
+const _panelMode = ref<PanelMode>("side");
 let _panelModeLoaded = false;
 
 /**
@@ -155,6 +155,6 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
 /** @internal — resets module-level singletons for test isolation */
 export function _resetPanelModeForTesting(): void {
     _isOpen.value = false;
-    _panelMode.value = "bottom";
+    _panelMode.value = "side";
     _panelModeLoaded = false;
 }

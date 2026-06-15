@@ -26,11 +26,11 @@ beforeEach(() => {
 });
 
 describe("initial state", () => {
-    it("starts with height 360, sideWidth 380, mode 'bottom', and closed", () => {
+    it("starts with height 360, sideWidth 380, mode 'side', and closed", () => {
         const { result, unmount } = withSetup(() => useFloatingPanel());
         expect(result.height.value).toBe(360);
         expect(result.sideWidth.value).toBe(380);
-        expect(result.panelMode.value).toBe("bottom");
+        expect(result.panelMode.value).toBe("side");
         expect(result.isOpen.value).toBe(false);
         unmount();
     });
