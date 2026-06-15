@@ -17,9 +17,9 @@ import { timelineTab } from "../features/timeline/index";
 export function createBridge(options: DevtoolsOptions, _app: App): DevtoolsBridge {
     initDevtoolsStore(options);
 
-    registerTab(instancesTab);
+    // registerTab(instancesTab);
     registerTab(networkTab);
-    registerTab(timelineTab);
+    // registerTab(timelineTab);
 
     if (options.tabs) {
         options.tabs.forEach((tab) => registerTab(tab as DevtoolsTab));

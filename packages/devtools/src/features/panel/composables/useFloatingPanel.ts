@@ -39,7 +39,8 @@ const DEFAULT_SIDE_WIDTH = 380;
 const MIN_SIDE_WIDTH = 280;
 const MAX_SIDE_WIDTH_RATIO = 0.6;
 
-// Module-level singleton so panelMode is shared across all callers (DevtoolsApp + wrapper)
+// Module-level singletons so state persists across mode switches (DevtoolsApp unmounts/remounts wrappers)
+const _isOpen = ref(false);
 const _panelMode = ref<PanelMode>("bottom");
 let _panelModeLoaded = false;
 
@@ -54,7 +55,7 @@ let _panelModeLoaded = false;
  */
 export function useFloatingPanel(): UseFloatingPanelReturn {
     const height = ref(DEFAULT_HEIGHT);
-    const isOpen = ref(false);
+    const isOpen = _isOpen;
     const panelMode = _panelMode;
     const sideWidth = ref(DEFAULT_SIDE_WIDTH);
 
@@ -151,8 +152,9 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
     return { height, isOpen, panelMode, sideWidth, startResizeHeight, startResizeSideWidth, switchMode, toggle, close };
 }
 
-/** @internal — resets module-level panel mode singleton for test isolation */
+/** @internal — resets module-level singletons for test isolation */
 export function _resetPanelModeForTesting(): void {
+    _isOpen.value = false;
     _panelMode.value = "bottom";
     _panelModeLoaded = false;
 }
