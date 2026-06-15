@@ -39,4 +39,13 @@ describe("TreeViewer", () => {
         expect(wrapper.text()).toContain("0");
         expect(wrapper.text()).toContain('"x"');
     });
+
+    it("passes depth 0 to every top-level TreeNode", () => {
+        const wrapper = mount(TreeViewer, { props: { value: { a: 1, b: 2 } } });
+        const nodes = wrapper.findAllComponents({ name: "TreeNode" });
+        expect(nodes.length).toBe(2);
+        nodes.forEach((node) => {
+            expect(node.props("depth")).toBe(0);
+        });
+    });
 });
