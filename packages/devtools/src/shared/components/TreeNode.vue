@@ -21,13 +21,17 @@ const isArray = computed(() => Array.isArray(props.value));
 
 const badgeLabel = computed((): string => {
     if (!isExpandable.value) return "";
+    // safe: isExpandable guarantees non-null object; isArray narrows to array
     if (isArray.value) return `Array [${(props.value as unknown[]).length}]`;
+    // safe: isExpandable guarantees non-null object, not an array
     return `Object {${Object.keys(props.value as object).length}}`;
 });
 
 const childEntries = computed((): Array<[string | number, unknown]> => {
     if (!expanded.value || !isExpandable.value) return [];
+    // safe: isExpandable guarantees non-null object; isArray narrows to array
     if (isArray.value) return (props.value as unknown[]).map((v, i) => [i, v]);
+    // safe: isExpandable guarantees non-null object, not an array
     return Object.entries(props.value as Record<string, unknown>);
 });
 
@@ -63,7 +67,7 @@ function toggle(): void {
             <span v-if="nodeKey !== null" class="tree-key">{{ nodeKey }}</span>
             <span v-if="nodeKey !== null" class="tree-colon">:</span>
             <span v-if="isExpandable" class="tree-badge" @click="toggle">
-                {{ expanded ? "▼" : "▶" }} {{ badgeLabel }}
+                {{ badgeLabel }}
             </span>
             <span v-else :class="valueClass">{{ displayValue }}</span>
         </div>
