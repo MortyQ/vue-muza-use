@@ -1,5 +1,14 @@
 import type { Component } from "vue";
 
+// Layout types
+
+/**
+ * Layout mode for the devtools panel.
+ * - `bottom`: docked to the bottom of the viewport
+ * - `side`: docked to the right side of the viewport
+ */
+export type PanelMode = "bottom" | "side";
+
 // Request domain types
 
 /**

@@ -1,4 +1,5 @@
 import { get, set } from "idb-keyval";
+import type { PanelMode } from "../types/index";
 
 const KEYS = {
     panelPosition: "vmd:panel-position",
@@ -68,14 +69,14 @@ export async function savePanelHeight(height: number): Promise<void> {
 /**
  * Loads the saved panel mode from IndexedDB. Returns "bottom" if not previously saved.
  */
-export async function loadPanelMode(): Promise<"bottom" | "side"> {
-    return (await get<"bottom" | "side">(KEYS.panelMode)) ?? "bottom";
+export async function loadPanelMode(): Promise<PanelMode> {
+    return (await get<PanelMode>(KEYS.panelMode)) ?? "bottom";
 }
 
 /**
  * Saves the panel mode to IndexedDB.
  */
-export async function savePanelMode(mode: "bottom" | "side"): Promise<void> {
+export async function savePanelMode(mode: PanelMode): Promise<void> {
     return set(KEYS.panelMode, mode);
 }
 

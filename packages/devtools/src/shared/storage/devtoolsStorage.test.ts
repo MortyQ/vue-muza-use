@@ -15,6 +15,10 @@ import {
     saveActiveTab,
     loadPanelHeight,
     savePanelHeight,
+    loadPanelMode,
+    savePanelMode,
+    loadPanelSideWidth,
+    savePanelSideWidth,
 } from "./devtoolsStorage";
 
 beforeEach(() => {
@@ -74,5 +78,47 @@ describe("panel height", () => {
     it("savePanelHeight calls set with correct key", async () => {
         await savePanelHeight(400);
         expect(set).toHaveBeenCalledWith("vmd:panel-height", 400);
+    });
+});
+
+describe("loadPanelMode / savePanelMode", () => {
+    it("loadPanelMode calls get with correct key and returns stored value", async () => {
+        vi.mocked(get).mockResolvedValue("side");
+        const result = await loadPanelMode();
+        expect(get).toHaveBeenCalledWith("vmd:panel-mode");
+        expect(result).toBe("side");
+    });
+
+    it("loadPanelMode returns \"bottom\" as default when get resolves undefined", async () => {
+        vi.mocked(get).mockResolvedValue(undefined);
+        const result = await loadPanelMode();
+        expect(get).toHaveBeenCalledWith("vmd:panel-mode");
+        expect(result).toBe("bottom");
+    });
+
+    it("savePanelMode calls set with correct key and value", async () => {
+        await savePanelMode("side");
+        expect(set).toHaveBeenCalledWith("vmd:panel-mode", "side");
+    });
+});
+
+describe("loadPanelSideWidth / savePanelSideWidth", () => {
+    it("loadPanelSideWidth calls get with correct key and returns stored number", async () => {
+        vi.mocked(get).mockResolvedValue(320);
+        const result = await loadPanelSideWidth();
+        expect(get).toHaveBeenCalledWith("vmd:panel-side-width");
+        expect(result).toBe(320);
+    });
+
+    it("loadPanelSideWidth returns undefined when not set", async () => {
+        vi.mocked(get).mockResolvedValue(undefined);
+        const result = await loadPanelSideWidth();
+        expect(get).toHaveBeenCalledWith("vmd:panel-side-width");
+        expect(result).toBeUndefined();
+    });
+
+    it("savePanelSideWidth calls set with correct key and value", async () => {
+        await savePanelSideWidth(320);
+        expect(set).toHaveBeenCalledWith("vmd:panel-side-width", 320);
     });
 });
