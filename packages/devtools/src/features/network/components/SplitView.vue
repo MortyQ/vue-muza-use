@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onScopeDispose } from "vue";
 import DataPane from "./DataPane.vue";
+import PayloadPane from "./PayloadPane.vue";
 import type { RequestRecord } from "../../../shared/types/index";
 import { useFloatingPanel } from "../../panel/composables/useFloatingPanel";
 import { loadSplitPayloadWidth, saveSplitPayloadWidth } from "../../../shared/storage/devtoolsStorage";
@@ -80,7 +81,11 @@ onScopeDispose(() => { splitDragCleanup?.(); });
                 ? (stacked ? { flex: 'none', height: primarySize + 'px' } : { flex: 'none', width: primarySize + 'px' })
                 : {}"
         >
-            <DataPane title="Payload" :data="request.payload" :truncated="request.truncated" />
+            <PayloadPane
+                :query-params="request.queryParams"
+                :payload="request.payload"
+                :truncated="request.truncated"
+            />
         </div>
 
         <!-- Drag handle -->

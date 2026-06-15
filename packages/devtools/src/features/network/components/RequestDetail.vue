@@ -6,6 +6,7 @@ import DetailHeader from "./DetailHeader.vue";
 import DetailTabs from "./DetailTabs.vue";
 import SplitView from "./SplitView.vue";
 import DataPane from "./DataPane.vue";
+import PayloadPane from "./PayloadPane.vue";
 
 defineProps<{ request: RequestRecord; instanceOptions?: DevtoolsInstanceOptions }>();
 defineEmits<{ close: [] }>();
@@ -22,10 +23,10 @@ const activeTab = ref<TabId>("split");
         <div class="detail-content">
             <SplitView v-if="activeTab === 'split'" :request="request" />
 
-            <DataPane
+            <PayloadPane
                 v-else-if="activeTab === 'payload'"
-                title="Payload"
-                :data="request.payload"
+                :query-params="request.queryParams"
+                :payload="request.payload"
                 :truncated="request.truncated"
             />
 
