@@ -8,6 +8,9 @@ const KEYS = {
     panelMode: "vmd:panel-mode",
     panelSideWidth: "vmd:panel-side-width",
     activeTab: "vmd:active-tab",
+    networkToolbarVisible: "vmd:network-toolbar-visible",
+    networkFilterVisible: "vmd:network-filter-visible",
+    splitPayloadWidth: "vmd:split-payload-width",
 } as const;
 
 /**
@@ -92,4 +95,46 @@ export async function loadPanelSideWidth(): Promise<number | undefined> {
  */
 export async function savePanelSideWidth(width: number): Promise<void> {
     return set(KEYS.panelSideWidth, width);
+}
+
+/**
+ * Loads the network toolbar visibility state from IndexedDB. Returns true if not previously saved.
+ */
+export async function loadNetworkToolbarVisible(): Promise<boolean> {
+    return (await get<boolean>(KEYS.networkToolbarVisible)) ?? true;
+}
+
+/**
+ * Saves the network toolbar visibility state to IndexedDB.
+ */
+export async function saveNetworkToolbarVisible(value: boolean): Promise<void> {
+    return set(KEYS.networkToolbarVisible, value);
+}
+
+/**
+ * Loads the network filter visibility state from IndexedDB. Returns true if not previously saved.
+ */
+export async function loadNetworkFilterVisible(): Promise<boolean> {
+    return (await get<boolean>(KEYS.networkFilterVisible)) ?? true;
+}
+
+/**
+ * Saves the network filter visibility state to IndexedDB.
+ */
+export async function saveNetworkFilterVisible(value: boolean): Promise<void> {
+    return set(KEYS.networkFilterVisible, value);
+}
+
+/**
+ * Loads the split payload width from IndexedDB. Returns undefined if not previously saved.
+ */
+export async function loadSplitPayloadWidth(): Promise<number | undefined> {
+    return get<number>(KEYS.splitPayloadWidth);
+}
+
+/**
+ * Saves the split payload width to IndexedDB.
+ */
+export async function saveSplitPayloadWidth(width: number): Promise<void> {
+    return set(KEYS.splitPayloadWidth, width);
 }
