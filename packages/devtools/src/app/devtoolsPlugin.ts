@@ -1,5 +1,5 @@
 import { createApp } from "vue";
-import FloatingPanel from "../features/panel/components/FloatingPanel.vue";
+import DevtoolsApp from "./DevtoolsApp.vue";
 import "../style.css";
 
 const ROOT_ID = "vue-muza-devtools-root";
@@ -24,6 +24,6 @@ export function mountDevtoolsPanel(): void {
         pointerEvents: "none",
     });
     document.body.appendChild(container);
-    const app = createApp(FloatingPanel);
+    const app = createApp(DevtoolsApp);
     app.mount(container);
 }

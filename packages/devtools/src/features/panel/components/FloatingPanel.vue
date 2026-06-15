@@ -5,7 +5,7 @@ import { useTabManager } from "../composables/useTabManager";
 import TabBar from "./TabBar.vue";
 import MIcon from "../../../shared/components/MIcon.vue";
 
-const { height, isOpen, startResizeHeight, toggle, close } = useFloatingPanel();
+const { height, isOpen, panelMode, startResizeHeight, switchMode, toggle, close } = useFloatingPanel();
 const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager();
 </script>
 
@@ -37,7 +37,9 @@ const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager()
             :tabs="registeredTabs"
             :active-tab-id="activeTabId ?? null"
             :select-tab="setActiveTab"
+            :panel-mode="panelMode"
             @close="close"
+            @update:panel-mode="switchMode"
         />
 
         <!-- Active tab content -->
