@@ -1,5 +1,5 @@
 import { get, set } from "idb-keyval";
-import type { PanelMode } from "../types/index";
+import type { PanelMode, PayloadFormat } from "../types/index";
 
 const KEYS = {
     panelPosition: "vmd:panel-position",
@@ -143,13 +143,13 @@ export async function saveSplitPayloadWidth(width: number): Promise<void> {
 /**
  * Loads the saved payload viewer format from IndexedDB. Returns "kv" if not previously saved.
  */
-export async function loadPayloadFormat(): Promise<"kv" | "json"> {
-    return (await get<"kv" | "json">(KEYS.payloadFormat)) ?? "kv";
+export async function loadPayloadFormat(): Promise<PayloadFormat> {
+    return (await get<PayloadFormat>(KEYS.payloadFormat)) ?? "kv";
 }
 
 /**
  * Saves the payload viewer format to IndexedDB.
  */
-export async function savePayloadFormat(format: "kv" | "json"): Promise<void> {
+export async function savePayloadFormat(format: PayloadFormat): Promise<void> {
     return set(KEYS.payloadFormat, format);
 }

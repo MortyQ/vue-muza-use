@@ -9,6 +9,13 @@ import type { Component } from "vue";
  */
 export type PanelMode = "bottom" | "side";
 
+/**
+ * Display format for the payload viewer pane.
+ * - `kv`: collapsible key-value tree view
+ * - `json`: raw JSON syntax-highlighted view
+ */
+export type PayloadFormat = "kv" | "json";
+
 // Request domain types
 
 /**
