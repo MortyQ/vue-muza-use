@@ -4,7 +4,7 @@ import { createApp, nextTick } from "vue";
 vi.mock("../../../shared/storage/devtoolsStorage", () => ({
     loadPanelHeight: vi.fn().mockResolvedValue(undefined),
     savePanelHeight: vi.fn().mockResolvedValue(undefined),
-    loadPanelMode: vi.fn().mockResolvedValue("bottom"),
+    loadPanelMode: vi.fn().mockResolvedValue("side"),
     savePanelMode: vi.fn().mockResolvedValue(undefined),
     loadPanelSideWidth: vi.fn().mockResolvedValue(undefined),
     savePanelSideWidth: vi.fn().mockResolvedValue(undefined),

@@ -30,7 +30,7 @@ vi.mock("../../../shared/storage/devtoolsStorage", () => ({
     loadPanelSize: vi.fn(), savePanelSize: vi.fn(),
     loadActiveTab: vi.fn(), saveActiveTab: vi.fn(),
     loadPanelHeight: vi.fn().mockResolvedValue(undefined), savePanelHeight: vi.fn(),
-    loadPanelMode: vi.fn().mockResolvedValue("bottom"), savePanelMode: vi.fn(),
+    loadPanelMode: vi.fn().mockResolvedValue("side"), savePanelMode: vi.fn(),
     loadPanelSideWidth: vi.fn().mockResolvedValue(undefined), savePanelSideWidth: vi.fn(),
     loadNetworkToolbarVisible: vi.fn().mockResolvedValue(true), saveNetworkToolbarVisible: vi.fn(),
     loadNetworkFilterVisible: vi.fn().mockResolvedValue(true), saveNetworkFilterVisible: vi.fn(),
