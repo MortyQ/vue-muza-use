@@ -1,8 +1,7 @@
 <!-- Horizontal tab strip with close button. -->
 <script setup lang="ts">
 import { Icon } from "@iconify/vue";
-import type { DevtoolsTab } from "../../../shared/types/index";
-import type { PanelMode } from "../../../shared/types/index";
+import type { DevtoolsTab, PanelMode } from "../../../shared/types/index";
 import LogoBadge from "../../../shared/components/LogoBadge.vue";
 
 defineProps<{
@@ -155,6 +154,9 @@ defineEmits<{
 }
 .mode-btn--active {
     background: var(--dt-surface-raised);
+    color: var(--dt-primary);
+}
+.mode-btn--active:hover {
     color: var(--dt-primary);
 }
 .mode-divider {
