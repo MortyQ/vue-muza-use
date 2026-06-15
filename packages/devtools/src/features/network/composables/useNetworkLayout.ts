@@ -5,27 +5,32 @@ import {
     loadNetworkFilterVisible, saveNetworkFilterVisible,
 } from "../../../shared/storage/devtoolsStorage";
 
-/**
- * Return type for the useNetworkLayout composable.
- */
+// Module-level singleton — shared between TabBar trigger and NetworkTab menu
+const _settingsOpen = ref(false);
+
 export interface UseNetworkLayoutReturn {
     /** Whether the toolbar row (filter URL, instance select, buttons) is visible. */
     toolbarVisible: Ref<boolean>;
     /** Whether the filter-pills bar is visible. */
     filterVisible: Ref<boolean>;
+    /** Whether the settings menu is open. */
+    settingsOpen: Ref<boolean>;
     /** Toggle toolbar visibility and persist. */
     toggleToolbar: () => void;
     /** Toggle filter bar visibility and persist. */
     toggleFilter: () => void;
+    /** Toggle the settings menu open/closed. */
+    toggleSettings: () => void;
 }
 
 /**
- * Composable for network tab layout state.
- * Manages toolbar and filter bar visibility — all persisted to IndexedDB.
+ * Composable for Network tab layout visibility controls.
+ * Toolbar and filter bar visibility is persisted to IndexedDB.
+ * Settings menu open state is a module-level singleton shared across instances.
  *
  * @example
  * ```ts
- * const { toolbarVisible, filterVisible, toggleToolbar, toggleFilter } = useNetworkLayout();
+ * const { toolbarVisible, filterVisible, settingsOpen, toggleToolbar, toggleFilter, toggleSettings } = useNetworkLayout();
  * ```
  */
 export function useNetworkLayout(): UseNetworkLayoutReturn {
@@ -51,5 +56,9 @@ export function useNetworkLayout(): UseNetworkLayoutReturn {
         saveNetworkFilterVisible(filterVisible.value);
     }
 
-    return { toolbarVisible, filterVisible, toggleToolbar, toggleFilter };
+    function toggleSettings(): void {
+        _settingsOpen.value = !_settingsOpen.value;
+    }
+
+    return { toolbarVisible, filterVisible, settingsOpen: _settingsOpen, toggleToolbar, toggleFilter, toggleSettings };
 }

@@ -2,11 +2,13 @@
 <script setup lang="ts">
 import { useFloatingPanel } from "../composables/useFloatingPanel";
 import { useTabManager } from "../composables/useTabManager";
+import { useNetworkLayout } from "../../network/composables/useNetworkLayout";
 import TabBar from "./TabBar.vue";
 import MIcon from "../../../shared/components/MIcon.vue";
 
 const { sideWidth, isOpen, panelMode, startResizeSideWidth, switchMode, toggle, close } = useFloatingPanel();
 const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager();
+const { toggleSettings } = useNetworkLayout();
 </script>
 
 <template>
@@ -41,6 +43,7 @@ const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager()
                 :panel-mode="panelMode"
                 @close="close"
                 @update:panel-mode="switchMode"
+                @settings="toggleSettings"
             />
 
             <!-- Active tab content -->
