@@ -4,9 +4,13 @@ import { createApp, nextTick } from "vue";
 vi.mock("../../../shared/storage/devtoolsStorage", () => ({
     loadPanelHeight: vi.fn().mockResolvedValue(undefined),
     savePanelHeight: vi.fn().mockResolvedValue(undefined),
+    loadPanelMode: vi.fn().mockResolvedValue("bottom"),
+    savePanelMode: vi.fn().mockResolvedValue(undefined),
+    loadPanelSideWidth: vi.fn().mockResolvedValue(undefined),
+    savePanelSideWidth: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { loadPanelHeight, savePanelHeight } from "../../../shared/storage/devtoolsStorage";
+import { loadPanelHeight, savePanelHeight, loadPanelMode, savePanelMode, loadPanelSideWidth, savePanelSideWidth } from "../../../shared/storage/devtoolsStorage";
 import { useFloatingPanel } from "./useFloatingPanel";
 
 function withSetup<T>(composable: () => T): { result: T; unmount: () => void } {
@@ -19,9 +23,11 @@ function withSetup<T>(composable: () => T): { result: T; unmount: () => void } {
 beforeEach(() => { vi.clearAllMocks(); });
 
 describe("initial state", () => {
-    it("starts with height 360 and closed", () => {
+    it("starts with height 360, sideWidth 380, mode 'bottom', and closed", () => {
         const { result, unmount } = withSetup(() => useFloatingPanel());
         expect(result.height.value).toBe(360);
+        expect(result.sideWidth.value).toBe(380);
+        expect(result.panelMode.value).toBe("bottom");
         expect(result.isOpen.value).toBe(false);
         unmount();
     });
@@ -129,6 +135,114 @@ describe("height resize", () => {
         await nextTick();
 
         expect(result.height.value).toBe(360);
+        unmount();
+    });
+});
+
+describe("panel mode", () => {
+    it("switchMode updates panelMode and saves to storage", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.switchMode("side");
+        expect(result.panelMode.value).toBe("side");
+        expect(savePanelMode).toHaveBeenCalledWith("side");
+        unmount();
+    });
+
+    it("panelMode is shared across multiple composable calls", () => {
+        const { result: result1, unmount: unmount1 } = withSetup(() => useFloatingPanel());
+        const { result: result2, unmount: unmount2 } = withSetup(() => useFloatingPanel());
+
+        result1.switchMode("side");
+        expect(result2.panelMode.value).toBe("side");
+
+        unmount1();
+        unmount2();
+    });
+});
+
+describe("side width resize", () => {
+    it("dragging left increases side width", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.sideWidth.value = 380;
+
+        result.startResizeSideWidth({ clientX: 300, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 250 }));
+        await nextTick();
+
+        expect(result.sideWidth.value).toBe(430);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("dragging right decreases side width", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.sideWidth.value = 380;
+
+        result.startResizeSideWidth({ clientX: 300, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 350 }));
+        await nextTick();
+
+        expect(result.sideWidth.value).toBe(330);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("side width cannot go below MIN_SIDE_WIDTH (280)", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.sideWidth.value = 300;
+
+        result.startResizeSideWidth({ clientX: 100, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 500 }));
+        await nextTick();
+
+        expect(result.sideWidth.value).toBe(280);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("saves side width to storage on mouseup", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.sideWidth.value = 380;
+
+        result.startResizeSideWidth({ clientX: 300, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 250 }));
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        await nextTick();
+
+        expect(savePanelSideWidth).toHaveBeenCalledWith(430);
+        unmount();
+    });
+
+    it("mouseup stops resize — further mousemove has no effect", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.sideWidth.value = 380;
+
+        result.startResizeSideWidth({ clientX: 300, preventDefault: vi.fn() } as unknown as MouseEvent);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 100 }));
+        await nextTick();
+
+        expect(result.sideWidth.value).toBe(380);
+        unmount();
+    });
+});
+
+describe("storage hydration — side width", () => {
+    it("loads saved side width on mount", async () => {
+        vi.mocked(loadPanelSideWidth).mockResolvedValue(500);
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        await nextTick();
+        await nextTick();
+        expect(result.sideWidth.value).toBe(500);
+        unmount();
+    });
+
+    it("ignores undefined saved side width", async () => {
+        vi.mocked(loadPanelSideWidth).mockResolvedValue(undefined);
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        await nextTick();
+        await nextTick();
+        expect(result.sideWidth.value).toBe(380);
         unmount();
     });
 });
