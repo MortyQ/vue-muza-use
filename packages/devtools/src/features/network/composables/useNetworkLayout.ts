@@ -21,6 +21,8 @@ export interface UseNetworkLayoutReturn {
     toggleFilter: () => void;
     /** Toggle the settings menu open/closed. */
     toggleSettings: () => void;
+    /** Close the settings menu. */
+    closeSettings: () => void;
 }
 
 /**
@@ -60,5 +62,9 @@ export function useNetworkLayout(): UseNetworkLayoutReturn {
         _settingsOpen.value = !_settingsOpen.value;
     }
 
-    return { toolbarVisible, filterVisible, settingsOpen: _settingsOpen, toggleToolbar, toggleFilter, toggleSettings };
+    function closeSettings(): void {
+        _settingsOpen.value = false;
+    }
+
+    return { toolbarVisible, filterVisible, settingsOpen: _settingsOpen, toggleToolbar, toggleFilter, toggleSettings, closeSettings };
 }

@@ -16,7 +16,7 @@ const {
     instances,
 } = useNetworkTab();
 
-const { toolbarVisible, filterVisible, settingsOpen, toggleToolbar, toggleFilter } = useNetworkLayout();
+const { toolbarVisible, filterVisible, settingsOpen, toggleToolbar, toggleFilter, closeSettings } = useNetworkLayout();
 
 const instanceOptions = computed<SelectOption[]>(() => [
     { value: "all", label: "All instances" },
@@ -105,12 +105,12 @@ onScopeDispose(() => { dragCleanup?.(); });
             <div
                 v-if="settingsOpen"
                 style="position:fixed;inset:0;z-index:99;"
-                @click="settingsOpen = false"
+                @click="closeSettings"
             />
         </Teleport>
 
         <!-- Settings menu -->
-        <div v-if="settingsOpen" class="settings-menu" @keydown.escape="settingsOpen = false">
+        <div v-if="settingsOpen" class="settings-menu" @keydown.escape="closeSettings">
             <button class="settings-item" @click="toggleToolbar">
                 <span class="settings-check" :class="{ 'settings-check--on': toolbarVisible }">
                     <svg v-if="toolbarVisible" width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -195,7 +195,7 @@ onScopeDispose(() => { dragCleanup?.(); });
     border: 1px solid var(--dt-border);
     border-radius: 8px;
     padding: 4px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px oklch(0% 0 0 / 0.5);
     min-width: 160px;
 }
 .settings-item {
