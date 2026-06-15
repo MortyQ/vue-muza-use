@@ -29,6 +29,12 @@ vi.mock("../../../shared/storage/devtoolsStorage", () => ({
     loadPanelPosition: vi.fn(), savePanelPosition: vi.fn(),
     loadPanelSize: vi.fn(), savePanelSize: vi.fn(),
     loadActiveTab: vi.fn(), saveActiveTab: vi.fn(),
+    loadPanelHeight: vi.fn().mockResolvedValue(undefined), savePanelHeight: vi.fn(),
+    loadPanelMode: vi.fn().mockResolvedValue("bottom"), savePanelMode: vi.fn(),
+    loadPanelSideWidth: vi.fn().mockResolvedValue(undefined), savePanelSideWidth: vi.fn(),
+    loadNetworkToolbarVisible: vi.fn().mockResolvedValue(true), saveNetworkToolbarVisible: vi.fn(),
+    loadNetworkFilterVisible: vi.fn().mockResolvedValue(true), saveNetworkFilterVisible: vi.fn(),
+    loadSplitPayloadWidth: vi.fn().mockResolvedValue(undefined), saveSplitPayloadWidth: vi.fn(),
 }));
 
 import FloatingPanel from "./FloatingPanel.vue";
