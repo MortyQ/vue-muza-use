@@ -1,4 +1,5 @@
 import { debounceFn, DebounceCancelledError } from "./utils/debounce";
+import { parseUrlQueryParams } from "./utils/urlUtils";
 import { type AxiosRequestConfig, type AxiosResponse, isAxiosError } from "axios";
 import { ref, computed, effectScope, getCurrentInstance, getCurrentScope, onScopeDispose, toValue, watch, useId, type MaybeRefOrGetter } from "vue";
 
@@ -232,6 +233,9 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             const rawParams = config?.params !== undefined ? config.params : axiosConfig.params;
             const resolvedParams = toValue(rawParams);
 
+            // Parse query params from the URL string as fallback when params weren't passed as an option
+            const devtoolsQueryParams: unknown = resolvedParams ?? parseUrlQueryParams(requestUrl);
+
             // Devtools: record the outgoing request
             devtoolsRequestId = nextRequestId();
             devtoolsRequestStartedAt = Date.now();
@@ -245,7 +249,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                 statusCode: null,
                 requestHeaders: {},
                 payload: resolvedData ?? null,
-                queryParams: resolvedParams ?? null,
+                queryParams: devtoolsQueryParams,
             });
 
             // eslint-disable-next-line no-constant-condition
