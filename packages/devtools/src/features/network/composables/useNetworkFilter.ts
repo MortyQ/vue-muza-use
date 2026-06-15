@@ -29,7 +29,7 @@ export function useNetworkFilter(): UseNetworkFilterReturn {
             if (statusFilter.value !== "all" && r.status !== statusFilter.value) return false;
             if (instanceFilter.value !== "all" && r.instanceId !== instanceFilter.value) return false;
             return true;
-        });
+        }).reverse();
     });
 
     function clearFilters(): void {
