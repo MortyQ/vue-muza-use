@@ -14,20 +14,18 @@ const props = defineProps<{
 
 const format = ref<PayloadFormat>("kv");
 
-const hasQueryParams = computed(
-    () =>
-        props.queryParams !== null &&
-        props.queryParams !== undefined &&
-        typeof props.queryParams === "object" &&
-        Object.keys(props.queryParams as object).length > 0,
-    // safe: hasQueryParams guards non-null object before cast
-);
-
-const queryParamCount = computed((): number => {
-    if (!hasQueryParams.value) return 0;
-    // safe: hasQueryParams guarantees non-null object
-    return Object.keys(props.queryParams as object).length;
+const queryParamKeys = computed((): string[] => {
+    if (
+        props.queryParams === null ||
+        props.queryParams === undefined ||
+        typeof props.queryParams !== "object"
+    ) return [];
+    // safe: null/undefined/non-object ruled out above
+    return Object.keys(props.queryParams as object);
 });
+
+const hasQueryParams = computed(() => queryParamKeys.value.length > 0);
+const queryParamCount = computed((): number => queryParamKeys.value.length);
 
 const hasBody = computed(() => props.payload !== null && props.payload !== undefined);
 
