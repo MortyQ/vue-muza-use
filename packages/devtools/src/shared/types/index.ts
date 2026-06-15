@@ -55,7 +55,7 @@ export interface ApiError {
  * @property queryParams Query params; may be truncated
  * @property response Response body; may be truncated
  * @property error Populated on error status
- * @property truncated True if payload or response was truncated due to size limit
+ * @property truncated True if payload, queryParams, or response was truncated due to size limit
  */
 export interface RequestRecord {
     id: string;

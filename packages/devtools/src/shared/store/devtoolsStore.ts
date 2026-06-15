@@ -94,7 +94,7 @@ export function updateInstanceState(id: string, partial: Partial<DevtoolsInstanc
 /**
  * Add a new request record to the circular buffer.
  * Evicts the oldest record when maxHistory is reached.
- * Payload is truncated if it exceeds maxPayloadSize.
+ * Payload and queryParams are truncated if they exceed maxPayloadSize.
  */
 export function addRequest(
     partial: Omit<RequestRecord, "duration" | "response" | "error" | "truncated">,
