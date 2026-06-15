@@ -2,14 +2,20 @@
 <script setup lang="ts">
 import { Icon } from "@iconify/vue";
 import type { DevtoolsTab } from "../../../shared/types/index";
+import type { PanelMode } from "../../../shared/types/index";
 import LogoBadge from "../../../shared/components/LogoBadge.vue";
 
 defineProps<{
     tabs: readonly DevtoolsTab[];
     activeTabId: string | null;
     selectTab: (id: string) => void;
+    panelMode: PanelMode;
 }>();
-defineEmits<{ close: [] }>();
+
+defineEmits<{
+    close: [];
+    "update:panelMode": [PanelMode];
+}>();
 </script>
 
 <template>
@@ -41,6 +47,35 @@ defineEmits<{ close: [] }>();
                 <span>{{ tab.label }}</span>
             </button>
         </div>
+
+        <!-- Mode switcher -->
+        <div class="mode-switcher">
+            <button
+                class="mode-btn"
+                :class="{ 'mode-btn--active': panelMode === 'bottom' }"
+                title="Bottom panel"
+                @click="$emit('update:panelMode', 'bottom')"
+            >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <rect x="1" y="1" width="12" height="7" rx="1.5" fill="currentColor" opacity="0.35"/>
+                    <rect x="1" y="9.5" width="12" height="3.5" rx="1.5" fill="currentColor"/>
+                </svg>
+            </button>
+            <button
+                class="mode-btn"
+                :class="{ 'mode-btn--active': panelMode === 'side' }"
+                title="Side panel"
+                @click="$emit('update:panelMode', 'side')"
+            >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <rect x="1" y="1" width="7" height="12" rx="1.5" fill="currentColor" opacity="0.35"/>
+                    <rect x="9.5" y="1" width="3.5" height="12" rx="1.5" fill="currentColor"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="mode-divider" />
+
         <button class="close-btn" title="Close devtools" @click="$emit('close')">
             <Icon icon="lucide:x" width="14" height="14" />
         </button>
@@ -93,6 +128,41 @@ defineEmits<{ close: [] }>();
 .tab-btn--inactive:hover {
     color: var(--dt-foreground-secondary);
     background: var(--dt-surface);
+}
+.mode-switcher {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 6px;
+    flex-shrink: 0;
+}
+.mode-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+    border: none;
+    background: transparent;
+    color: var(--dt-foreground-muted);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.mode-btn:hover {
+    background: var(--dt-surface-raised);
+    color: var(--dt-foreground-secondary);
+}
+.mode-btn--active {
+    background: var(--dt-surface-raised);
+    color: var(--dt-primary);
+}
+.mode-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--dt-border-subtle);
+    margin-right: 4px;
+    flex-shrink: 0;
 }
 .close-btn {
     display: flex;
