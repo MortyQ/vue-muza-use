@@ -19,6 +19,8 @@ import {
     savePanelMode,
     loadPanelSideWidth,
     savePanelSideWidth,
+    loadPayloadFormat,
+    savePayloadFormat,
 } from "./devtoolsStorage";
 
 beforeEach(() => {
@@ -89,11 +91,11 @@ describe("loadPanelMode / savePanelMode", () => {
         expect(result).toBe("side");
     });
 
-    it("loadPanelMode returns \"bottom\" as default when get resolves undefined", async () => {
+    it("loadPanelMode returns \"side\" as default when get resolves undefined", async () => {
         vi.mocked(get).mockResolvedValue(undefined);
         const result = await loadPanelMode();
         expect(get).toHaveBeenCalledWith("vmd:panel-mode");
-        expect(result).toBe("bottom");
+        expect(result).toBe("side");
     });
 
     it("savePanelMode calls set with correct key and value", async () => {
@@ -120,5 +122,25 @@ describe("loadPanelSideWidth / savePanelSideWidth", () => {
     it("savePanelSideWidth calls set with correct key and value", async () => {
         await savePanelSideWidth(320);
         expect(set).toHaveBeenCalledWith("vmd:panel-side-width", 320);
+    });
+});
+
+describe("loadPayloadFormat / savePayloadFormat", () => {
+    it("loadPayloadFormat returns \"kv\" as default when not set", async () => {
+        vi.mocked(get).mockResolvedValue(undefined);
+        const result = await loadPayloadFormat();
+        expect(get).toHaveBeenCalledWith("vmd:payload-format");
+        expect(result).toBe("kv");
+    });
+
+    it("loadPayloadFormat returns saved value", async () => {
+        vi.mocked(get).mockResolvedValue("json");
+        const result = await loadPayloadFormat();
+        expect(result).toBe("json");
+    });
+
+    it("savePayloadFormat calls set with correct key and value", async () => {
+        await savePayloadFormat("json");
+        expect(set).toHaveBeenCalledWith("vmd:payload-format", "json");
     });
 });

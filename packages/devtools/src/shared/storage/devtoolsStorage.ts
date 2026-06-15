@@ -11,6 +11,7 @@ const KEYS = {
     networkToolbarVisible: "vmd:network-toolbar-visible",
     networkFilterVisible: "vmd:network-filter-visible",
     splitPayloadWidth: "vmd:split-payload-width",
+    payloadFormat: "vmd:payload-format",
 } as const;
 
 /**
@@ -70,10 +71,10 @@ export async function savePanelHeight(height: number): Promise<void> {
 }
 
 /**
- * Loads the saved panel mode from IndexedDB. Returns "bottom" if not previously saved.
+ * Loads the saved panel mode from IndexedDB. Returns "side" if not previously saved.
  */
 export async function loadPanelMode(): Promise<PanelMode> {
-    return (await get<PanelMode>(KEYS.panelMode)) ?? "bottom";
+    return (await get<PanelMode>(KEYS.panelMode)) ?? "side";
 }
 
 /**
@@ -137,4 +138,18 @@ export async function loadSplitPayloadWidth(): Promise<number | undefined> {
  */
 export async function saveSplitPayloadWidth(width: number): Promise<void> {
     return set(KEYS.splitPayloadWidth, width);
+}
+
+/**
+ * Loads the saved payload viewer format from IndexedDB. Returns "kv" if not previously saved.
+ */
+export async function loadPayloadFormat(): Promise<"kv" | "json"> {
+    return (await get<"kv" | "json">(KEYS.payloadFormat)) ?? "kv";
+}
+
+/**
+ * Saves the payload viewer format to IndexedDB.
+ */
+export async function savePayloadFormat(format: "kv" | "json"): Promise<void> {
+    return set(KEYS.payloadFormat, format);
 }
