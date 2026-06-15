@@ -51,7 +51,8 @@ export interface ApiError {
  * @property status Current lifecycle status
  * @property statusCode HTTP response status; null while pending or if no response received
  * @property requestHeaders Request headers sent
- * @property payload Request body/query params; may be truncated
+ * @property payload Request body only; may be truncated
+ * @property queryParams Query params; may be truncated
  * @property response Response body; may be truncated
  * @property error Populated on error status
  * @property truncated True if payload or response was truncated due to size limit
@@ -67,6 +68,7 @@ export interface RequestRecord {
     statusCode: number | null;
     requestHeaders: Record<string, string>;
     payload: unknown;
+    queryParams: unknown;
     response: unknown;
     error: ApiError | null;
     truncated: boolean;
