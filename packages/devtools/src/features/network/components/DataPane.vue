@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import JsonViewer from "../../../shared/components/JsonViewer.vue";
-import KvViewer from "./KvViewer.vue";
+import TreeViewer from "../../../shared/components/TreeViewer.vue";
 
 const props = defineProps<{
     title: string;
@@ -35,7 +35,7 @@ async function copy(): Promise<void> {
         <div class="pane-body">
             <p v-if="truncated" class="truncated-warning">[truncated]</p>
             <JsonViewer v-if="mode === 'json'" :value="data" />
-            <KvViewer v-else :value="data" />
+            <TreeViewer v-else :value="data" />
         </div>
     </div>
 </template>
