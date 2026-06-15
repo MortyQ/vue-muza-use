@@ -54,7 +54,7 @@ describe("devtoolsBridge — before init", () => {
         expect(() =>
             devtoolsBridge.onRequestStart({
                 id: "r1", instanceId: null, url: "/u", method: "GET",
-                startedAt: 0, status: "pending", statusCode: null, requestHeaders: {}, payload: null,
+                startedAt: 0, status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null,
             })
         ).not.toThrow();
     });

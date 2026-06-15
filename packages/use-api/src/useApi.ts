@@ -244,7 +244,8 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                 status: "pending",
                 statusCode: null,
                 requestHeaders: {},
-                payload: resolvedData ?? resolvedParams ?? null,
+                payload: resolvedData ?? null,
+                queryParams: resolvedParams ?? null,
             });
 
             // eslint-disable-next-line no-constant-condition
