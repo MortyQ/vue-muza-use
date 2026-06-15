@@ -81,7 +81,8 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
     }
 
     let resizing = false;
-    let cleanup: (() => void) | null = null;
+    let heightCleanup: (() => void) | null = null;
+    let sideWidthCleanup: (() => void) | null = null;
 
     function startResizeHeight(e: MouseEvent): void {
         const startY = e.clientY;
@@ -96,13 +97,13 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
 
         function onUp(): void {
             resizing = false;
-            cleanup = null;
+            heightCleanup = null;
             savePanelHeight(height.value);
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
         }
 
-        cleanup = () => {
+        heightCleanup = () => {
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
         };
@@ -126,13 +127,13 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
 
         function onUp(): void {
             resizing = false;
-            cleanup = null;
+            sideWidthCleanup = null;
             savePanelSideWidth(sideWidth.value);
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
         }
 
-        cleanup = () => {
+        sideWidthCleanup = () => {
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
         };
@@ -142,7 +143,16 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
         e.preventDefault();
     }
 
-    onScopeDispose(() => { cleanup?.(); });
+    onScopeDispose(() => {
+        heightCleanup?.();
+        sideWidthCleanup?.();
+    });
 
     return { height, isOpen, panelMode, sideWidth, startResizeHeight, startResizeSideWidth, switchMode, toggle, close };
+}
+
+/** @internal — resets module-level panel mode singleton for test isolation */
+export function _resetPanelModeForTesting(): void {
+    _panelMode.value = "bottom";
+    _panelModeLoaded = false;
 }

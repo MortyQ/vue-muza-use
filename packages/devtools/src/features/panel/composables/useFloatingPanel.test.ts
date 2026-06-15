@@ -11,7 +11,7 @@ vi.mock("../../../shared/storage/devtoolsStorage", () => ({
 }));
 
 import { loadPanelHeight, savePanelHeight, loadPanelMode, savePanelMode, loadPanelSideWidth, savePanelSideWidth } from "../../../shared/storage/devtoolsStorage";
-import { useFloatingPanel } from "./useFloatingPanel";
+import { useFloatingPanel, _resetPanelModeForTesting } from "./useFloatingPanel";
 
 function withSetup<T>(composable: () => T): { result: T; unmount: () => void } {
     let result!: T;
@@ -20,7 +20,10 @@ function withSetup<T>(composable: () => T): { result: T; unmount: () => void } {
     return { result, unmount: () => app.unmount() };
 }
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+    vi.clearAllMocks();
+    _resetPanelModeForTesting();
+});
 
 describe("initial state", () => {
     it("starts with height 360, sideWidth 380, mode 'bottom', and closed", () => {
@@ -196,6 +199,21 @@ describe("side width resize", () => {
         await nextTick();
 
         expect(result.sideWidth.value).toBe(280);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("side width cannot exceed MAX_SIDE_WIDTH (60% of window.innerWidth)", async () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        const maxW = Math.floor(window.innerWidth * 0.6);
+        result.sideWidth.value = maxW - 10;
+
+        result.startResizeSideWidth({ clientX: 500, preventDefault: vi.fn() } as unknown as MouseEvent);
+        // Dragging far left would increase width well beyond the max
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 0 }));
+        await nextTick();
+
+        expect(result.sideWidth.value).toBe(maxW);
         window.dispatchEvent(new MouseEvent("mouseup"));
         unmount();
     });
