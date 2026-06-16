@@ -122,6 +122,9 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.3(@types/node@24.10.10)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.100.0)(sass@1.100.0)
+      vite-plugin-css-injected-by-js:
+        specifier: ^3.5.2
+        version: 3.5.2(vite@6.4.3(@types/node@24.10.10)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.100.0)(sass@1.100.0))
       vite-plugin-dts:
         specifier: ^4.3.0
         version: 4.5.4(@types/node@24.10.10)(rollup@4.57.1)(typescript@5.9.3)(vite@6.4.3(@types/node@24.10.10)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.100.0)(sass@1.100.0))
@@ -192,6 +195,9 @@ importers:
 
   packages/use-api:
     devDependencies:
+      '@ametie/vue-muza-devtools':
+        specifier: workspace:*
+        version: link:../devtools
       '@semantic-release/git':
         specifier: ^10.0.1
         version: 10.0.1(semantic-release@25.0.3(typescript@5.9.3))
@@ -3185,6 +3191,11 @@ packages:
   varint@6.0.0:
     resolution: {integrity: sha512-cXEIW6cfr15lFv563k4GuVuW/fiwjknytD37jIOLSdSWuOI6WnO/oKwmP2FQTU2l01LP8/M5TSAJpzUaGe3uWg==}
 
+  vite-plugin-css-injected-by-js@3.5.2:
+    resolution: {integrity: sha512-2MpU/Y+SCZyWUB6ua3HbJCrgnF0KACAsmzOQt1UvRVJCGF6S8xdA3ZUhWcWdM9ivG4I5az8PnQmwwrkC2CAQrQ==}
+    peerDependencies:
+      vite: '>2.0.0-0'
+
   vite-plugin-dts@4.5.4:
     resolution: {integrity: sha512-d4sOM8M/8z7vRXHHq/ebbblfaxENjogAAekcfcDCCwAyvGqnPrc7f4NZbvItS+g4WTgerW0xDwSz5qz11JT3vg==}
     peerDependencies:
@@ -6087,6 +6098,10 @@ snapshots:
       spdx-expression-parse: 3.0.1
 
   varint@6.0.0: {}
+
+  vite-plugin-css-injected-by-js@3.5.2(vite@6.4.3(@types/node@24.10.10)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.100.0)(sass@1.100.0)):
+    dependencies:
+      vite: 6.4.3(@types/node@24.10.10)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.100.0)(sass@1.100.0)
 
   vite-plugin-dts@4.5.4(@types/node@24.10.10)(rollup@4.57.1)(typescript@5.9.3)(vite@6.4.3(@types/node@24.10.10)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.100.0)(sass@1.100.0)):
     dependencies:
