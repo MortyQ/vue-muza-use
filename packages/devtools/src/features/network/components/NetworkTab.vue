@@ -172,12 +172,14 @@ onScopeDispose(() => { dragCleanup?.(); });
 .toolbar-input { flex: 1; height: 30px; background: var(--dt-surface); border: 1px solid var(--dt-border); border-radius: 7px; color: var(--dt-foreground); font-size: 12px; padding: 0 10px; outline: none; }
 .toolbar-input::placeholder { color: var(--dt-foreground-subtle); }
 .toolbar-input:focus { border-color: var(--dt-primary); }
-.toolbar-btn { height: 30px; padding: 0 12px; background: transparent; border: 1px solid var(--dt-border); border-radius: 7px; color: var(--dt-foreground-muted); font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.toolbar-btn { height: 30px; padding: 0 12px; background: transparent; border: 1px solid var(--dt-border); border-radius: 7px; color: var(--dt-foreground-muted); font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out, transform 120ms ease-out; }
+.toolbar-btn:active { transform: scale(0.97); }
 .toolbar-btn:hover { background: var(--dt-surface-raised); color: var(--dt-foreground); }
 .toolbar-btn--danger:hover { background: oklch(20% 0.04 15); color: oklch(70% 0.18 15); border-color: oklch(35% 0.08 15); }
 .filter-bar { display: flex; align-items: center; gap: 4px; padding: 7px 12px; background: var(--dt-surface); border-bottom: 1px solid var(--dt-border-subtle); flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
 .filter-bar::-webkit-scrollbar { display: none; }
-.filter-pill { height: 24px; padding: 0 10px; border-radius: 99px; font-size: 11px; font-weight: 500; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--dt-foreground-muted); text-transform: capitalize; }
+.filter-pill { height: 24px; padding: 0 10px; border-radius: 99px; font-size: 11px; font-weight: 500; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--dt-foreground-muted); text-transform: capitalize; transition: background 120ms ease-out, color 120ms ease-out, transform 120ms ease-out; }
+.filter-pill:active { transform: scale(0.97); }
 .filter-pill:hover { background: var(--dt-surface-raised); color: var(--dt-foreground-secondary); }
 .filter-pill--active { background: var(--dt-primary-subtle); color: var(--dt-primary); border-color: var(--dt-primary); }
 .filter-count { margin-left: auto; font-size: 11px; color: var(--dt-foreground-subtle); }
@@ -211,7 +213,9 @@ onScopeDispose(() => { dragCleanup?.(); });
     cursor: pointer;
     border-radius: 5px;
     text-align: left;
+    transition: background 120ms ease-out, transform 120ms ease-out;
 }
+.settings-item:active { transform: scale(0.97); }
 .settings-item:hover { background: var(--dt-surface-raised); }
 .settings-check {
     width: 14px;

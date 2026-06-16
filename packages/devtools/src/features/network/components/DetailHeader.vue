@@ -92,6 +92,8 @@ function statusClass(code: number | null): string {
     color: var(--dt-foreground-muted);
     cursor: pointer;
     flex-shrink: 0;
+    transition: background 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
 }
+.close-btn:active { transform: scale(0.97); }
 .close-btn:hover { background: var(--dt-surface-raised); color: var(--dt-foreground); }
 </style>

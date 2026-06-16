@@ -72,8 +72,12 @@ const { toggleSettings } = useNetworkLayout();
     font-weight: 600;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     box-shadow: 0 2px 12px oklch(65% 0.25 280 / 0.35);
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 150ms ease-out, box-shadow 150ms ease-out;
     pointer-events: auto;
+}
+.launcher-pill:active {
+    transform: scale(0.96);
+    box-shadow: 0 1px 6px oklch(65% 0.25 280 / 0.25);
 }
 .launcher-pill:hover {
     transform: translateY(-1px);

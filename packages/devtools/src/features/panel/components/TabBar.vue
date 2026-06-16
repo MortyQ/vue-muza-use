@@ -123,7 +123,10 @@ defineEmits<{
     border: none;
     background: transparent;
     border-bottom: 2px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
+    transition: color 150ms ease-out, border-color 150ms ease-out, transform 120ms ease-out;
+}
+.tab-btn:active {
+    transform: scale(0.97);
 }
 .tab-btn--active {
     color: var(--dt-vue-green);
@@ -154,7 +157,10 @@ defineEmits<{
     background: transparent;
     color: var(--dt-foreground-muted);
     cursor: pointer;
-    transition: background 0.12s, color 0.12s;
+    transition: background 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
+}
+.mode-btn:active {
+    transform: scale(0.97);
 }
 .mode-btn:hover {
     background: var(--dt-surface-raised);
@@ -186,7 +192,10 @@ defineEmits<{
     color: var(--dt-foreground-muted);
     cursor: pointer;
     flex-shrink: 0;
-    transition: background 0.12s, color 0.12s;
+    transition: background 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
+}
+.settings-btn:active {
+    transform: scale(0.97);
 }
 .settings-btn:hover {
     background: var(--dt-surface-raised);
@@ -205,6 +214,10 @@ defineEmits<{
     color: var(--dt-foreground-muted);
     cursor: pointer;
     flex-shrink: 0;
+    transition: background 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
+}
+.close-btn:active {
+    transform: scale(0.97);
 }
 .close-btn:hover {
     background: var(--dt-surface-raised);
