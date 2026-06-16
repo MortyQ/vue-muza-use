@@ -1,10 +1,18 @@
 <!-- Payload pane: two sections — Query Params (top) and Body (bottom). Persists KV/JSON format. -->
-<script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import TreeViewer from "../../../shared/components/TreeViewer.vue";
-import JsonViewer from "../../../shared/components/JsonViewer.vue";
+<script lang="ts">
+import { ref } from "vue";
 import { loadPayloadFormat, savePayloadFormat } from "../../../shared/storage/devtoolsStorage";
 import type { PayloadFormat } from "../../../shared/types/index";
+
+// Module-level singleton — survives tab remounts, IndexedDB loaded only once
+const _payloadFormat = ref<PayloadFormat>("kv");
+let _payloadFormatLoaded = false;
+</script>
+
+<script setup lang="ts">
+import { computed } from "vue";
+import TreeViewer from "../../../shared/components/TreeViewer.vue";
+import JsonViewer from "../../../shared/components/JsonViewer.vue";
 
 const props = defineProps<{
     queryParams: unknown;
@@ -12,7 +20,12 @@ const props = defineProps<{
     truncated: boolean;
 }>();
 
-const format = ref<PayloadFormat>("kv");
+const format = _payloadFormat;
+
+if (!_payloadFormatLoaded) {
+    _payloadFormatLoaded = true;
+    loadPayloadFormat().then((v) => { _payloadFormat.value = v; });
+}
 
 const queryParamKeys = computed((): string[] => {
     if (
@@ -26,12 +39,7 @@ const queryParamKeys = computed((): string[] => {
 
 const hasQueryParams = computed(() => queryParamKeys.value.length > 0);
 const queryParamCount = computed((): number => queryParamKeys.value.length);
-
 const hasBody = computed(() => props.payload !== null && props.payload !== undefined);
-
-onMounted(async () => {
-    format.value = await loadPayloadFormat();
-});
 
 async function toggleFormat(): Promise<void> {
     format.value = format.value === "kv" ? "json" : "kv";

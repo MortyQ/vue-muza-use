@@ -1,9 +1,16 @@
 <!-- Reusable data pane: title header with KV toggle + copy, body renders JSON or KV view. -->
+<script lang="ts">
+import { ref } from "vue";
+import { loadResponseFormat, saveResponseFormat } from "../../../shared/storage/devtoolsStorage";
+
+// Module-level singleton — survives tab remounts, IndexedDB loaded only once
+const _responseMode = ref<"json" | "kv">("json");
+let _responseModeLoaded = false;
+</script>
+
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
 import JsonViewer from "../../../shared/components/JsonViewer.vue";
 import TreeViewer from "../../../shared/components/TreeViewer.vue";
-import { loadResponseFormat, saveResponseFormat } from "../../../shared/storage/devtoolsStorage";
 
 const props = defineProps<{
     title: string;
@@ -11,11 +18,12 @@ const props = defineProps<{
     truncated?: boolean;
 }>();
 
-const mode = ref<"json" | "kv">("json");
+const mode = _responseMode;
 
-onMounted(async () => {
-    mode.value = await loadResponseFormat();
-});
+if (!_responseModeLoaded) {
+    _responseModeLoaded = true;
+    loadResponseFormat().then((v) => { _responseMode.value = v; });
+}
 
 async function toggleMode(): Promise<void> {
     mode.value = mode.value === "kv" ? "json" : "kv";
