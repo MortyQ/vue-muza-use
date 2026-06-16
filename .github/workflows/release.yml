@@ -5,6 +5,7 @@ on:
       - main
     paths:
       - 'packages/use-api/**'
+  workflow_dispatch:
 
 permissions:
   contents: write
