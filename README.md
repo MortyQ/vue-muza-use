@@ -41,6 +41,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - 🔐 **JWT Token Management** — Automatic token refresh with request queueing on 401 responses
 - 🎛️ **Flexible Architecture** — Bring your own Axios instance with full configuration control
 - 🍪 **withCredentials** — Per-request cookie and cross-origin credential control
+- 🔭 **DevTools Panel** — Inspect live requests, payloads, and instance state via `@ametie/vue-muza-devtools`
 
 ---
 
@@ -63,11 +64,11 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 | **Response caching** | ✅ | ❌ | ✅ | ✅ |
 | **TypeScript** | ✅ | ✅ | ✅ | ✅ |
 | **SSR / Nuxt** | ❌ | ✅ | ✅ | ✅ |
-| **DevTools** | ❌ | ❌ | ✅ | ❌ |
+| **DevTools** | ✅ | ❌ | ✅ | ❌ |
 
 **Choose vue-muza-use if:** you build Vue 3 SPAs with Axios, need JWT token refresh out of the box, and want reactive request management without a heavyweight server-state solution.
 
-**Choose TanStack Query if:** you need SSR, DevTools, or advanced server-state normalization.
+**Choose TanStack Query if:** you need SSR or advanced server-state normalization.
 
 **Choose @vueuse/useFetch if:** you want a minimal fetch wrapper with no opinions.
 
@@ -97,9 +98,12 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - [Data Table with Pagination](#data-table-with-pagination--sorting)
 - [Request Cancellation](#request-cancellation)
 - [Batch Requests](#batch-requests)
+  - [Reactive Requests (Auto-tracking)](#reactive-requests--auto-tracking)
+  - [Batch Polling](#batch-polling)
 
 **Advanced:**
 - [Advanced Configuration](#️-advanced-configuration)
+- [DevTools Panel](#-devtools-panel)
 - [Authentication & Token Management](#-authentication--token-management)
 - [Error Handling Reference](#-error-handling-reference)
 - [Utilities & Standalone Composables](#-utilities--standalone-composables)
@@ -798,13 +802,15 @@ const { data } = useApi('/messages', {
 Apply to all `useApi` instances at once:
 
 ```typescript
-createApiClient({
-  axios,
+const api = createApiClient({ baseURL: 'https://api.example.com' })
+
+app.use(createApi({
+  axios: api,
   globalOptions: {
     refetchOnFocus: true,
     refetchOnReconnect: true,
   },
-})
+}))
 ```
 
 Opt individual requests out with `refetchOnFocus: false`:
@@ -1403,6 +1409,77 @@ const { loading, progress, execute } = useApiBatch(urls, {
 </template>
 ```
 
+#### Reactive Requests — Auto-tracking
+
+**TL;DR: Pass a getter function as `requests` — the batch re-executes automatically when the getter's reactive dependencies change.**
+
+This mirrors `useApi`'s auto-tracking behavior. No explicit `watch` option needed.
+
+```typescript
+import { ref } from 'vue'
+import { useApiBatch } from '@ametie/vue-muza-use'
+
+interface User { id: number; name: string }
+
+const pages = ref([1, 2, 3])
+
+// Getter is auto-tracked — re-executes when pages.value changes
+const { successfulData, loading } = useApiBatch<User>(
+  () => pages.value.map(page => ({ url: '/users', params: { page } }))
+)
+
+pages.value = [4, 5, 6]  // → new batch fires automatically
+```
+
+Set `lazy: true` to disable auto-tracking and keep full manual control:
+
+```typescript
+const { execute } = useApiBatch(
+  () => ids.value.map(id => `/items/${id}`),
+  { lazy: true }  // reactive changes to ids do NOT trigger re-execution
+)
+
+// You control when it runs
+await execute()
+```
+
+#### Batch Polling
+
+**TL;DR: Re-execute the batch on a fixed interval — useful for dashboards and status monitoring.**
+
+Same semantics as `useApi`'s `poll` option.
+
+```typescript
+import { useApiBatch } from '@ametie/vue-muza-use'
+
+const { data, loading } = useApiBatch(
+  ['/stats/cpu', '/stats/memory', '/stats/disk'],
+  {
+    immediate: true,
+    poll: 5000  // re-execute every 5 seconds
+  }
+)
+```
+
+With `whenHidden` control:
+
+```typescript
+import { ref } from 'vue'
+import { useApiBatch } from '@ametie/vue-muza-use'
+
+const interval = ref(10000)
+
+const { data, abort } = useApiBatch(
+  ['/queue/jobs', '/queue/workers'],
+  {
+    immediate: true,
+    poll: { interval, whenHidden: false }  // pauses when tab is hidden
+  }
+)
+
+interval.value = 0  // stop polling
+```
+
 ---
 
 ## ⚙️ Advanced Configuration
@@ -1491,6 +1568,44 @@ createApp(App).use(createApi({
 | `useGlobalAbort` | `boolean` | `true` | When `true`, all requests subscribe to the global abort controller |
 | `refetchOnFocus` | `boolean \| { throttle?: number }` | `undefined` | Apply `refetchOnFocus` to all `useApi` instances. Per-request value takes precedence (including `false` to opt-out) |
 | `refetchOnReconnect` | `boolean` | `undefined` | Apply `refetchOnReconnect` to all `useApi` instances. Per-request value takes precedence (including `false` to opt-out) |
+
+---
+
+## 🔭 DevTools Panel
+
+**TL;DR: Enable it in the plugin and get a live network inspector in your browser. No extra packages to install.**
+
+The devtools panel is included with `@ametie/vue-muza-use`. It loads on demand and has zero impact on production bundles when disabled.
+
+### Setup
+
+Pass `devtools` to `createApi`. Gate it on `NODE_ENV` to keep production builds clean:
+
+```typescript
+import { createApp } from 'vue'
+import { createApi, createApiClient } from '@ametie/vue-muza-use'
+import App from './App.vue'
+
+const api = createApiClient({ baseURL: 'https://api.example.com' })
+
+createApp(App).use(createApi({
+  axios: api,
+  devtools: {
+    enabled: process.env.NODE_ENV !== 'production'
+  }
+}))
+```
+
+The panel loads asynchronously — it has zero impact on startup time.
+
+### DevTools Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | — | Required. Set `true` to mount the panel |
+| `maxHistory` | `number` | `300` | Maximum number of requests kept in the Network tab history |
+| `maxPayloadSize` | `number` | `200_000` | Maximum bytes per payload/response before truncation in the viewer |
+| `tabs` | `DevtoolsTab[]` | `[]` | Additional custom tabs to register in the panel |
 
 ---
 
@@ -2139,15 +2254,17 @@ type BatchInput = string | BatchRequestConfig
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `settled` | `boolean` | `true` | When `true`, all requests run even if some fail. When `false`, the first error stops the batch |
+| `settled` | `boolean` | `true` | When `true`, all requests run even if some fail. When `false`, the first error aborts remaining requests |
 | `concurrency` | `number` | unlimited | Maximum number of requests that run in parallel at once |
 | `immediate` | `boolean` | `false` | Execute the batch automatically when the composable is created |
+| `lazy` | `boolean` | `false` | Disable auto-tracking. When `false`, a getter passed as `requests` re-executes the batch automatically when its reactive deps change. Set `true` for full manual control via `execute()` |
+| `poll` | `number \| { interval: MaybeRefOrGetter<number>, whenHidden?: MaybeRefOrGetter<boolean> }` | `0` | Polling interval in ms. After each execution, schedules the next one after `interval` ms. `0` disables polling. `whenHidden: false` (default) pauses when the tab is hidden |
 | `skipErrorNotification` | `boolean` | `true` | Suppress global error handler for individual item failures |
-| `watch` | `WatchSource \| WatchSource[]` | `undefined` | Re-execute the batch when these sources change |
+| `watch` | `WatchSource \| WatchSource[]` | `undefined` | **Deprecated** — use a reactive getter with `lazy: false` instead. Will be removed in v2.0 |
 | `onItemSuccess` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch succeeds |
 | `onItemError` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch fails |
 | `onProgress` | `(progress: BatchProgress) => void` | `undefined` | Called after each request completes with updated progress |
-| `onFinish` | `(results: BatchResultItem<T>[]) => void` | `undefined` | Called once when all requests have completed |
+| `onFinish` | `(results: BatchResultItem<T>[]) => void` | `undefined` | Called once when all requests have completed (even on `settled: false` rejection) |
 
 **UseApiBatchReturn:**
 
