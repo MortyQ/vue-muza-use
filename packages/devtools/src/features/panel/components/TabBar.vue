@@ -77,7 +77,7 @@ defineEmits<{
         <div class="mode-divider" />
 
         <button class="settings-btn" title="Layout settings" @click="$emit('settings')">
-            <span class="dots"><span /><span /><span /></span>
+            <Icon icon="lucide:settings-2" width="14" height="14" />
         </button>
 
         <button class="close-btn" title="Close devtools" @click="$emit('close')">
@@ -191,19 +191,6 @@ defineEmits<{
 .settings-btn:hover {
     background: var(--dt-surface-raised);
     color: var(--dt-foreground-secondary);
-}
-.dots {
-    display: flex;
-    flex-direction: column;
-    gap: 2.5px;
-    align-items: center;
-}
-.dots span {
-    display: block;
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: currentColor;
 }
 .close-btn {
     display: flex;
