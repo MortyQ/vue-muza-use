@@ -1,8 +1,9 @@
 <!-- Reusable data pane: title header with KV toggle + copy, body renders JSON or KV view. -->
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import JsonViewer from "../../../shared/components/JsonViewer.vue";
 import TreeViewer from "../../../shared/components/TreeViewer.vue";
+import { loadResponseFormat, saveResponseFormat } from "../../../shared/storage/devtoolsStorage";
 
 const props = defineProps<{
     title: string;
@@ -11,6 +12,15 @@ const props = defineProps<{
 }>();
 
 const mode = ref<"json" | "kv">("json");
+
+onMounted(async () => {
+    mode.value = await loadResponseFormat();
+});
+
+async function toggleMode(): Promise<void> {
+    mode.value = mode.value === "kv" ? "json" : "kv";
+    await saveResponseFormat(mode.value);
+}
 
 async function copy(): Promise<void> {
     try {
@@ -28,7 +38,7 @@ async function copy(): Promise<void> {
             <button
                 class="pane-action"
                 :class="{ 'pane-action--active': mode === 'kv' }"
-                @click="mode = mode === 'kv' ? 'json' : 'kv'"
+                @click="toggleMode"
             >KV</button>
             <button class="pane-action" @click="copy">Copy</button>
         </div>

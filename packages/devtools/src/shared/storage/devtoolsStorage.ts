@@ -12,6 +12,7 @@ const KEYS = {
     networkFilterVisible: "vmd:network-filter-visible",
     splitPayloadWidth: "vmd:split-payload-width",
     payloadFormat: "vmd:payload-format",
+    responseFormat: "vmd:response-format",
 } as const;
 
 /**
@@ -152,4 +153,18 @@ export async function loadPayloadFormat(): Promise<PayloadFormat> {
  */
 export async function savePayloadFormat(format: PayloadFormat): Promise<void> {
     return set(KEYS.payloadFormat, format);
+}
+
+/**
+ * Loads the saved response viewer format from IndexedDB. Returns "json" if not previously saved.
+ */
+export async function loadResponseFormat(): Promise<PayloadFormat> {
+    return (await get<PayloadFormat>(KEYS.responseFormat)) ?? "json";
+}
+
+/**
+ * Saves the response viewer format to IndexedDB.
+ */
+export async function saveResponseFormat(format: PayloadFormat): Promise<void> {
+    return set(KEYS.responseFormat, format);
 }
