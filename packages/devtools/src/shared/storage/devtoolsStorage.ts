@@ -11,6 +11,7 @@ const KEYS = {
     networkToolbarVisible: "vmd:network-toolbar-visible",
     networkFilterVisible: "vmd:network-filter-visible",
     splitPayloadWidth: "vmd:split-payload-width",
+    listWidth: "vmd:list-width",
     payloadFormat: "vmd:payload-format",
     responseFormat: "vmd:response-format",
 } as const;
@@ -167,4 +168,18 @@ export async function loadResponseFormat(): Promise<PayloadFormat> {
  */
 export async function saveResponseFormat(format: PayloadFormat): Promise<void> {
     return set(KEYS.responseFormat, format);
+}
+
+/**
+ * Loads the saved request list width from IndexedDB. Returns undefined if not previously saved.
+ */
+export async function loadListWidth(): Promise<number | undefined> {
+    return get<number>(KEYS.listWidth);
+}
+
+/**
+ * Saves the request list width to IndexedDB.
+ */
+export async function saveListWidth(width: number): Promise<void> {
+    return set(KEYS.listWidth, width);
 }

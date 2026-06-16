@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onScopeDispose } from "vue";
+import { ref, computed, onMounted, onScopeDispose } from "vue";
 import { useNetworkTab } from "../composables/useNetworkTab";
 import { useNetworkLayout } from "../composables/useNetworkLayout";
 import { clearRequests } from "../../../shared/store/devtoolsStore";
+import { loadListWidth, saveListWidth } from "../../../shared/storage/devtoolsStorage";
 import RequestList from "./RequestList.vue";
 import RequestDetail from "./RequestDetail.vue";
 import SelectInput from "../../../shared/components/SelectInput.vue";
@@ -42,6 +43,11 @@ const STATUS_PILLS: Array<{ value: RequestStatus | "all"; label: string }> = [
 // Drag-resize state
 const listWidth = ref(320);
 const MIN_LIST_WIDTH = 180;
+
+onMounted(async () => {
+    const saved = await loadListWidth();
+    if (saved !== undefined) listWidth.value = saved;
+});
 const splitRef = ref<HTMLElement | null>(null);
 let dragCleanup: (() => void) | null = null;
 
@@ -59,6 +65,7 @@ function startListResize(e: MouseEvent): void {
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
         dragCleanup = null;
+        saveListWidth(listWidth.value);
     }
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
