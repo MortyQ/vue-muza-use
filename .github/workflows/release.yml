@@ -37,7 +37,9 @@ jobs:
         run: pnpm install
 
       - name: Build
-        run: pnpm --filter @ametie/vue-muza-use build
+        run: |
+          pnpm --filter @ametie/vue-muza-devtools build
+          pnpm --filter @ametie/vue-muza-use build
 
       - name: Semantic Release
         env:
