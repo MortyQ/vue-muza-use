@@ -27,9 +27,7 @@ const instanceOptions = computed<SelectOption[]>(() => [
     })),
 ]);
 const selectedInstanceOptions = computed<DevtoolsInstanceOptions | undefined>(() =>
-    selectedRequest.value?.instanceId
-        ? instances.value.get(selectedRequest.value.instanceId)?.options
-        : undefined,
+    selectedRequest.value?.instanceOptions,
 );
 
 const STATUS_PILLS: Array<{ value: RequestStatus | "all"; label: string }> = [

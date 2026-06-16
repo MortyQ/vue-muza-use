@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
-import type { RequestRecord, DevtoolsInstanceOptions } from "../../../shared/types/index";
-import { useDevtoolsStore } from "../../../shared/composables/useDevtoolsStore";
+import type { RequestRecord } from "../../../shared/types/index";
 import RequestRow from "./RequestRow.vue";
 
 const props = defineProps<{
@@ -10,13 +9,6 @@ const props = defineProps<{
     activeRequestId: string | null;
 }>();
 defineEmits<{ (e: "select", id: string): void }>();
-
-const { instances } = useDevtoolsStore();
-
-function getInstanceOptions(instanceId: string | null): DevtoolsInstanceOptions | undefined {
-    if (!instanceId) return undefined;
-    return instances.value.get(instanceId)?.options;
-}
 
 const parentRef = ref<HTMLElement | null>(null);
 
@@ -41,7 +33,7 @@ const rowVirtualizer = useVirtualizer(
                 <RequestRow
                     :request="requests[vRow.index]"
                     :is-active="requests[vRow.index].id === activeRequestId"
-                    :instance-options="getInstanceOptions(requests[vRow.index].instanceId)"
+                    :instance-options="requests[vRow.index].instanceOptions"
                     @select="$emit('select', $event)"
                 />
             </div>

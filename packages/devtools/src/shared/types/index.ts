@@ -72,6 +72,8 @@ export interface RequestRecord {
     response: unknown;
     error: ApiError | null;
     truncated: boolean;
+    /** Snapshot of the instance's feature options taken at request creation time. Populated if the instance was registered; undefined for batch or untracked requests. */
+    instanceOptions: DevtoolsInstanceOptions | undefined;
 }
 
 /**
@@ -194,8 +196,8 @@ export interface DevtoolsBridge {
     onInstanceDestroyed: (id: string) => void;
     /** Called when a useApi instance's reactive state changes. */
     onStateUpdate: (id: string, state: Partial<DevtoolsInstanceState>) => void;
-    /** Called when a request begins. Duration, response, error, and truncated are added on completion. */
-    onRequestStart: (record: Omit<RequestRecord, "duration" | "response" | "error" | "truncated">) => void;
+    /** Called when a request begins. Duration, response, error, truncated, and instanceOptions are added on completion or derived internally. */
+    onRequestStart: (record: Omit<RequestRecord, "duration" | "response" | "error" | "truncated" | "instanceOptions">) => void;
     /** Called when a request completes (success, error, or abort). */
     onRequestEnd: (id: string, result: RequestEndResult) => void;
 }

@@ -97,7 +97,7 @@ export function updateInstanceState(id: string, partial: Partial<DevtoolsInstanc
  * Payload and queryParams are truncated if they exceed maxPayloadSize.
  */
 export function addRequest(
-    partial: Omit<RequestRecord, "duration" | "response" | "error" | "truncated">,
+    partial: Omit<RequestRecord, "duration" | "response" | "error" | "truncated" | "instanceOptions">,
 ): void {
     const { value: truncatedPayload, truncated: payloadTruncated } = truncateValue(partial.payload, state.config.maxPayloadSize);
     const { value: truncatedQueryParams, truncated: queryParamsTruncated } = truncateValue(partial.queryParams, state.config.maxPayloadSize);
@@ -109,6 +109,9 @@ export function addRequest(
         response: null,
         error: null,
         truncated: payloadTruncated || queryParamsTruncated,
+        instanceOptions: partial.instanceId
+            ? state.instances.get(partial.instanceId)?.options
+            : undefined,
     };
     if (state.requests.length >= state.config.maxHistory) {
         state.requests.shift();
