@@ -44,9 +44,10 @@ const tabs: ReadonlyArray<{ id: TabId; label: string }> = [
     border: none;
     background: transparent;
     border-bottom: 2px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
+    transition: color 150ms ease-out, border-color 150ms ease-out, transform 120ms ease-out;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 .tab-btn:hover { color: var(--dt-foreground-secondary); }
+.tab-btn:active { transform: scale(0.97); }
 .tab-btn--active { color: var(--dt-primary); border-bottom-color: var(--dt-primary); }
 </style>
