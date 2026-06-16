@@ -43,13 +43,11 @@ describe("createBridge", () => {
         expect(typeof bridge.onRequestEnd).toBe("function");
     });
 
-    it("registers the three built-in tabs", () => {
+    it("registers the network built-in tab", () => {
         createBridge({ enabled: true }, mockApp);
-        expect(registerTab).toHaveBeenCalledTimes(3);
+        expect(registerTab).toHaveBeenCalledTimes(1);
         const ids = vi.mocked(registerTab).mock.calls.map((c) => c[0].id);
-        expect(ids).toContain("instances");
         expect(ids).toContain("network");
-        expect(ids).toContain("timeline");
     });
 
     it("registers custom tabs from options.tabs", () => {
