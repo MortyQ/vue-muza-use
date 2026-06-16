@@ -274,31 +274,38 @@ Currently 6 different hues for 7 badge types creates visual noise. Group into 3 
 
 ---
 
-### V-6: TreeNode — SVG chevron with rotation
+### V-6: TreeNode — CSS-only chevron with rotation
 
 **File:** `TreeNode.vue`
 
-Replace Unicode `▶`/`▼` with an SVG chevron that rotates on expand.
+Replace Unicode `▶`/`▼` with a pure CSS `::before` chevron that rotates on expand. No SVG in the DOM — GPU-composited animation with zero additional DOM nodes.
 
 ```html
 <!-- Before -->
 <span class="tree-arrow" @click="toggle">{{ expanded ? "▼" : "▶" }}</span>
 
-<!-- After -->
-<span class="tree-arrow" :class="{ 'tree-arrow--open': expanded }" @click="toggle">
-  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-    <path d="M2 3l2 2 2-2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
-</span>
+<!-- After — no text content, arrow is CSS-only -->
+<span class="tree-arrow" :class="{ 'tree-arrow--open': expanded }" @click="toggle" />
 ```
 
 ```css
 .tree-arrow {
-  transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
-  transform: rotate(-90deg);  /* pointing right = collapsed */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.tree-arrow--open {
-  transform: rotate(0deg);    /* pointing down = expanded */
+.tree-arrow::before {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg); /* → pointing right = collapsed */
+  transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.tree-arrow--open::before {
+  transform: rotate(45deg);  /* ↓ pointing down = expanded */
 }
 ```
 
