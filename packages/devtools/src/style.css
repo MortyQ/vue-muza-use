@@ -31,25 +31,25 @@
 @media (prefers-reduced-motion: reduce) {
     #vue-muza-devtools-root .panel-enter-active,
     #vue-muza-devtools-root .panel-leave-active {
-        transition: opacity 150ms ease-out;
+        transition: opacity 150ms ease-out !important;
     }
     #vue-muza-devtools-root .panel-enter-from,
     #vue-muza-devtools-root .panel-leave-to {
-        transform: none;
+        transform: none !important;
         opacity: 0;
     }
 
     #vue-muza-devtools-root .settings-menu-enter-active,
     #vue-muza-devtools-root .settings-menu-leave-active {
-        transition: opacity 100ms ease-out;
+        transition: opacity 100ms ease-out !important;
     }
     #vue-muza-devtools-root .settings-menu-enter-from,
     #vue-muza-devtools-root .settings-menu-leave-to {
-        transform: none;
+        transform: none !important;
         opacity: 0;
     }
 
     #vue-muza-devtools-root .tree-arrow::before {
-        transition: none;
+        transition: none !important;
     }
 }

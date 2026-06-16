@@ -79,13 +79,13 @@ const { toggleSettings } = useNetworkLayout();
     transition: transform 150ms ease-out, box-shadow 150ms ease-out;
     pointer-events: auto;
 }
-.launcher-pill:active {
-    transform: scale(0.96);
-    box-shadow: 0 1px 6px oklch(65% 0.25 280 / 0.25);
-}
 .launcher-pill:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px oklch(65% 0.25 280 / 0.5);
+}
+.launcher-pill:active {
+    transform: scale(0.96);
+    box-shadow: 0 1px 6px oklch(65% 0.25 280 / 0.25);
 }
 
 .side-panel {
