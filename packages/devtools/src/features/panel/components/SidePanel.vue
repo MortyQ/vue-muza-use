@@ -84,19 +84,20 @@ const { toggleSettings } = useNetworkLayout();
 
 .side-panel {
     position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
     z-index: 99998;
     display: flex;
     flex-direction: row;
     background: var(--dt-background);
     color: var(--dt-foreground);
-    border-left: 1px solid var(--dt-border);
+    border: 1px solid var(--dt-border);
+    border-radius: 14px;
     overflow: hidden;
     pointer-events: auto;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    box-shadow: -4px 0 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    box-shadow: -8px 0 40px oklch(0% 0 0 / 0.55), 0 0 0 1px oklch(100% 0 0 / 0.04);
 }
 
 .resize-handle {
