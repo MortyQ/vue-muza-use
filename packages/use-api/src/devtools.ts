@@ -1,4 +1,5 @@
 import type { App } from "vue";
+import { createBridge as _createBridge } from "@ametie/vue-muza-devtools";
 import type {
     DevtoolsBridge,
     DevtoolsOptions,
@@ -21,8 +22,8 @@ export function nextRequestId(): string {
 }
 
 /**
- * Dynamically loads `@ametie/vue-muza-devtools` and initialises the bridge.
- * No-op when `options.enabled` is false. Called once from plugin install hook.
+ * Initialises the devtools bridge. No-op when `options.enabled` is false.
+ * Called once from plugin install hook.
  *
  * @example
  * ```ts
@@ -32,14 +33,9 @@ export function nextRequestId(): string {
  */
 export async function initDevtools(options: DevtoolsOptions, app: App): Promise<void> {
     if (!options.enabled) return;
-    try {
-        const { createBridge } = await import("@ametie/vue-muza-devtools");
-        bridge = createBridge(options, app);
-        for (const fn of pendingCalls) fn();
-        pendingCalls.length = 0;
-    } catch {
-        console.warn("[vue-muza-use] devtools enabled but @ametie/vue-muza-devtools is not installed");
-    }
+    bridge = _createBridge(options, app);
+    for (const fn of pendingCalls) fn();
+    pendingCalls.length = 0;
 }
 
 /**
