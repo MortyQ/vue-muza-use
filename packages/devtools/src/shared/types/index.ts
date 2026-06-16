@@ -223,8 +223,8 @@ export interface DevtoolsTab {
  * Configuration options for `createApi({ devtools: ... })`.
  *
  * @property enabled Enable devtools panel
- * @property maxHistory Max request records kept in memory; default 100
- * @property maxPayloadSize Max bytes per payload/response before truncation; default 50_000
+ * @property maxHistory Max request records kept in memory; default 300
+ * @property maxPayloadSize Max bytes per payload/response before truncation; default 200_000
  * @property tabs Additional custom tabs to register in the panel
  */
 export interface DevtoolsOptions {
