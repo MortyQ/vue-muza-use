@@ -14,7 +14,7 @@ Format: [Semantic Versioning](https://semver.org/)
 
 #### DevTools Panel (`@ametie/vue-muza-devtools`)
 
-- **New package `@ametie/vue-muza-devtools`** — a standalone Vue 3 devtools panel for inspecting `useApi` instances and network requests in real-time. Install separately; zero impact on bundle size when disabled.
+- **DevTools panel** — a Vue 3 devtools panel for inspecting `useApi` instances and network requests in real-time. Included with the library; zero impact on production builds when disabled.
 - **`devtools` option on `createApi`** — enable the panel by passing `devtools: { enabled: true }`. Gate it on `NODE_ENV` to keep production builds clean:
   ```ts
   app.use(createApi({

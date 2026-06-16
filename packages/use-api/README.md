@@ -1573,22 +1573,9 @@ createApp(App).use(createApi({
 
 ## 🔭 DevTools Panel
 
-**TL;DR: Install `@ametie/vue-muza-devtools`, enable it in the plugin, and get a live network inspector in your browser.**
+**TL;DR: Enable it in the plugin and get a live network inspector in your browser. No extra packages to install.**
 
-The devtools panel is a separate package with zero bundle impact when disabled. It attaches a floating UI to your app that shows every `useApi` request in real-time.
-
-### Installation
-
-```bash
-# npm
-npm install @ametie/vue-muza-devtools
-
-# pnpm
-pnpm add @ametie/vue-muza-devtools
-
-# yarn
-yarn add @ametie/vue-muza-devtools
-```
+The devtools panel is included with `@ametie/vue-muza-use`. It loads on demand and has zero impact on production bundles when disabled.
 
 ### Setup
 
