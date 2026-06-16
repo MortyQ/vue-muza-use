@@ -110,6 +110,7 @@ onScopeDispose(() => { dragCleanup?.(); });
         </Teleport>
 
         <!-- Settings menu -->
+        <Transition name="settings-menu">
         <div v-if="settingsOpen" class="settings-menu" @keydown.escape="closeSettings">
             <button class="settings-item" @click="toggleToolbar">
                 <span class="settings-check" :class="{ 'settings-check--on': toolbarVisible }">
@@ -128,6 +129,7 @@ onScopeDispose(() => { dragCleanup?.(); });
                 Filter bar
             </button>
         </div>
+        </Transition>
 
         <!-- Main split: list + detail -->
         <div ref="splitRef" class="main-split">
@@ -178,7 +180,7 @@ onScopeDispose(() => { dragCleanup?.(); });
 .toolbar-btn--danger:hover { background: oklch(20% 0.04 15); color: oklch(70% 0.18 15); border-color: oklch(35% 0.08 15); }
 .filter-bar { display: flex; align-items: center; gap: 4px; padding: 7px 12px; background: var(--dt-surface); border-bottom: 1px solid var(--dt-border-subtle); flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
 .filter-bar::-webkit-scrollbar { display: none; }
-.filter-pill { height: 24px; padding: 0 10px; border-radius: 99px; font-size: 11px; font-weight: 500; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--dt-foreground-muted); text-transform: capitalize; transition: background 120ms ease-out, color 120ms ease-out, transform 120ms ease-out; }
+.filter-pill { height: 24px; padding: 0 10px; border-radius: 99px; font-size: 11px; font-weight: 500; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--dt-foreground-muted); text-transform: capitalize; transition: background 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out, transform 120ms ease-out; }
 .filter-pill:active { transform: scale(0.97); }
 .filter-pill:hover { background: var(--dt-surface-raised); color: var(--dt-foreground-secondary); }
 .filter-pill--active { background: var(--dt-primary-subtle); color: var(--dt-primary); border-color: var(--dt-primary); }
@@ -186,7 +188,7 @@ onScopeDispose(() => { dragCleanup?.(); });
 .main-split { display: flex; flex: 1; overflow: hidden; }
 .list-pane { min-width: 180px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
 .detail-pane { flex: 1; min-width: 200px; overflow: hidden; }
-.drag-handle { width: 5px; flex-shrink: 0; cursor: col-resize; background: var(--dt-border-subtle); }
+.drag-handle { width: 5px; flex-shrink: 0; cursor: col-resize; background: var(--dt-border-subtle); transition: background 150ms ease-out; }
 .drag-handle:hover { background: var(--dt-primary); }
 .settings-menu {
     position: absolute;
@@ -199,6 +201,7 @@ onScopeDispose(() => { dragCleanup?.(); });
     padding: 4px;
     box-shadow: 0 8px 24px oklch(0% 0 0 / 0.5);
     min-width: 160px;
+    transform-origin: top right;
 }
 .settings-item {
     display: flex;
@@ -231,5 +234,16 @@ onScopeDispose(() => { dragCleanup?.(); });
 .settings-check--on {
     background: var(--dt-primary);
     border-color: var(--dt-primary);
+}
+.settings-menu-enter-active {
+    transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1), opacity 150ms ease-out;
+}
+.settings-menu-leave-active {
+    transition: transform 100ms ease-in, opacity 100ms ease-in;
+}
+.settings-menu-enter-from,
+.settings-menu-leave-to {
+    transform: scale(0.95) translateY(-4px);
+    opacity: 0;
 }
 </style>
