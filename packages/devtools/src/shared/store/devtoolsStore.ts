@@ -17,7 +17,7 @@ interface StoreState {
 const state = reactive<StoreState>({
     instances: new Map(),
     requests: [],
-    config: { maxHistory: 100, maxPayloadSize: 50_000 },
+    config: { maxHistory: 300, maxPayloadSize: 200_000 },
 });
 
 function truncateValue(value: unknown, maxBytes: number): { value: unknown; truncated: boolean } {
@@ -48,8 +48,8 @@ export const requests: ComputedRef<ReadonlyArray<RequestRecord>> = computed(
 export function initDevtoolsStore(config: Pick<DevtoolsOptions, "maxHistory" | "maxPayloadSize">): void {
     state.instances.clear();
     state.requests.splice(0);
-    state.config.maxHistory = config.maxHistory ?? 100;
-    state.config.maxPayloadSize = config.maxPayloadSize ?? 50_000;
+    state.config.maxHistory = config.maxHistory ?? 300;
+    state.config.maxPayloadSize = config.maxPayloadSize ?? 200_000;
 }
 
 /**
