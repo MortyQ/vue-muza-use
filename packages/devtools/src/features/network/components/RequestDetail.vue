@@ -21,23 +21,23 @@ const activeTab = ref<TabId>("split");
         <DetailTabs :active-tab="activeTab" @select="activeTab = $event" />
 
         <div class="detail-content">
-            <SplitView v-if="activeTab === 'split'" :request="request" />
+            <SplitView v-show="activeTab === 'split'" :request="request" />
 
             <PayloadPane
-                v-else-if="activeTab === 'payload'"
+                v-show="activeTab === 'payload'"
                 :query-params="request.queryParams"
                 :payload="request.payload"
                 :truncated="request.truncated"
             />
 
             <DataPane
-                v-else-if="activeTab === 'response'"
+                v-show="activeTab === 'response'"
                 title="Response"
                 :data="request.response"
                 :truncated="request.truncated"
             />
 
-            <div v-else-if="activeTab === 'headers'" class="headers-view">
+            <div v-show="activeTab === 'headers'" class="headers-view">
                 <div
                     v-for="(val, key) in request.requestHeaders"
                     :key="key"
