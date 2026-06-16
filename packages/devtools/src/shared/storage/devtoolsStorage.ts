@@ -11,6 +11,7 @@ const KEYS = {
     networkToolbarVisible: "vmd:network-toolbar-visible",
     networkFilterVisible: "vmd:network-filter-visible",
     splitPayloadWidth: "vmd:split-payload-width",
+    splitPayloadHeight: "vmd:split-payload-height",
     listWidth: "vmd:list-width",
     payloadFormat: "vmd:payload-format",
     responseFormat: "vmd:response-format",
@@ -140,6 +141,20 @@ export async function loadSplitPayloadWidth(): Promise<number | undefined> {
  */
 export async function saveSplitPayloadWidth(width: number): Promise<void> {
     return set(KEYS.splitPayloadWidth, width);
+}
+
+/**
+ * Loads the saved split payload height (stacked mode) from IndexedDB. Returns undefined if not previously saved.
+ */
+export async function loadSplitPayloadHeight(): Promise<number | undefined> {
+    return get<number>(KEYS.splitPayloadHeight);
+}
+
+/**
+ * Saves the split payload height (stacked mode) to IndexedDB.
+ */
+export async function saveSplitPayloadHeight(height: number): Promise<void> {
+    return set(KEYS.splitPayloadHeight, height);
 }
 
 /**

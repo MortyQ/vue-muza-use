@@ -5,7 +5,10 @@ import DataPane from "./DataPane.vue";
 import PayloadPane from "./PayloadPane.vue";
 import type { RequestRecord } from "../../../shared/types/index";
 import { useFloatingPanel } from "../../panel/composables/useFloatingPanel";
-import { loadSplitPayloadWidth, saveSplitPayloadWidth } from "../../../shared/storage/devtoolsStorage";
+import {
+    loadSplitPayloadWidth, saveSplitPayloadWidth,
+    loadSplitPayloadHeight, saveSplitPayloadHeight,
+} from "../../../shared/storage/devtoolsStorage";
 
 defineProps<{ request: RequestRecord }>();
 
@@ -16,11 +19,14 @@ const primarySize = ref<number | null>(null);
 const splitRef = ref<HTMLElement | null>(null);
 let splitDragCleanup: (() => void) | null = null;
 
-// Reset saved size when layout direction changes to avoid wrong-axis values
-watch(stacked, () => { primarySize.value = null; });
+// When layout direction changes, load the saved value for the new axis (width vs height)
+watch(stacked, async (isStacked) => {
+    const saved = isStacked ? await loadSplitPayloadHeight() : await loadSplitPayloadWidth();
+    primarySize.value = saved ?? null;
+});
 
 onMounted(async () => {
-    const saved = await loadSplitPayloadWidth();
+    const saved = stacked.value ? await loadSplitPayloadHeight() : await loadSplitPayloadWidth();
     if (saved !== undefined) primarySize.value = saved;
 });
 
@@ -39,6 +45,7 @@ function startSplitResize(e: MouseEvent): void {
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
             splitDragCleanup = null;
+            saveSplitPayloadHeight(primarySize.value!);
         }
         window.addEventListener("mousemove", onMove);
         window.addEventListener("mouseup", onUp);
