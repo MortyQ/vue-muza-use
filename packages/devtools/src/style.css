@@ -1,4 +1,5 @@
-@import "tailwindcss";
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities";
 
 #vue-muza-devtools-root {
     --dt-background: oklch(22% 0.025 250);
