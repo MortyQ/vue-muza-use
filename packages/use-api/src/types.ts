@@ -479,9 +479,9 @@ export interface DevtoolsBridge {
 export interface DevtoolsOptions {
     /** Enable the devtools panel. Default: false. */
     enabled: boolean;
-    /** Maximum number of network requests kept in history. Default: 100. */
+    /** Maximum number of network requests kept in history. Default: 300. */
     maxHistory?: number;
-    /** Maximum payload/response size in bytes before truncation. Default: 50_000. */
+    /** Maximum payload/response size in bytes before truncation. Default: 200_000. */
     maxPayloadSize?: number;
     /** Custom tabs appended after built-in tabs. */
     tabs?: Array<{ id: string; label: string; component: unknown; icon?: unknown; order?: number }>;

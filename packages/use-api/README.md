@@ -41,6 +41,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - 🔐 **JWT Token Management** — Automatic token refresh with request queueing on 401 responses
 - 🎛️ **Flexible Architecture** — Bring your own Axios instance with full configuration control
 - 🍪 **withCredentials** — Per-request cookie and cross-origin credential control
+- 🔭 **DevTools Panel** — Inspect live requests, payloads, and instance state via `@ametie/vue-muza-devtools`
 
 ---
 
@@ -63,11 +64,11 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 | **Response caching** | ✅ | ❌ | ✅ | ✅ |
 | **TypeScript** | ✅ | ✅ | ✅ | ✅ |
 | **SSR / Nuxt** | ❌ | ✅ | ✅ | ✅ |
-| **DevTools** | ❌ | ❌ | ✅ | ❌ |
+| **DevTools** | ✅ | ❌ | ✅ | ❌ |
 
 **Choose vue-muza-use if:** you build Vue 3 SPAs with Axios, need JWT token refresh out of the box, and want reactive request management without a heavyweight server-state solution.
 
-**Choose TanStack Query if:** you need SSR, DevTools, or advanced server-state normalization.
+**Choose TanStack Query if:** you need SSR or advanced server-state normalization.
 
 **Choose @vueuse/useFetch if:** you want a minimal fetch wrapper with no opinions.
 
@@ -102,6 +103,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 
 **Advanced:**
 - [Advanced Configuration](#️-advanced-configuration)
+- [DevTools Panel](#-devtools-panel)
 - [Authentication & Token Management](#-authentication--token-management)
 - [Error Handling Reference](#-error-handling-reference)
 - [Utilities & Standalone Composables](#-utilities--standalone-composables)
@@ -1566,6 +1568,57 @@ createApp(App).use(createApi({
 | `useGlobalAbort` | `boolean` | `true` | When `true`, all requests subscribe to the global abort controller |
 | `refetchOnFocus` | `boolean \| { throttle?: number }` | `undefined` | Apply `refetchOnFocus` to all `useApi` instances. Per-request value takes precedence (including `false` to opt-out) |
 | `refetchOnReconnect` | `boolean` | `undefined` | Apply `refetchOnReconnect` to all `useApi` instances. Per-request value takes precedence (including `false` to opt-out) |
+
+---
+
+## 🔭 DevTools Panel
+
+**TL;DR: Install `@ametie/vue-muza-devtools`, enable it in the plugin, and get a live network inspector in your browser.**
+
+The devtools panel is a separate package with zero bundle impact when disabled. It attaches a floating UI to your app that shows every `useApi` request in real-time.
+
+### Installation
+
+```bash
+# npm
+npm install @ametie/vue-muza-devtools
+
+# pnpm
+pnpm add @ametie/vue-muza-devtools
+
+# yarn
+yarn add @ametie/vue-muza-devtools
+```
+
+### Setup
+
+Pass `devtools` to `createApi`. Gate it on `NODE_ENV` to keep production builds clean:
+
+```typescript
+import { createApp } from 'vue'
+import { createApi, createApiClient } from '@ametie/vue-muza-use'
+import App from './App.vue'
+
+const api = createApiClient({ baseURL: 'https://api.example.com' })
+
+createApp(App).use(createApi({
+  axios: api,
+  devtools: {
+    enabled: process.env.NODE_ENV !== 'production'
+  }
+}))
+```
+
+The panel loads asynchronously — it has zero impact on startup time.
+
+### DevTools Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | — | Required. Set `true` to mount the panel |
+| `maxHistory` | `number` | `300` | Maximum number of requests kept in the Network tab history |
+| `maxPayloadSize` | `number` | `200_000` | Maximum bytes per payload/response before truncation in the viewer |
+| `tabs` | `DevtoolsTab[]` | `[]` | Additional custom tabs to register in the panel |
 
 ---
 

@@ -8,6 +8,26 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.2.0] — 2026-06-16
+
+### Added
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **New package `@ametie/vue-muza-devtools`** — a standalone Vue 3 devtools panel for inspecting `useApi` instances and network requests in real-time. Install separately; zero impact on bundle size when disabled.
+- **`devtools` option on `createApi`** — enable the panel by passing `devtools: { enabled: true }`. Gate it on `NODE_ENV` to keep production builds clean:
+  ```ts
+  app.use(createApi({
+    axios: api,
+    devtools: { enabled: process.env.NODE_ENV !== 'production' }
+  }))
+  ```
+- **Network tab** — live request history with URL, status, and instance filtering. Inspect request payload, response body, headers, and timing for every `useApi` call.
+- **`maxHistory`** — maximum number of requests kept in history. Default: **300**.
+- **`maxPayloadSize`** — maximum bytes per payload/response before truncation. Default: **200 000**.
+
+---
+
 ## [1.1.1] — 2026-05-27
 
 ### Fixed
