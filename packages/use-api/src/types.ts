@@ -443,6 +443,7 @@ export interface DevtoolsRequestRecord {
     statusCode: null;
     requestHeaders: Record<string, string>;
     payload: unknown;
+    queryParams: unknown;
 }
 
 /** Result of a completed HTTP request, sent to devtools on request end. */
