@@ -61,9 +61,10 @@ function toggle(): void {
         <div class="tree-row" :style="{ paddingLeft: indentPx + 'px' }">
             <span
                 class="tree-arrow"
+                :class="{ 'tree-arrow--open': expanded }"
                 :style="{ visibility: isExpandable ? 'visible' : 'hidden' }"
                 @click="toggle"
-            >{{ expanded ? "▼" : "▶" }}</span>
+            />
             <span v-if="nodeKey !== null" class="tree-key">{{ nodeKey }}</span>
             <span v-if="nodeKey !== null" class="tree-colon">:</span>
             <span v-if="isExpandable" class="tree-badge" @click="toggle">
@@ -93,13 +94,30 @@ function toggle(): void {
 .tree-row:hover { background: var(--dt-surface-raised, #ffffff08); }
 .tree-arrow {
     width: 14px;
+    height: 14px;
     flex-shrink: 0;
     color: var(--dt-foreground-subtle, #6b7280);
-    font-size: 8px;
     cursor: pointer;
     user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .tree-arrow:hover { color: var(--dt-primary, #a78bfa); }
+.tree-arrow::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
+    margin-top: -2px;
+}
+.tree-arrow--open::before {
+    transform: rotate(45deg);
+}
 .tree-key { color: oklch(72% 0.17 290); flex-shrink: 0; }
 .tree-colon { color: var(--dt-border-strong, #374151); flex-shrink: 0; }
 .tree-badge {
