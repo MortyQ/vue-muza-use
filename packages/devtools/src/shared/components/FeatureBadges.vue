@@ -63,11 +63,16 @@ const badges = computed<Badge[]>(() => {
     @apply opacity-40 mx-0.5;
 }
 
-.badge--cache    { background: oklch(22% 0.06 220); color: oklch(66% 0.18 220); border-color: oklch(32% 0.08 220); }
-.badge--swr      { background: oklch(22% 0.08 190); color: oklch(66% 0.20 190); border-color: oklch(32% 0.10 190); }
-.badge--polling  { background: var(--dt-primary-subtle); color: var(--dt-primary); border-color: oklch(38% 0.14 280); }
-.badge--retry    { background: var(--dt-warning-subtle); color: var(--dt-warning); border-color: oklch(34% 0.10 75); }
-.badge--batch    { background: oklch(22% 0.06 300); color: oklch(68% 0.18 300); border-color: oklch(32% 0.09 300); }
-.badge--debounce { background: oklch(22% 0.06 50);  color: oklch(70% 0.16 50);  border-color: oklch(32% 0.09 50); }
-.badge--lazy     { background: oklch(20% 0.04 270); color: oklch(58% 0.08 270); border-color: oklch(30% 0.06 270); }
+/* Data strategy — cyan */
+.badge--cache { background: oklch(22% 0.07 200); color: oklch(68% 0.18 200); border-color: oklch(32% 0.10 200); }
+.badge--swr   { background: oklch(22% 0.07 200); color: oklch(62% 0.16 200); border-color: oklch(32% 0.10 200); }
+
+/* Behavior modifiers — amber */
+.badge--retry    { background: oklch(22% 0.07 65); color: oklch(72% 0.17 65); border-color: oklch(34% 0.10 65); }
+.badge--debounce { background: oklch(22% 0.07 65); color: oklch(68% 0.16 65); border-color: oklch(34% 0.10 65); }
+.badge--polling  { background: oklch(22% 0.07 65); color: oklch(72% 0.17 65); border-color: oklch(34% 0.10 65); }
+
+/* Request shape — neutral purple */
+.badge--batch { background: oklch(20% 0.05 270); color: oklch(62% 0.10 270); border-color: oklch(30% 0.07 270); }
+.badge--lazy  { background: oklch(20% 0.04 270); color: oklch(55% 0.08 270); border-color: oklch(28% 0.06 270); }
 </style>
