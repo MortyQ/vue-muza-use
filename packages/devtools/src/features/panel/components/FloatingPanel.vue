@@ -25,31 +25,33 @@ const { toggleSettings } = useNetworkLayout();
     </button>
 
     <!-- Bottom drawer panel -->
-    <div
-        v-else
-        data-vmd-panel
-        class="devtools-panel"
-        :style="{ height: `${height}px` }"
-    >
-        <!-- Top resize handle (drag up/down to resize) -->
-        <div class="resize-handle" @mousedown="startResizeHeight" />
+    <Transition name="panel">
+        <div
+            v-if="isOpen"
+            data-vmd-panel
+            class="devtools-panel"
+            :style="{ height: `${height}px` }"
+        >
+            <!-- Top resize handle (drag up/down to resize) -->
+            <div class="resize-handle" @mousedown="startResizeHeight" />
 
-        <!-- Horizontal tab bar -->
-        <TabBar
-            :tabs="registeredTabs"
-            :active-tab-id="activeTabId ?? null"
-            :select-tab="setActiveTab"
-            :panel-mode="panelMode"
-            @close="close"
-            @update:panel-mode="switchMode"
-            @settings="toggleSettings"
-        />
+            <!-- Horizontal tab bar -->
+            <TabBar
+                :tabs="registeredTabs"
+                :active-tab-id="activeTabId ?? null"
+                :select-tab="setActiveTab"
+                :panel-mode="panelMode"
+                @close="close"
+                @update:panel-mode="switchMode"
+                @settings="toggleSettings"
+            />
 
-        <!-- Active tab content -->
-        <div class="panel-content">
-            <component :is="activeTab?.component" v-if="activeTab" />
+            <!-- Active tab content -->
+            <div class="panel-content">
+                <component :is="activeTab?.component" v-if="activeTab" />
+            </div>
         </div>
-    </div>
+    </Transition>
 </template>
 
 <style scoped>
@@ -116,5 +118,17 @@ const { toggleSettings } = useNetworkLayout();
     overflow: hidden;
     display: flex;
     flex-direction: column;
+}
+
+.panel-enter-active {
+    transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1), opacity 200ms ease-out;
+}
+.panel-leave-active {
+    transition: transform 160ms ease-in, opacity 160ms ease-in;
+}
+.panel-enter-from,
+.panel-leave-to {
+    transform: translateY(12px);
+    opacity: 0;
 }
 </style>
