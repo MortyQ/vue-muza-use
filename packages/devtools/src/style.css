@@ -27,3 +27,29 @@
     --dt-success: oklch(78% 0.17 155);
     --dt-success-subtle: oklch(24% 0.07 155);
 }
+
+@media (prefers-reduced-motion: reduce) {
+    #vue-muza-devtools-root .panel-enter-active,
+    #vue-muza-devtools-root .panel-leave-active {
+        transition: opacity 150ms ease-out;
+    }
+    #vue-muza-devtools-root .panel-enter-from,
+    #vue-muza-devtools-root .panel-leave-to {
+        transform: none;
+        opacity: 0;
+    }
+
+    #vue-muza-devtools-root .settings-menu-enter-active,
+    #vue-muza-devtools-root .settings-menu-leave-active {
+        transition: opacity 100ms ease-out;
+    }
+    #vue-muza-devtools-root .settings-menu-enter-from,
+    #vue-muza-devtools-root .settings-menu-leave-to {
+        transform: none;
+        opacity: 0;
+    }
+
+    #vue-muza-devtools-root .tree-arrow::before {
+        transition: none;
+    }
+}
