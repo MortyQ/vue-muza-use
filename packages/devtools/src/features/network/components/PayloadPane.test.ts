@@ -77,24 +77,41 @@ describe("PayloadPane — body section", () => {
 });
 
 describe("PayloadPane — format toggle", () => {
+    // _payloadFormatLoaded is module-scoped — vi.resetModules() + dynamic import
+    // gives each test a fresh module instance with the flag reset to false.
+    let PayloadPaneComp: typeof PayloadPane;
+    let loadFmt: ReturnType<typeof vi.fn>;
+    let saveFmt: ReturnType<typeof vi.fn>;
+
+    beforeEach(async () => {
+        vi.resetModules();
+        loadFmt = vi.fn().mockResolvedValue("kv");
+        saveFmt = vi.fn().mockResolvedValue(undefined);
+        vi.doMock("../../../shared/storage/devtoolsStorage", () => ({
+            loadPayloadFormat: loadFmt,
+            savePayloadFormat: saveFmt,
+        }));
+        const mod = await import("./PayloadPane.vue");
+        PayloadPaneComp = mod.default as typeof PayloadPane;
+    });
+
     it("loads saved format on mount", async () => {
-        vi.mocked(loadPayloadFormat).mockResolvedValue("json");
-        const wrapper = mount(PayloadPane, {
+        loadFmt.mockResolvedValue("json");
+        const wrapper = mount(PayloadPaneComp, {
             props: { queryParams: { q: "x" }, payload: null, truncated: false },
         });
         await flushPromises();
-        expect(loadPayloadFormat).toHaveBeenCalledOnce();
-        // KV button should not be active (format is json)
-        const kvBtn = wrapper.find(".pane-action--active");
-        expect(kvBtn.exists()).toBe(false);
+        expect(loadFmt).toHaveBeenCalledOnce();
+        // format is "json" → KV button should not be active
+        expect(wrapper.find(".pane-action--active").exists()).toBe(false);
     });
 
     it("saves format when toggled", async () => {
-        const wrapper = mount(PayloadPane, {
+        const wrapper = mount(PayloadPaneComp, {
             props: { queryParams: null, payload: { x: 1 }, truncated: false },
         });
         await flushPromises();
-        await wrapper.find("button.pane-action").trigger("click"); // KV toggle
-        expect(savePayloadFormat).toHaveBeenCalledWith("json");
+        await wrapper.find("button.pane-action").trigger("click");
+        expect(saveFmt).toHaveBeenCalledWith("json");
     });
 });
