@@ -8,6 +8,41 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.3.1] — Unreleased
+
+### Fixed
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **PayloadPane format toggle test isolation** — the module-scope `_payloadFormatLoaded` singleton caused the `loadPayloadFormat` call to be skipped in subsequent tests within the same file. Fixed by switching the format-toggle describe block to `vi.resetModules()` + `vi.doMock()` + dynamic import so each test gets a fresh module instance.
+
+---
+
+## [1.3.0] — 2026-06-18
+
+### Added
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **Error banner in Response tab** — when a request fails, a red banner appears at the top of the Response pane showing the HTTP status code and error message. The banner coexists with the response body (shown below it), so 4xx/5xx responses that include a body (e.g. `422 { errors: [...] }`) show both.
+- **Response tab error indicator** — the Response tab label turns red and shows a `●` dot when the selected request has an error. Applies to both the standalone Response tab and the Split view.
+- **`ApiError.details` in devtools** — the server response body for failed requests is now captured and displayed in the Response pane body viewer (with the existing KV / JSON toggle). Previously only the error message was shown.
+- **Semantic filter pill colors** — the status filter pills now use semantic colors in both inactive and active states: Success → green, Error → red, Pending → yellow, Aborted → neutral. Active state border and background match the pill's semantic color instead of always using the primary purple.
+
+### Improved
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **Empty state text legibility** — "No params" and "No body" placeholders in the Payload pane are now rendered at `--dt-foreground-secondary` (65% lightness) instead of `--dt-foreground-subtle` (38%), making them clearly readable against the dark background.
+
+### Fixed
+
+#### `@ametie/vue-muza-use`
+
+- **Network / timeout error code lost** — `parseApiError` now preserves the axios error `code` (`ERR_NETWORK`, `ECONNABORTED`, etc.) for errors that have no response (network failures, timeouts, CORS). Previously this field was silently dropped, leaving `code: undefined` on the returned `ApiError`.
+
+---
+
 ## [1.2.0] — 2026-06-16
 
 ### Added
