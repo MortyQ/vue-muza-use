@@ -18,7 +18,7 @@ const activeTab = ref<TabId>("split");
 <template>
     <div class="request-detail">
         <DetailHeader :request="request" :instance-options="instanceOptions" @close="$emit('close')" />
-        <DetailTabs :active-tab="activeTab" @select="activeTab = $event" />
+        <DetailTabs :active-tab="activeTab" :has-error="!!request.error" @select="activeTab = $event" />
 
         <div class="detail-content">
             <SplitView v-show="activeTab === 'split'" :request="request" />
@@ -35,6 +35,7 @@ const activeTab = ref<TabId>("split");
                 title="Response"
                 :data="request.response"
                 :truncated="request.truncated"
+                :error="request.error"
             />
 
             <div v-show="activeTab === 'headers'" class="headers-view">

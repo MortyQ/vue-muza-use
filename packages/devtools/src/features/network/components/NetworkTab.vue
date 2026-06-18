@@ -97,7 +97,7 @@ onScopeDispose(() => { dragCleanup?.(); });
                 v-for="pill in STATUS_PILLS"
                 :key="pill.value"
                 class="filter-pill"
-                :class="{ 'filter-pill--active': statusFilter === pill.value }"
+                :class="['filter-pill--' + pill.value, { 'filter-pill--active': statusFilter === pill.value }]"
                 @click="statusFilter = pill.value"
             >
                 {{ pill.label }}
@@ -187,8 +187,16 @@ onScopeDispose(() => { dragCleanup?.(); });
 .filter-bar::-webkit-scrollbar { display: none; }
 .filter-pill { height: 24px; padding: 0 10px; border-radius: 99px; font-size: 11px; font-weight: 500; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--dt-foreground-muted); text-transform: capitalize; transition: background 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out, transform 120ms ease-out; }
 .filter-pill:active { transform: scale(0.97); }
+.filter-pill--success { color: var(--dt-success); }
+.filter-pill--error { color: var(--dt-danger); }
+.filter-pill--pending { color: var(--dt-warning); }
+.filter-pill--aborted { color: var(--dt-foreground-secondary); }
 .filter-pill:hover { background: var(--dt-surface-raised); color: var(--dt-foreground-secondary); }
 .filter-pill--active { background: var(--dt-primary-subtle); color: var(--dt-primary); border-color: var(--dt-primary); }
+.filter-pill--success.filter-pill--active { background: var(--dt-success-subtle); color: var(--dt-success); border-color: var(--dt-success); }
+.filter-pill--error.filter-pill--active { background: var(--dt-danger-subtle); color: var(--dt-danger); border-color: var(--dt-danger); }
+.filter-pill--pending.filter-pill--active { background: var(--dt-warning-subtle); color: var(--dt-warning); border-color: var(--dt-warning); }
+.filter-pill--aborted.filter-pill--active { background: var(--dt-surface-raised); color: var(--dt-foreground-secondary); border-color: var(--dt-border-strong); }
 .filter-count { margin-left: auto; font-size: 11px; color: var(--dt-foreground-subtle); }
 .main-split { display: flex; flex: 1; overflow: hidden; }
 .list-pane { min-width: 180px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }

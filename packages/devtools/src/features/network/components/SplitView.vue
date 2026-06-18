@@ -104,7 +104,7 @@ onScopeDispose(() => { splitDragCleanup?.(); });
 
         <!-- Response pane -->
         <div class="split-pane">
-            <DataPane title="Response" :data="request.response" :truncated="request.truncated" />
+            <DataPane title="Response" :data="request.response" :truncated="request.truncated" :error="request.error" />
         </div>
     </div>
 </template>

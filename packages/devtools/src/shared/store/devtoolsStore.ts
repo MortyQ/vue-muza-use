@@ -150,12 +150,18 @@ export function updateRequest(id: string, result: RequestEndResult): void {
             truncated: record.truncated || truncated,
         };
     } else if (result.status === "error") {
+        const { value: truncatedBody, truncated } = truncateValue(
+            result.error.details ?? null,
+            state.config.maxPayloadSize,
+        );
         state.requests[idx] = {
             ...record,
             status: "error",
             statusCode: result.statusCode,
             error: result.error,
+            response: truncatedBody,
             duration: result.duration,
+            truncated: record.truncated || truncated,
         };
     } else {
         state.requests[idx] = { ...record, status: "aborted", duration: result.duration };

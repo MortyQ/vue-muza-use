@@ -170,7 +170,7 @@ async function copy(): Promise<void> {
     padding: 8px 12px;
     font-size: 11px;
     font-family: "SF Mono", "Fira Code", Consolas, monospace;
-    color: var(--dt-foreground-subtle);
+    color: var(--dt-foreground-secondary);
     flex-shrink: 0;
 }
 .section-divider {

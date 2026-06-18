@@ -35,6 +35,8 @@ export interface ApiError {
     message: string;
     status: number;
     code?: string;
+    /** Full response body from the server when the request failed. */
+    details?: unknown;
 }
 
 /**

@@ -11,11 +11,13 @@ let _responseModeLoaded = false;
 <script setup lang="ts">
 import JsonViewer from "../../../shared/components/JsonViewer.vue";
 import TreeViewer from "../../../shared/components/TreeViewer.vue";
+import type { ApiError } from "../../../shared/types/index";
 
 const props = defineProps<{
     title: string;
     data: unknown;
     truncated?: boolean;
+    error?: ApiError | null;
 }>();
 
 const mode = _responseMode;
@@ -49,6 +51,10 @@ async function copy(): Promise<void> {
                 @click="toggleMode"
             >KV</button>
             <button class="pane-action" @click="copy">Copy</button>
+        </div>
+        <div v-if="error" class="error-banner">
+            <span v-if="error.status > 0" class="error-banner-status">{{ error.status }}</span>
+            <span class="error-banner-message">{{ error.message }}</span>
         </div>
         <div class="pane-body">
             <p v-if="truncated" class="truncated-warning">[truncated]</p>
@@ -112,6 +118,28 @@ async function copy(): Promise<void> {
 }
 .pane-body::-webkit-scrollbar { width: 4px; height: 4px; }
 .pane-body::-webkit-scrollbar-thumb { background: var(--dt-border-strong); border-radius: 2px; }
+.error-banner {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--dt-danger-subtle);
+    border-bottom: 1px solid var(--dt-danger);
+    flex-shrink: 0;
+}
+.error-banner-status {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--dt-danger);
+    flex-shrink: 0;
+}
+.error-banner-message {
+    font-size: 11px;
+    color: oklch(75% 0.06 25);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .truncated-warning {
     font-size: 11px;
     color: var(--dt-warning);

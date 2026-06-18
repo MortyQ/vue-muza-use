@@ -120,6 +120,24 @@ describe("updateRequest", () => {
         expect(r.error?.message).toBe("fail");
     });
 
+    it("stores error.details into response when present", () => {
+        const body = { code: "INTERNAL_ERROR", message: "Internal server error" };
+        updateRequest("r1", {
+            status: "error",
+            error: { message: "Internal server error", status: 500, details: body },
+            statusCode: 500,
+            duration: 30,
+        });
+        const r = requests.value.find(r => r.id === "r1")!;
+        expect(r.response).toEqual(body);
+    });
+
+    it("leaves response null when error has no details", () => {
+        updateRequest("r1", { status: "error", error: { message: "fail", status: 500 }, statusCode: 500, duration: 30 });
+        const r = requests.value.find(r => r.id === "r1")!;
+        expect(r.response).toBeNull();
+    });
+
     it("updates to aborted", () => {
         updateRequest("r1", { status: "aborted", duration: 10 });
         expect(requests.value.find(r => r.id === "r1")!.status).toBe("aborted");

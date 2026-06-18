@@ -127,8 +127,7 @@ describe('parseApiError — non-Axios errors', () => {
         expect(result.message).toBe('42')
     })
 
-    it('isAxiosError without a response is treated as a non-Axios error', () => {
-        // Axios network errors have isAxiosError = true but no .response
+    it('isAxiosError without a response returns status 0 and error message', () => {
         const networkErr = Object.assign(new Error('Network Error'), {
             isAxiosError: true,
             response: undefined,
@@ -136,5 +135,25 @@ describe('parseApiError — non-Axios errors', () => {
         const result = parseApiError(networkErr)
         expect(result.status).toBe(0)
         expect(result.message).toBe('Network Error')
+    })
+
+    it('captures axios error code for network/timeout errors without response', () => {
+        const networkErr = Object.assign(new Error('Network Error'), {
+            isAxiosError: true,
+            code: 'ERR_NETWORK',
+            response: undefined,
+        })
+        expect(parseApiError(networkErr).code).toBe('ERR_NETWORK')
+    })
+
+    it('captures ECONNABORTED code for timeout errors', () => {
+        const timeoutErr = Object.assign(new Error('timeout of 5000ms exceeded'), {
+            isAxiosError: true,
+            code: 'ECONNABORTED',
+            response: undefined,
+        })
+        const result = parseApiError(timeoutErr)
+        expect(result.code).toBe('ECONNABORTED')
+        expect(result.message).toBe('timeout of 5000ms exceeded')
     })
 })

@@ -21,6 +21,13 @@ export function parseApiError(error: unknown): ApiError {
                 details: data,
             };
         }
+
+        // Network / timeout / CORS — no response body, but preserve the axios error code
+        return {
+            message: axiosError.message,
+            status: 0,
+            code: axiosError.code,
+        };
     }
 
     return {
