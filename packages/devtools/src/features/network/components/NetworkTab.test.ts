@@ -2,6 +2,29 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { ref, computed } from "vue";
 
+vi.mock("idb-keyval", () => ({
+    get: vi.fn().mockResolvedValue(undefined),
+    set: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../../panel/composables/useFloatingPanel", () => ({
+    useFloatingPanel: vi.fn(() => ({
+        resetGeometry: vi.fn(),
+        geometry: ref({ x: 0, y: 0, width: 380, height: 600 }),
+        isGeometryReady: ref(true),
+        isOpen: ref(false),
+        panelMode: ref("side"),
+        startDrag: vi.fn(),
+        startResizeTop: vi.fn(),
+        startResizeBottom: vi.fn(),
+        startResizeLeft: vi.fn(),
+        startResizeRight: vi.fn(),
+        switchMode: vi.fn(),
+        toggle: vi.fn(),
+        close: vi.fn(),
+    })),
+}));
+
 vi.mock("../composables/useNetworkTab", () => ({
     useNetworkTab: vi.fn(() => ({
         urlFilter: ref(""),
