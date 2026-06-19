@@ -4,9 +4,7 @@ import type { PanelMode, PayloadFormat, PanelGeometry } from "../types/index";
 const KEYS = {
     panelPosition: "vmd:panel-position",
     panelSize: "vmd:panel-size",
-    panelHeight: "vmd:panel-height",
     panelMode: "vmd:panel-mode",
-    panelSideWidth: "vmd:panel-side-width",
     geometrySide: "vmd:panel-geometry-side",
     geometryBottom: "vmd:panel-geometry-bottom",
     activeTab: "vmd:active-tab",
@@ -62,20 +60,6 @@ export async function saveActiveTab(id: string): Promise<void> {
 }
 
 /**
- * Loads the saved panel height from IndexedDB. Returns undefined if not previously saved.
- */
-export async function loadPanelHeight(): Promise<number | undefined> {
-    return get<number>(KEYS.panelHeight);
-}
-
-/**
- * Saves the panel height to IndexedDB.
- */
-export async function savePanelHeight(height: number): Promise<void> {
-    return set(KEYS.panelHeight, height);
-}
-
-/**
  * Loads the saved panel mode from IndexedDB. Returns "side" if not previously saved.
  */
 export async function loadPanelMode(): Promise<PanelMode> {
@@ -87,20 +71,6 @@ export async function loadPanelMode(): Promise<PanelMode> {
  */
 export async function savePanelMode(mode: PanelMode): Promise<void> {
     return set(KEYS.panelMode, mode);
-}
-
-/**
- * Loads the saved side panel width from IndexedDB. Returns undefined if not previously saved.
- */
-export async function loadPanelSideWidth(): Promise<number | undefined> {
-    return get<number>(KEYS.panelSideWidth);
-}
-
-/**
- * Saves the side panel width to IndexedDB.
- */
-export async function savePanelSideWidth(width: number): Promise<void> {
-    return set(KEYS.panelSideWidth, width);
 }
 
 /**
