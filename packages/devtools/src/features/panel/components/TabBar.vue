@@ -1,28 +1,33 @@
-<!-- Horizontal tab strip with close button. -->
+<!-- Horizontal tab strip with drag handle in the logo pill. -->
 <script setup lang="ts">
 import { Icon } from "@iconify/vue";
 import type { DevtoolsTab, PanelMode } from "../../../shared/types/index";
-import LogoBadge from "../../../shared/components/LogoBadge.vue";
 
 defineProps<{
     tabs: readonly DevtoolsTab[];
     activeTabId: string | null;
     selectTab: (id: string) => void;
     panelMode: PanelMode;
+    startDrag: (e: MouseEvent) => void;
 }>();
 
 defineEmits<{
     close: [];
     "update:panelMode": [PanelMode];
     settings: [];
+    "resetGeometry": [];
 }>();
 </script>
 
 <template>
     <div class="tab-bar">
-        <div class="logo-slot">
-            <LogoBadge />
+        <!-- Logo pill — doubles as drag handle on hover -->
+        <div class="logo-pill" @mousedown.prevent="startDrag">
+            <span class="logo-icon">▲▲</span>
+            <span class="logo-drag-icon">⠿</span>
+            <span class="logo-text">vue-muza</span>
         </div>
+
         <div class="tab-list">
             <button
                 v-for="tab in tabs"
@@ -94,13 +99,39 @@ defineEmits<{
     border-bottom: 1px solid var(--dt-border-subtle);
     flex-shrink: 0;
 }
-.logo-slot {
-    display: flex;
+
+/* Logo pill — drag handle */
+.logo-pill {
+    display: inline-flex;
     align-items: center;
-    padding: 0 10px 0 12px;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px 0 9px;
+    margin: 0 6px 0 8px;
+    background: var(--dt-primary);
+    border-radius: 99px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    user-select: none;
     flex-shrink: 0;
-    opacity: 0.85;
+    cursor: default;
+    transition: background 150ms ease-out;
 }
+.logo-pill:hover {
+    cursor: grab;
+    background: color-mix(in oklch, var(--dt-primary) 85%, white);
+}
+.logo-pill:active { cursor: grabbing; }
+
+.logo-icon { font-size: 10px; }
+.logo-drag-icon { font-size: 14px; display: none; }
+.logo-text { font-size: 12px; }
+
+.logo-pill:hover .logo-icon      { display: none; }
+.logo-pill:hover .logo-drag-icon { display: inline; }
+
 .tab-list {
     display: flex;
     align-items: center;
@@ -111,6 +142,7 @@ defineEmits<{
     scrollbar-width: none;
 }
 .tab-list::-webkit-scrollbar { display: none; }
+
 .tab-btn {
     display: flex;
     align-items: center;
@@ -125,20 +157,17 @@ defineEmits<{
     border-bottom: 2px solid transparent;
     transition: color 150ms ease-out, border-color 150ms ease-out, transform 120ms ease-out;
 }
-.tab-btn:active {
-    transform: scale(0.97);
-}
+.tab-btn:active { transform: scale(0.97); }
 .tab-btn--active {
     color: var(--dt-vue-green);
     border-bottom-color: var(--dt-vue-green);
 }
-.tab-btn--inactive {
-    color: var(--dt-foreground-muted);
-}
+.tab-btn--inactive { color: var(--dt-foreground-muted); }
 .tab-btn--inactive:hover {
     color: var(--dt-foreground-secondary);
     background: var(--dt-surface);
 }
+
 .mode-switcher {
     display: flex;
     align-items: center;
@@ -159,9 +188,7 @@ defineEmits<{
     cursor: pointer;
     transition: background 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
 }
-.mode-btn:active {
-    transform: scale(0.97);
-}
+.mode-btn:active { transform: scale(0.97); }
 .mode-btn:hover {
     background: var(--dt-surface-raised);
     color: var(--dt-foreground-secondary);
@@ -170,9 +197,8 @@ defineEmits<{
     background: var(--dt-surface-raised);
     color: var(--dt-primary);
 }
-.mode-btn--active:hover {
-    color: var(--dt-primary);
-}
+.mode-btn--active:hover { color: var(--dt-primary); }
+
 .mode-divider {
     width: 1px;
     height: 18px;
@@ -180,6 +206,7 @@ defineEmits<{
     margin-right: 4px;
     flex-shrink: 0;
 }
+
 .settings-btn {
     display: flex;
     align-items: center;
@@ -194,13 +221,12 @@ defineEmits<{
     flex-shrink: 0;
     transition: background 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
 }
-.settings-btn:active {
-    transform: scale(0.97);
-}
+.settings-btn:active { transform: scale(0.97); }
 .settings-btn:hover {
     background: var(--dt-surface-raised);
     color: var(--dt-foreground-secondary);
 }
+
 .close-btn {
     display: flex;
     align-items: center;
@@ -216,9 +242,7 @@ defineEmits<{
     flex-shrink: 0;
     transition: background 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
 }
-.close-btn:active {
-    transform: scale(0.97);
-}
+.close-btn:active { transform: scale(0.97); }
 .close-btn:hover {
     background: var(--dt-surface-raised);
     color: var(--dt-foreground);

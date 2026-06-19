@@ -114,7 +114,7 @@ describe("TabBar", () => {
             { id: "b", label: "Beta", component: stubComp, order: 2 },
         ] as const;
         const wrapper = mount(TabBar, {
-            props: { tabs, activeTabId: "a", selectTab: vi.fn(), panelMode: "bottom" },
+            props: { tabs, activeTabId: "a", selectTab: vi.fn(), panelMode: "bottom", startDrag: vi.fn() },
         });
         expect(wrapper.findAll("[data-vmd-tab]")).toHaveLength(2);
     });
