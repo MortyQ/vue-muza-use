@@ -1,4 +1,4 @@
-<!-- Right-side devtools panel with free-floating drag and 3-edge resize. -->
+<!-- Right-side devtools panel with free-floating drag and 4-edge resize. -->
 <script setup lang="ts">
 import { useFloatingPanel } from "../composables/useFloatingPanel";
 import { useTabManager } from "../composables/useTabManager";
@@ -7,7 +7,7 @@ import TabBar from "./TabBar.vue";
 
 const {
     geometry, isGeometryReady, isOpen, panelMode,
-    startDrag, startResizeTop, startResizeBottom, startResizeLeft,
+    startDrag, startResizeTop, startResizeBottom, startResizeLeft, startResizeRight,
     switchMode, toggle, close, resetGeometry,
 } = useFloatingPanel();
 const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager();
@@ -43,6 +43,7 @@ const { toggleSettings } = useNetworkLayout();
         >
             <!-- Resize handles -->
             <div class="resize-handle resize-left"   @mousedown.prevent="startResizeLeft" />
+            <div class="resize-handle resize-right"  @mousedown.prevent="startResizeRight" />
             <div class="resize-handle resize-top"    @mousedown.prevent="startResizeTop" />
             <div class="resize-handle resize-bottom" @mousedown.prevent="startResizeBottom" />
 
@@ -136,6 +137,13 @@ const { toggleSettings } = useNetworkLayout();
     right: 12px;
     height: 4px;
     cursor: row-resize;
+}
+.resize-right {
+    right: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 4px;
+    cursor: col-resize;
 }
 .resize-bottom {
     bottom: 0;

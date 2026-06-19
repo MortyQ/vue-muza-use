@@ -7,7 +7,6 @@ const MIN_WIDTH_SIDE = 280;
 const MIN_HEIGHT_SIDE = 200;
 const MIN_WIDTH_BOTTOM = 400;
 const MIN_HEIGHT_BOTTOM = 200;
-const TABBAR_HEIGHT = 38;
 
 function defaultSideGeometry(): PanelGeometry {
     return {
@@ -116,7 +115,7 @@ export function usePanelGeometry(panelMode: Ref<PanelMode>): UsePanelGeometryRet
                 ref.value = {
                     ...ref.value,
                     x: Math.max(0, Math.min(window.innerWidth - startGeo.width, startGeo.x + dx)),
-                    y: Math.max(0, Math.min(window.innerHeight - TABBAR_HEIGHT, startGeo.y + dy)),
+                    y: Math.max(0, Math.min(window.innerHeight - startGeo.height, startGeo.y + dy)),
                 };
             });
         };
