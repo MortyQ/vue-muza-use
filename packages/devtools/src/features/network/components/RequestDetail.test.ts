@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import type { RequestRecord } from "../../../shared/types/index";
 import RequestDetail from "./RequestDetail.vue";
@@ -26,6 +26,7 @@ const mockRequest: RequestRecord = {
     response: { users: [] },
     error: null,
     truncated: false,
+    instanceOptions: undefined,
 };
 
 describe("RequestDetail", () => {

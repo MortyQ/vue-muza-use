@@ -3,7 +3,7 @@ import type { RequestRecord, DevtoolsInstanceOptions } from "../../../shared/typ
 import StatusBadge from "./StatusBadge.vue";
 import FeatureBadges from "../../../shared/components/FeatureBadges.vue";
 
-const props = defineProps<{
+defineProps<{
     request: RequestRecord;
     isActive: boolean;
     instanceOptions?: DevtoolsInstanceOptions;

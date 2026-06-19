@@ -7,7 +7,7 @@ vi.mock("../../../shared/storage/devtoolsStorage", () => ({
     savePayloadFormat: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { loadPayloadFormat, savePayloadFormat } from "../../../shared/storage/devtoolsStorage";
+import { loadPayloadFormat } from "../../../shared/storage/devtoolsStorage";
 
 beforeEach(() => {
     vi.clearAllMocks();

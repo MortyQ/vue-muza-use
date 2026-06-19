@@ -5,9 +5,7 @@ import { registerTab } from "../shared/plugins/tabRegistry";
 import { onInstanceCreated, onInstanceDestroyed, onStateUpdate } from "../shared/instrumentation/instanceTracker";
 import { onRequestStart, onRequestEnd } from "../shared/instrumentation/requestTracker";
 import { mountDevtoolsPanel } from "./devtoolsPlugin";
-import { instancesTab } from "../features/instances/index";
 import { networkTab } from "../features/network/index";
-import { timelineTab } from "../features/timeline/index";
 
 /**
  * Entry point called by `use-api` via dynamic import.

@@ -31,7 +31,7 @@ onMounted(async () => {
 });
 
 function startSplitResize(e: MouseEvent): void {
-    const container = splitRef.value;
+    const container = splitRef.value!;
     if (!container) return;
 
     if (stacked.value) {
