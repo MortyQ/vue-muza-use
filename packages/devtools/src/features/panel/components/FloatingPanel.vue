@@ -1,18 +1,21 @@
-<!-- Bottom-drawer devtools panel with launcher pill. -->
+<!-- Bottom devtools panel with free-floating drag and 3-edge resize. -->
 <script setup lang="ts">
 import { useFloatingPanel } from "../composables/useFloatingPanel";
 import { useTabManager } from "../composables/useTabManager";
 import { useNetworkLayout } from "../../network/composables/useNetworkLayout";
 import TabBar from "./TabBar.vue";
-import MIcon from "../../../shared/components/MIcon.vue";
 
-const { height, isOpen, panelMode, startResizeHeight, switchMode, toggle, close } = useFloatingPanel();
+const {
+    geometry, isGeometryReady, isOpen, panelMode,
+    startDrag, startResizeTop, startResizeLeft, startResizeRight,
+    switchMode, toggle, close,
+} = useFloatingPanel();
 const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager();
 const { toggleSettings } = useNetworkLayout();
 </script>
 
 <template>
-    <!-- Launcher pill — fixed bottom-right, shown when panel is closed -->
+    <!-- Launcher pill — shown when panel is closed -->
     <button
         v-if="!isOpen"
         data-vmd-launcher
@@ -20,22 +23,29 @@ const { toggleSettings } = useNetworkLayout();
         title="Open vue-muza devtools"
         @click="toggle"
     >
-        <MIcon :width="22" :height="10" />
+        <span class="launcher-icon">▲▲</span>
         <span>vue-muza</span>
     </button>
 
-    <!-- Bottom drawer panel -->
+    <!-- Bottom panel -->
     <Transition name="panel">
         <div
             v-if="isOpen"
             data-vmd-panel
             class="devtools-panel"
-            :style="{ height: `${height}px` }"
+            :style="{
+                left: `${geometry.x}px`,
+                top: `${geometry.y}px`,
+                width: `${geometry.width}px`,
+                height: `${geometry.height}px`,
+                opacity: isGeometryReady ? 1 : 0,
+            }"
         >
-            <!-- Top resize handle (drag up/down to resize) -->
-            <div class="resize-handle" @mousedown="startResizeHeight" />
+            <!-- Resize handles -->
+            <div class="resize-handle resize-top"   @mousedown.prevent="startResizeTop" />
+            <div class="resize-handle resize-left"  @mousedown.prevent="startResizeLeft" />
+            <div class="resize-handle resize-right" @mousedown.prevent="startResizeRight" />
 
-            <!-- Horizontal tab bar -->
             <TabBar
                 :tabs="registeredTabs"
                 :active-tab-id="activeTabId ?? null"
@@ -46,7 +56,6 @@ const { toggleSettings } = useNetworkLayout();
                 @settings="toggleSettings"
             />
 
-            <!-- Active tab content -->
             <div class="panel-content">
                 <component :is="activeTab?.component" v-if="activeTab" />
             </div>
@@ -85,12 +94,10 @@ const { toggleSettings } = useNetworkLayout();
     transform: scale(0.96);
     box-shadow: 0 1px 6px oklch(65% 0.25 280 / 0.25);
 }
+.launcher-icon { font-size: 11px; }
 
 .devtools-panel {
     position: fixed;
-    bottom: 8px;
-    left: 12px;
-    right: 12px;
     z-index: 99998;
     display: flex;
     flex-direction: column;
@@ -105,13 +112,34 @@ const { toggleSettings } = useNetworkLayout();
 }
 
 .resize-handle {
-    height: 4px;
-    flex-shrink: 0;
-    cursor: row-resize;
-    background: var(--dt-border-subtle);
-    transition: background 0.15s;
+    position: absolute;
+    background: transparent;
+    z-index: 1;
+    transition: background 150ms ease-out;
 }
 .resize-handle:hover { background: var(--dt-primary); }
+
+.resize-top {
+    top: 0;
+    left: 12px;
+    right: 12px;
+    height: 4px;
+    cursor: row-resize;
+}
+.resize-left {
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 4px;
+    cursor: col-resize;
+}
+.resize-right {
+    right: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 4px;
+    cursor: col-resize;
+}
 
 .panel-content {
     flex: 1;

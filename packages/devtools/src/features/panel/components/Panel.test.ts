@@ -4,15 +4,18 @@ import { defineComponent, ref } from "vue";
 
 vi.mock("../composables/useFloatingPanel", () => ({
     useFloatingPanel: vi.fn(() => ({
-        height: ref(400),
+        geometry: ref({ x: 0, y: 0, width: 800, height: 400 }),
+        isGeometryReady: ref(true),
         isOpen: ref(true),
-        startResizeHeight: vi.fn(),
+        panelMode: ref("bottom"),
+        startDrag: vi.fn(),
+        startResizeTop: vi.fn(),
+        startResizeLeft: vi.fn(),
+        startResizeRight: vi.fn(),
         toggle: vi.fn(),
         close: vi.fn(),
-        panelMode: ref("bottom"),
         switchMode: vi.fn(),
-        sideWidth: ref(380),
-        startResizeSideWidth: vi.fn(),
+        resetGeometry: vi.fn(),
     })),
 }));
 
@@ -56,15 +59,18 @@ describe("FloatingPanel", () => {
     it("hides the panel when isOpen is false", async () => {
         const { useFloatingPanel } = await import("../composables/useFloatingPanel");
         vi.mocked(useFloatingPanel).mockReturnValueOnce({
-            height: ref(400),
+            geometry: ref({ x: 0, y: 0, width: 800, height: 400 }),
+            isGeometryReady: ref(true),
             isOpen: ref(false),
-            startResizeHeight: vi.fn(),
+            panelMode: ref("bottom"),
+            startDrag: vi.fn(),
+            startResizeTop: vi.fn(),
+            startResizeLeft: vi.fn(),
+            startResizeRight: vi.fn(),
             toggle: vi.fn(),
             close: vi.fn(),
-            panelMode: ref("bottom"),
             switchMode: vi.fn(),
-            sideWidth: ref(380),
-            startResizeSideWidth: vi.fn(),
+            resetGeometry: vi.fn(),
         });
         const wrapper = mount(FloatingPanel);
         expect(wrapper.find("[data-vmd-panel]").exists()).toBe(false);
@@ -73,15 +79,18 @@ describe("FloatingPanel", () => {
     it("shows the launcher pill when isOpen is false", async () => {
         const { useFloatingPanel } = await import("../composables/useFloatingPanel");
         vi.mocked(useFloatingPanel).mockReturnValueOnce({
-            height: ref(400),
+            geometry: ref({ x: 0, y: 0, width: 800, height: 400 }),
+            isGeometryReady: ref(true),
             isOpen: ref(false),
-            startResizeHeight: vi.fn(),
+            panelMode: ref("bottom"),
+            startDrag: vi.fn(),
+            startResizeTop: vi.fn(),
+            startResizeLeft: vi.fn(),
+            startResizeRight: vi.fn(),
             toggle: vi.fn(),
             close: vi.fn(),
-            panelMode: ref("bottom"),
             switchMode: vi.fn(),
-            sideWidth: ref(380),
-            startResizeSideWidth: vi.fn(),
+            resetGeometry: vi.fn(),
         });
         const wrapper = mount(FloatingPanel);
         expect(wrapper.find("[data-vmd-launcher]").exists()).toBe(true);
