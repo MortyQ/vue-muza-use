@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onScopeDispose } from "vue";
+import { Icon } from "@iconify/vue";
 import { useNetworkTab } from "../composables/useNetworkTab";
 import { useNetworkLayout } from "../composables/useNetworkLayout";
+import { useFloatingPanel } from "../../panel/composables/useFloatingPanel";
 import { clearRequests } from "../../../shared/store/devtoolsStore";
 import { loadListWidth, saveListWidth } from "../../../shared/storage/devtoolsStorage";
 import RequestList from "./RequestList.vue";
@@ -18,6 +20,8 @@ const {
 } = useNetworkTab();
 
 const { toolbarVisible, filterVisible, settingsOpen, toggleToolbar, toggleFilter, closeSettings } = useNetworkLayout();
+
+const { resetGeometry } = useFloatingPanel();
 
 const instanceOptions = computed<SelectOption[]>(() => [
     { value: "all", label: "All instances" },
@@ -132,6 +136,11 @@ onScopeDispose(() => { dragCleanup?.(); });
                     </svg>
                 </span>
                 Filter bar
+            </button>
+            <div class="settings-divider" />
+            <button class="settings-item settings-item--reset" @click="resetGeometry">
+                <Icon icon="lucide:rotate-ccw" width="12" height="12" class="reset-icon" />
+                Reset layout
             </button>
         </div>
         </Transition>
@@ -248,6 +257,20 @@ onScopeDispose(() => { dragCleanup?.(); });
     background: var(--dt-primary);
     border-color: var(--dt-primary);
 }
+.settings-divider {
+    height: 1px;
+    background: var(--dt-border-subtle);
+    margin: 4px 0;
+}
+.settings-item--reset {
+    color: var(--dt-foreground-muted);
+    gap: 8px;
+}
+.settings-item--reset:hover {
+    color: var(--dt-foreground);
+    background: var(--dt-surface-raised);
+}
+.reset-icon { flex-shrink: 0; }
 .settings-menu-enter-active {
     transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1), opacity 150ms ease-out;
 }
