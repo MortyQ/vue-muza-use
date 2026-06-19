@@ -10,6 +10,16 @@ import type { Component } from "vue";
 export type PanelMode = "bottom" | "side";
 
 /**
+ * Position and size of a devtools panel in a given mode.
+ */
+export interface PanelGeometry {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+/**
  * Display format for the payload viewer pane.
  * - `kv`: collapsible key-value tree view
  * - `json`: raw JSON syntax-highlighted view

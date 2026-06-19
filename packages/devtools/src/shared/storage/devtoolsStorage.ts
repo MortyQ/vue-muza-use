@@ -1,5 +1,5 @@
 import { get, set } from "idb-keyval";
-import type { PanelMode, PayloadFormat } from "../types/index";
+import type { PanelMode, PayloadFormat, PanelGeometry } from "../types/index";
 
 const KEYS = {
     panelPosition: "vmd:panel-position",
@@ -7,6 +7,8 @@ const KEYS = {
     panelHeight: "vmd:panel-height",
     panelMode: "vmd:panel-mode",
     panelSideWidth: "vmd:panel-side-width",
+    geometrySide: "vmd:panel-geometry-side",
+    geometryBottom: "vmd:panel-geometry-bottom",
     activeTab: "vmd:active-tab",
     networkToolbarVisible: "vmd:network-toolbar-visible",
     networkFilterVisible: "vmd:network-filter-visible",
@@ -197,4 +199,21 @@ export async function loadListWidth(): Promise<number | undefined> {
  */
 export async function saveListWidth(width: number): Promise<void> {
     return set(KEYS.listWidth, width);
+}
+
+/**
+ * Loads the saved panel geometry for the given mode from IndexedDB.
+ * Returns undefined if not previously saved.
+ */
+export async function loadPanelGeometry(mode: PanelMode): Promise<PanelGeometry | undefined> {
+    const key = mode === "side" ? KEYS.geometrySide : KEYS.geometryBottom;
+    return get<PanelGeometry>(key);
+}
+
+/**
+ * Saves the panel geometry for the given mode to IndexedDB.
+ */
+export async function savePanelGeometry(mode: PanelMode, geometry: PanelGeometry): Promise<void> {
+    const key = mode === "side" ? KEYS.geometrySide : KEYS.geometryBottom;
+    return set(key, geometry);
 }

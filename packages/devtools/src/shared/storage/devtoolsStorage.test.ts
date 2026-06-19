@@ -29,6 +29,8 @@ import {
     saveResponseFormat,
     loadSplitPayloadWidth,
     saveSplitPayloadWidth,
+    loadPanelGeometry,
+    savePanelGeometry,
 } from "./devtoolsStorage";
 
 beforeEach(() => {
@@ -230,5 +232,41 @@ describe("loadSplitPayloadWidth / saveSplitPayloadWidth", () => {
     it("saveSplitPayloadWidth calls set with correct key and value", async () => {
         await saveSplitPayloadWidth(280);
         expect(set).toHaveBeenCalledWith("vmd:split-payload-width", 280);
+    });
+});
+
+describe("panel geometry", () => {
+    it("loadPanelGeometry('side') calls get with correct key", async () => {
+        const geo = { x: 890, y: 10, width: 380, height: 780 };
+        vi.mocked(get).mockResolvedValue(geo);
+        const result = await loadPanelGeometry("side");
+        expect(get).toHaveBeenCalledWith("vmd:panel-geometry-side");
+        expect(result).toEqual(geo);
+    });
+
+    it("loadPanelGeometry('bottom') calls get with correct key", async () => {
+        const geo = { x: 12, y: 432, width: 1256, height: 360 };
+        vi.mocked(get).mockResolvedValue(geo);
+        const result = await loadPanelGeometry("bottom");
+        expect(get).toHaveBeenCalledWith("vmd:panel-geometry-bottom");
+        expect(result).toEqual(geo);
+    });
+
+    it("loadPanelGeometry returns undefined if not saved", async () => {
+        vi.mocked(get).mockResolvedValue(undefined);
+        const result = await loadPanelGeometry("side");
+        expect(result).toBeUndefined();
+    });
+
+    it("savePanelGeometry('side') calls set with correct key", async () => {
+        const geo = { x: 890, y: 10, width: 380, height: 780 };
+        await savePanelGeometry("side", geo);
+        expect(set).toHaveBeenCalledWith("vmd:panel-geometry-side", geo);
+    });
+
+    it("savePanelGeometry('bottom') calls set with correct key", async () => {
+        const geo = { x: 12, y: 432, width: 1256, height: 360 };
+        await savePanelGeometry("bottom", geo);
+        expect(set).toHaveBeenCalledWith("vmd:panel-geometry-bottom", geo);
     });
 });
