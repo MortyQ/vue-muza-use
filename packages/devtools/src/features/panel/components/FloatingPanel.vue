@@ -8,7 +8,7 @@ import TabBar from "./TabBar.vue";
 const {
     geometry, isGeometryReady, isOpen, panelMode,
     startDrag, startResizeTop, startResizeLeft, startResizeRight,
-    switchMode, toggle, close,
+    switchMode, toggle, close, resetGeometry,
 } = useFloatingPanel();
 const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager();
 const { toggleSettings } = useNetworkLayout();
@@ -51,9 +51,11 @@ const { toggleSettings } = useNetworkLayout();
                 :active-tab-id="activeTabId ?? null"
                 :select-tab="setActiveTab"
                 :panel-mode="panelMode"
+                :start-drag="startDrag"
                 @close="close"
                 @update:panel-mode="switchMode"
                 @settings="toggleSettings"
+                @reset-geometry="resetGeometry"
             />
 
             <div class="panel-content">
