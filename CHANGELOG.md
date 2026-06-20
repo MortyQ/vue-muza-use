@@ -8,6 +8,19 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.5.1] — 2026-06-20
+
+### Fixed
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **Shadow DOM CSS isolation** — the devtools panel is now mounted inside a Shadow DOM root in production builds. Consumer global CSS (element resets, `*` rules, `line-height`, `font-size`, etc.) can no longer leak into the panel. All styles (Tailwind utilities + scoped component CSS) are collected via `cssInjectedByJs` into `window.__vmdPendingCss` and injected into the shadow root at mount time. Dev mode (Vite source aliases) continues to mount directly with CSS in `<head>` as before.
+- **Inherited property reset** — added `line-height: normal` and `font-size: 16px` on `:host` / `#vue-muza-devtools-root` to reset inherited CSS properties that flow into the shadow tree from the consumer document.
+- **Badge font size independent of consumer root** — rewrote `Badge.vue` with explicit `px` units in scoped CSS instead of Tailwind `text-xs` (`0.75rem`). `rem` resolves against the outer document `:root`, so a consumer with a non-default `font-size` caused badges to render oversized inside shadow DOM. Now always renders at `11px` regardless of consumer typography.
+- **Request row fixed height** — changed `.request-row` from `min-height: 52px` to `height: 52px` with `overflow: hidden` to match the virtualizer's `estimateSize`. Previously the active row could grow taller than its allocated slot, causing visual overlap with adjacent rows.
+
+---
+
 ## [1.3.1] — Unreleased
 
 ### Fixed
