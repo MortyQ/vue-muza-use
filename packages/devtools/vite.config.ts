@@ -8,7 +8,14 @@ export default defineConfig({
     plugins: [
         tailwindcss(),
         vue(),
-        cssInjectedByJs(),
+        // Queue ALL CSS (global + scoped) into window.__vmdPendingCss at module eval time.
+        // mountDevtoolsPanel() drains this queue into the shadow root instead of <head>.
+        cssInjectedByJs({
+            injectCodeFunction: function(cssCode) {
+                const w = window as unknown as { __vmdPendingCss?: string };
+                w.__vmdPendingCss = (w.__vmdPendingCss ?? "") + cssCode;
+            },
+        }),
         dts({ include: ["src"], rollupTypes: true }),
     ],
     build: {

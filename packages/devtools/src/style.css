@@ -1,7 +1,14 @@
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
 
+/* :host — shadow DOM (production builds) */
+/* #vue-muza-devtools-root — regular DOM (dev mode, Vite source aliases) */
+:host,
 #vue-muza-devtools-root {
+    /* Reset inherited properties that consumer CSS can inject into shadow DOM */
+    line-height: normal;
+    font-size: 16px;
+
     --dt-background: oklch(22% 0.025 250);
     --dt-surface-sunken: oklch(15% 0.022 250);
     --dt-surface: oklch(19% 0.023 250);
@@ -30,26 +37,35 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    :host .panel-enter-active,
     #vue-muza-devtools-root .panel-enter-active,
+    :host .panel-leave-active,
     #vue-muza-devtools-root .panel-leave-active {
         transition: opacity 150ms ease-out !important;
     }
+    :host .panel-enter-from,
     #vue-muza-devtools-root .panel-enter-from,
+    :host .panel-leave-to,
     #vue-muza-devtools-root .panel-leave-to {
         transform: none !important;
         opacity: 0;
     }
 
+    :host .settings-menu-enter-active,
     #vue-muza-devtools-root .settings-menu-enter-active,
+    :host .settings-menu-leave-active,
     #vue-muza-devtools-root .settings-menu-leave-active {
         transition: opacity 100ms ease-out !important;
     }
+    :host .settings-menu-enter-from,
     #vue-muza-devtools-root .settings-menu-enter-from,
+    :host .settings-menu-leave-to,
     #vue-muza-devtools-root .settings-menu-leave-to {
         transform: none !important;
         opacity: 0;
     }
 
+    :host .tree-arrow::before,
     #vue-muza-devtools-root .tree-arrow::before {
         transition: none !important;
     }

@@ -4,16 +4,28 @@ import "../style.css";
 
 const ROOT_ID = "vue-muza-devtools-root";
 
+declare global {
+    interface Window { __vmdPendingCss?: string; }
+}
+
 /**
- * Mounts an isolated Vue app into a dedicated DOM node appended to document.body.
+ * Mounts the devtools Vue app into document.body.
+ *
+ * In production builds, all CSS (Tailwind, CSS variables, scoped component styles) is
+ * pre-collected into window.__vmdPendingCss by the cssInjectedByJs build plugin, and
+ * the app is mounted inside a Shadow DOM root for full CSS isolation from the consumer.
+ *
+ * In dev mode (Vite source aliases, no build plugin), window.__vmdPendingCss is absent
+ * and the app mounts directly — CSS is injected into <head> by Vite as normal.
+ *
  * Safe to call multiple times — guards against double-mount.
- * The container has zero dimensions and is fixed-positioned so it never affects document layout.
  */
 export function mountDevtoolsPanel(): void {
     if (document.getElementById(ROOT_ID)) return;
-    const container = document.createElement("div");
-    container.id = ROOT_ID;
-    Object.assign(container.style, {
+
+    const host = document.createElement("div");
+    host.id = ROOT_ID;
+    Object.assign(host.style, {
         position: "fixed",
         top: "0",
         left: "0",
@@ -23,7 +35,22 @@ export function mountDevtoolsPanel(): void {
         zIndex: "9999",
         pointerEvents: "none",
     });
-    document.body.appendChild(container);
-    const app = createApp(DevtoolsApp);
-    app.mount(container);
+    document.body.appendChild(host);
+
+    const pendingCss = window.__vmdPendingCss;
+    window.__vmdPendingCss = undefined;
+
+    if (pendingCss) {
+        // Production: full CSS isolation via Shadow DOM
+        const shadow = host.attachShadow({ mode: "open" });
+        const style = document.createElement("style");
+        style.textContent = pendingCss;
+        shadow.appendChild(style);
+        const mountPoint = document.createElement("div");
+        shadow.appendChild(mountPoint);
+        createApp(DevtoolsApp).mount(mountPoint);
+    } else {
+        // Dev mode: mount directly, Vite injects CSS into <head>
+        createApp(DevtoolsApp).mount(host);
+    }
 }
