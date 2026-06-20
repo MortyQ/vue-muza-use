@@ -55,7 +55,8 @@ function formatTime(ts: number): string {
     border-bottom: 1px solid var(--dt-border-subtle);
     transition: background 0.12s;
     position: relative;
-    min-height: 52px;
+    height: 52px;
+    overflow: hidden;
 }
 .request-row:hover { background: var(--dt-surface); }
 .request-row--active { background: var(--dt-surface-raised); }
