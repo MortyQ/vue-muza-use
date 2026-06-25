@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { reactive, isReactive } from "vue";
 
 vi.mock("idb-keyval", () => ({
     get: vi.fn(),
@@ -229,5 +230,16 @@ describe("panel geometry", () => {
         const geo = { x: 12, y: 432, width: 1256, height: 360 };
         await savePanelGeometry("bottom", geo);
         expect(set).toHaveBeenCalledWith("vmd:panel-geometry-bottom", geo);
+    });
+
+    it("savePanelGeometry strips Vue reactive proxy before writing to IDB", async () => {
+        // Vue reactive proxies cannot be structured-cloned by IndexedDB.
+        // savePanelGeometry must spread to a plain object before calling set().
+        const reactiveGeo = reactive({ x: 100, y: 20, width: 380, height: 600 });
+        expect(isReactive(reactiveGeo)).toBe(true);
+        await savePanelGeometry("side", reactiveGeo);
+        const stored = (set as ReturnType<typeof vi.fn>).mock.calls.at(-1)![1];
+        expect(isReactive(stored)).toBe(false);
+        expect(stored).toEqual({ x: 100, y: 20, width: 380, height: 600 });
     });
 });

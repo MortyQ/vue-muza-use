@@ -139,18 +139,18 @@ describe("drag", () => {
         unmount();
     });
 
-    it("drag clamps y so tabbar stays in viewport", async () => {
+    it("drag clamps y so panel stays fully in viewport", async () => {
         const mode = ref<"side" | "bottom">("side");
         const { result, unmount } = withSetup(() => usePanelGeometry(mode));
         await nextTick(); await nextTick();
         _setGeometryForTesting("side", { x: 100, y: 10, width: 380, height: 600 });
 
         result.startDrag({ clientX: 200, clientY: 100 } as MouseEvent);
-        // Drag far down — y should be clamped to innerHeight - TABBAR_HEIGHT (800 - 38 = 762)
+        // Drag far down — y clamped to innerHeight - panel.height (800 - 600 = 200)
         window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 200, clientY: 9999 }));
         await nextTick();
 
-        expect(result.geometry.value.y).toBe(762);
+        expect(result.geometry.value.y).toBe(200);
         window.dispatchEvent(new MouseEvent("mouseup"));
         unmount();
     });

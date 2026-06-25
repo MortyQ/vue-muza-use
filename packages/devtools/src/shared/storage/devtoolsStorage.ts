@@ -185,5 +185,5 @@ export async function loadPanelGeometry(mode: PanelMode): Promise<PanelGeometry 
  */
 export async function savePanelGeometry(mode: PanelMode, geometry: PanelGeometry): Promise<void> {
     const key = mode === "side" ? KEYS.geometrySide : KEYS.geometryBottom;
-    return set(key, geometry);
+    return set(key, { ...geometry });
 }
