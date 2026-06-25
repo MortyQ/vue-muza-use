@@ -6,7 +6,7 @@
 |---|---|
 | **name** | `use-api` |
 | **description** | Feature-scoped API layer pattern built on `@ametie/vue-muza-use`. Generates and refactors typed composable wrappers for HTTP requests in Vue 3 apps. |
-| **version** | 1.2 |
+| **version** | 1.3 |
 | **applies_to** | `**/api/use*.ts`, `**/*.vue`, `**/*.ts` (when dealing with HTTP requests) |
 
 ## Auto-Activation Triggers
@@ -303,6 +303,41 @@ const { loading, execute: deleteAll } = bulkDeleteUsers(selectedIds.value, {
 const { successfulData: users, loading: usersLoading } = fetchUsersByIds(
   () => watchedIds.value,  // auto-tracked, no lazy:true needed
 );
+```
+
+---
+
+## TypeScript Gotcha — `response` vs `data`
+
+`UseApiReturn` has two separate fields for the response:
+
+| Field | Type | Description |
+|---|---|---|
+| `data` | `Ref<T \| null>` | Typed via your generic — **use this for typed access** |
+| `response` | `Ref<AxiosResponse<unknown> \| null>` | Raw Axios response — intentionally `unknown`, NOT tied to generic |
+
+`response.value?.data` is always `unknown` regardless of the generic you passed. Using `as SomeType` to silence TS here is wrong — it hides the real issue.
+
+```ts
+// ❌ Wrong — response.data is unknown, as Blob silences TS without fixing it
+const { execute, response } = downloadUsers({ responseType: 'blob' })
+// ...
+download(response.value!.data as Blob, fileName, contentType)
+
+// ✅ Correct — data.value is typed as Blob | null via the generic
+const { execute, data } = downloadUsers({ responseType: 'blob' })
+// ...
+download(data.value!, fileName, contentType)
+```
+
+**Exception:** `onSuccess(response)` receives `AxiosResponse<T>` — response.data IS typed there.
+
+```ts
+// ✅ Also correct — onSuccess gets the properly typed AxiosResponse<Blob>
+downloadUsers({
+  responseType: 'blob',
+  onSuccess: (response) => download(response.data, fileName, contentType),
+})
 ```
 
 ---

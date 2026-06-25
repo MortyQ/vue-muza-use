@@ -23,8 +23,8 @@ const { toggleSettings } = useNetworkLayout();
         title="Open vue-muza devtools"
         @click="toggle"
     >
-        <span class="launcher-icon">▲▲</span>
-        <span>vue-muza</span>
+        <span class="launcher-icon" aria-hidden="true">▲▲</span>
+        <span class="launcher-label">vue-muza</span>
     </button>
 
     <!-- Bottom panel -->
@@ -70,13 +70,16 @@ const { toggleSettings } = useNetworkLayout();
 .launcher-pill {
     position: fixed;
     bottom: 20px;
-    right: 20px;
+    right: 8px;
     z-index: 99999;
     display: flex;
     align-items: center;
-    gap: 8px;
-    height: 36px;
-    padding: 0 14px 0 10px;
+    gap: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    overflow: hidden;
+    justify-content: flex-start;
     background: var(--dt-primary);
     border-radius: 99px;
     border: none;
@@ -85,19 +88,39 @@ const { toggleSettings } = useNetworkLayout();
     font-size: 13px;
     font-weight: 600;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    box-shadow: 0 2px 12px oklch(65% 0.25 280 / 0.35);
-    transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+    box-shadow: 0 2px 10px oklch(65% 0.25 280 / 0.35);
+    transition: width 240ms cubic-bezier(.4,0,.2,1), transform 200ms ease, box-shadow 200ms ease;
     pointer-events: auto;
 }
 .launcher-pill:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px oklch(65% 0.25 280 / 0.5);
+    width: 136px;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px oklch(65% 0.25 280 / 0.5);
 }
 .launcher-pill:active {
     transform: scale(0.96);
     box-shadow: 0 1px 6px oklch(65% 0.25 280 / 0.25);
 }
-.launcher-icon { font-size: 11px; }
+.launcher-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 11px;
+}
+.launcher-label {
+    opacity: 0;
+    white-space: nowrap;
+    padding-left: 6px;
+    padding-right: 12px;
+    will-change: opacity;
+    transition: opacity 160ms ease 80ms;
+}
+.launcher-pill:hover .launcher-label {
+    opacity: 1;
+}
 
 .devtools-panel {
     position: fixed;

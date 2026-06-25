@@ -67,27 +67,34 @@ async function copy(): Promise<void> {
             <button class="pane-action" @click="copy">Copy</button>
         </div>
 
-        <!-- Query Params section -->
-        <div class="section-label">
-            <span>Query Params</span>
-            <span v-if="hasQueryParams" class="section-count">{{ queryParamCount }}</span>
-        </div>
-        <div v-if="hasQueryParams" class="section-body">
-            <TreeViewer v-if="format === 'kv'" :value="queryParams" />
-            <JsonViewer v-else :value="queryParams" />
-        </div>
-        <p v-else class="section-empty">No params</p>
+        <!-- Query Params section — hidden entirely when empty -->
+        <template v-if="hasQueryParams">
+            <div class="section-label">
+                <span>Query Params</span>
+                <span class="section-count">{{ queryParamCount }}</span>
+            </div>
+            <div class="section-body">
+                <TreeViewer v-if="format === 'kv'" :value="queryParams" />
+                <JsonViewer v-else :value="queryParams" />
+            </div>
+        </template>
 
-        <div class="section-divider" />
+        <div v-if="hasQueryParams && hasBody" class="section-divider" />
 
-        <!-- Body section -->
-        <div class="section-label"><span>Body</span></div>
-        <div v-if="hasBody" class="section-body">
-            <p v-if="truncated" class="truncated-warning">[truncated]</p>
-            <TreeViewer v-if="format === 'kv'" :value="payload" />
-            <JsonViewer v-else :value="payload" />
-        </div>
-        <p v-else class="section-empty">No body</p>
+        <!-- Body section — hidden entirely when empty -->
+        <template v-if="hasBody">
+            <div class="section-label"><span>Body</span></div>
+            <div class="section-body">
+                <p v-if="truncated" class="truncated-warning">[truncated]</p>
+                <TreeViewer v-if="format === 'kv'" :value="payload" />
+                <JsonViewer v-else :value="payload" />
+            </div>
+        </template>
+
+        <!-- Single placeholder when both sections are empty -->
+        <p v-if="!hasQueryParams && !hasBody" class="section-empty payload-empty">
+            No payload
+        </p>
     </div>
 </template>
 
@@ -182,5 +189,9 @@ async function copy(): Promise<void> {
     font-size: 11px;
     color: var(--dt-warning);
     margin-bottom: 8px;
+}
+.payload-empty {
+    text-align: center;
+    padding: 16px 0;
 }
 </style>
