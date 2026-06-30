@@ -82,6 +82,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - [Basic Usage](#-basic-usage)
 
 **Core Features:**
+- [Method Helpers (useApiGet, useApiPost …)](#method-helpers-useapiget-useapipost-)
 - [Watch & Auto-Refetch](#watch--auto-refetch)
   - [ignoreUpdates — Update Without Re-fetching](#ignoreupdates--update-without-re-fetching)
 - [Response Caching](#response-caching)
@@ -93,6 +94,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - [Loading States](#loading-states)
 - [Manual Data Updates (mutate)](#manual-data-updates-mutate)
 - [select — Declarative Data Transformation](#select--declarative-data-transformation)
+- [execute() — Per-Call Option Overrides](#execute--per-call-option-overrides)
 
 **Real-World Examples:**
 - [Data Table with Pagination](#data-table-with-pagination--sorting)
@@ -385,6 +387,37 @@ const { execute, loading, error } = useApi<LoginResponse>(
 ---
 
 ## 🎯 Core Features
+
+### Method Helpers (useApiGet, useApiPost …)
+
+Thin wrappers over `useApi` that pre-set the HTTP method. Use them to skip the `method` option on every call.
+
+```typescript
+import {
+  useApiGet,
+  useApiPost,
+  useApiPut,
+  useApiPatch,
+  useApiDelete,
+} from '@ametie/vue-muza-use'
+
+// Equivalent to useApi('/users', { immediate: true })
+const { data } = useApiGet<User[]>('/users', { immediate: true })
+
+// Equivalent to useApi('/users', { method: 'POST', data: form })
+const { execute, loading } = useApiPost<User>('/users', { data: form })
+
+// PUT / PATCH / DELETE follow the same pattern
+const { execute: update } = useApiPut<User>(`/users/${id}`, { data: form })
+const { execute: patch }  = useApiPatch<User>(`/users/${id}`, { data: partial })
+const { execute: remove } = useApiDelete(`/users/${id}`)
+```
+
+All helpers accept the same `UseApiOptions` as `useApi` — every feature (cache, retry, polling, callbacks) works identically.
+
+> 💡 These are the preferred way to write feature API wrappers. See [API layer pattern](#api-layer-pattern) in the skill file, or the [feature composable examples](#common-patterns) below.
+
+---
 
 ### Watch & Auto-Refetch
 
@@ -1164,6 +1197,49 @@ const { data } = useApi<Task[]>('/tasks', {
 > The cache always stores the **raw** server response, not the selected value.
 > `select` is re-applied each time data is read from cache — including SWR cache hits.
 > If you change your `select` function, the next cache hit will re-apply the new transformation.
+
+---
+
+### execute() — Per-Call Option Overrides
+
+`execute()` accepts an optional `ExecuteConfig` that overrides composable-level options **for that specific call only**. The next call reverts to the composable defaults.
+
+**Lifecycle callbacks merge** — both composable-level and per-call handlers fire (composable first).  
+**All other options replace** — the per-call value wins for that request.
+
+```typescript
+import { useApiPost } from '@ametie/vue-muza-use'
+
+const { execute, loading } = useApiPost<User>('/users', {
+  onSuccess: () => refreshList(),      // fires on every execute()
+  invalidateCache: 'users-count',      // invalidated on every execute()
+})
+
+// This call also shows a toast — both onSuccess handlers fire
+await execute({
+  data: { name: 'Alice' },
+  onSuccess: () => toast('User created!'),
+})
+
+// This call silences the global error handler and uses a different cache key
+await execute({
+  data: { name: 'Bob' },
+  skipErrorNotification: true,
+  invalidateCache: ['users-count', 'users-list'],
+})
+```
+
+**Options you can override per call:**
+
+| Category | Options |
+|----------|---------|
+| Request | `data`, `params`, `headers`, `method`, `authMode`, `withCredentials`, `signal` |
+| Caching | `cache` (replaces), `invalidateCache` (replaces) |
+| Retry | `retry`, `retryDelay`, `retryStatusCodes` |
+| Error | `skipErrorNotification` |
+| Lifecycle | `onBefore`, `onSuccess`, `onError`, `onFinish` (all merge) |
+
+**Options that cannot be overridden per call** (setup-time only): `immediate`, `lazy`, `debounce`, `poll`, `refetchOnFocus`, `refetchOnReconnect`, `initialData`, `initialLoading`, `useGlobalAbort`.
 
 ---
 
@@ -2140,7 +2216,7 @@ Three type parameters — all optional with defaults:
 | `statusCode` | `Ref<number \| null>` | HTTP status code from the last completed request |
 | `response` | `Ref<AxiosResponse<unknown> \| null>` | Full Axios response object including headers (raw, before `select`) |
 | `revalidating` | `Ref<boolean>` | `true` while a background SWR revalidation is in flight. Always `false` when `cache: { swr: true }` is not set |
-| `execute(config?)` | `(config?: ApiRequestConfig<D>) => Promise<TSelected \| null>` | Manually trigger the request, optionally overriding options |
+| `execute(config?)` | `(config?: ExecuteConfig<D>) => Promise<TSelected \| null>` | Manually trigger the request, optionally overriding options for this call only. See [execute() — Per-Call Option Overrides](#execute--per-call-option-overrides) |
 | `mutate(newData)` | `(newData: TSelected \| null \| ((prev: TSelected \| null) => TSelected \| null)) => void` | Update `data` locally without a network request; clears `error` |
 | `abort(msg?)` | `(message?: string) => void` | Cancel the current in-flight request |
 | `reset()` | `() => void` | Cancel the request and reset all state to initial values |
@@ -2148,24 +2224,81 @@ Three type parameters — all optional with defaults:
 
 #### `execute(config?)`
 
-Manually trigger the request. Pass a config object to override options for this call only.
+Manually trigger the request. Pass an `ExecuteConfig` to override options for this call only — composable defaults remain unchanged for subsequent calls.
 
 ```typescript
-import { useApi } from '@ametie/vue-muza-use'
+import { useApiPost } from '@ametie/vue-muza-use'
 
-const { execute } = useApi<{ id: number }>('/users')
-
-// Default execution
-await execute()
-
-// Override data and params for this call only
-await execute({
-  data: { name: 'John' },
-  params: { notify: true }
+const { execute } = useApiPost<User>('/users', {
+  onSuccess: () => refreshList(),
 })
 
-// Override authMode for this call only
-await execute({ authMode: 'public' })
+// Plain call — uses composable defaults
+await execute()
+
+// Override data + add a per-call callback (both onSuccess handlers fire)
+await execute({
+  data: { name: 'Alice' },
+  onSuccess: () => toast('Created!'),
+})
+
+// Override cache invalidation, suppress global error handler
+await execute({
+  data: { name: 'Bob' },
+  invalidateCache: ['users-list', 'users-count'],
+  skipErrorNotification: true,
+})
+
+// Override retry behaviour for this call only
+await execute({
+  retry: 3,
+  retryDelay: 500,
+  retryStatusCodes: [503],
+})
+```
+
+See [execute() — Per-Call Option Overrides](#execute--per-call-option-overrides) for the full options table.
+
+---
+
+### Method Helpers — `useApiGet` / `useApiPost` / `useApiPut` / `useApiPatch` / `useApiDelete`
+
+Thin wrappers over `useApi` that pre-set the HTTP `method`. Identical API — accept the same `UseApiOptions` and return the same `UseApiReturn`.
+
+```typescript
+import {
+  useApiGet,
+  useApiPost,
+  useApiPut,
+  useApiPatch,
+  useApiDelete,
+} from '@ametie/vue-muza-use'
+
+useApiGet<T>(url, options?)     // method: 'GET'
+useApiPost<T>(url, options?)    // method: 'POST'
+useApiPut<T>(url, options?)     // method: 'PUT'
+useApiPatch<T>(url, options?)   // method: 'PATCH'
+useApiDelete<T>(url, options?)  // method: 'DELETE'
+```
+
+Use them in feature API wrappers to avoid repeating `method` on every call:
+
+```typescript
+// feature/products/api/useProducts.ts
+import { useApiGet, useApiPost, useApiDelete } from '@ametie/vue-muza-use'
+import type { UseApiOptions } from '@ametie/vue-muza-use'
+import type { Product } from '../types'
+
+export default () => ({
+  fetchProducts: (options?: UseApiOptions<Product[]>) =>
+    useApiGet('/products', options),
+
+  saveProduct: (options?: UseApiOptions<Product>) =>
+    useApiPost('/products', options),
+
+  deleteProduct: (id: number, options?: UseApiOptions<void>) =>
+    useApiDelete(`/products/${id}`, options),
+})
 ```
 
 ---

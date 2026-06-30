@@ -182,6 +182,41 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
     poll?: MaybeRefOrGetter<number | { interval: MaybeRefOrGetter<number>; whenHidden?: MaybeRefOrGetter<boolean> }>;
 }
 
+/**
+ * Per-call override config accepted by `execute()`.
+ *
+ * A subset of `UseApiOptions` — setup-time-only options are excluded.
+ * Any option added to `UseApiOptions` that is not setup-time automatically becomes
+ * available here without manual updates.
+ *
+ * All options **replace** their composable-level counterpart for that call.
+ * Lifecycle callbacks (`onSuccess`, `onError`, `onBefore`, `onFinish`) are the exception —
+ * they **merge**: composable-level fires first, then per-call.
+ *
+ * @example
+ * ```ts
+ * const { execute } = useApi('/users', { onSuccess: () => refreshList() })
+ *
+ * // Callbacks merge — both refreshList() and toast() fire
+ * execute({ onSuccess: () => toast('Saved!') })
+ *
+ * // Per-call cache invalidation
+ * execute({ invalidateCache: ['users-list', 'user-count'] })
+ * ```
+ */
+export type ExecuteConfig<D = unknown> = Omit<
+    UseApiOptions<unknown, D, unknown>,
+    | "immediate"
+    | "initialData"
+    | "initialLoading"
+    | "debounce"
+    | "useGlobalAbort"
+    | "lazy"
+    | "refetchOnFocus"
+    | "refetchOnReconnect"
+    | "poll"
+>;
+
 export interface UseApiReturn<T = unknown, D = unknown> {
     data: Ref<T | null>;
     loading: Ref<boolean>;
@@ -194,7 +229,7 @@ export interface UseApiReturn<T = unknown, D = unknown> {
      * Use it to show a subtle refresh indicator without blocking the UI.
      */
     revalidating: Ref<boolean>;
-    execute: (config?: ApiRequestConfig<D>) => Promise<T | null | undefined>;
+    execute: (config?: ExecuteConfig<D>) => Promise<T | null | undefined>;
     abort: (message?: string) => void;
     reset: () => void;
     /**

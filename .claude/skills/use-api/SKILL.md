@@ -72,6 +72,8 @@ All runtime request behavior is passed from the component into the returned fact
 - `select`
 - `withCredentials`
 
+For one-off behavior on a single `execute()` call, pass `ExecuteConfig` directly to `execute()` instead of the composable options — see [execute() per-call overrides](#execute-per-call-overrides) below.
+
 ---
 
 ## Required file structure
@@ -202,6 +204,50 @@ UseApiOptions<RawResponse, unknown, SelectedType>
 
 ---
 
+## execute() per-call overrides
+
+`execute(config?)` accepts `ExecuteConfig` — a subset of `UseApiOptions` that applies to **that call only**. Composable-level options are unchanged for subsequent calls.
+
+**Lifecycle callbacks merge** (both fire, composable → per-call).  
+**All other options replace** the composable-level value.
+
+```ts
+// feature API wrapper (composable-level — always runs)
+const saveProduct = (options?: UseApiOptions<Product>) =>
+  useApiPost('/products', {
+    invalidateCache: 'products-count',
+    onSuccess: () => refreshList(),
+    ...options,
+  });
+
+// component — per-call additions
+const { execute } = saveProduct();
+
+// Both onSuccess handlers fire; only 'products-list' is invalidated on this call
+await execute({
+  data: { name: 'New item' },
+  onSuccess: () => toast('Product created!'),
+  invalidateCache: 'products-list',
+});
+
+// Silence error notification for this specific call
+await execute({
+  data: { name: 'Risky item' },
+  skipErrorNotification: true,
+});
+```
+
+**Per-call overridable options:**
+- Request: `data`, `params`, `headers`, `method`, `authMode`, `withCredentials`
+- Caching: `cache` (replace), `invalidateCache` (replace)
+- Retry: `retry`, `retryDelay`, `retryStatusCodes`
+- Error: `skipErrorNotification`
+- Lifecycle (merge): `onBefore`, `onSuccess`, `onError`, `onFinish`
+
+**Not overridable per call** (setup-time only): `immediate`, `lazy`, `debounce`, `poll`, `refetchOnFocus`, `refetchOnReconnect`, `initialData`, `initialLoading`, `useGlobalAbort`.
+
+---
+
 ## Advanced options reference
 
 These options are available in `UseApiOptions` and flow through the factory pattern naturally. Use them situationally — do not apply them by default.
@@ -269,6 +315,30 @@ const { loading, execute } = fetchOnDemand({
   data: () => payload.value,
 });
 // called manually: execute()
+```
+
+### 7. execute() with per-call options
+```ts
+// feature wrapper sets composable-level defaults
+const { saveItem } = useItems();
+const { execute, loading } = saveItem({
+  invalidateCache: 'items-count',
+  onSuccess: () => refreshList(),
+});
+
+// per-call: different invalidation + toast (both onSuccess fire)
+await execute({
+  data: form.value,
+  invalidateCache: ['items-count', 'items-list'],
+  onSuccess: () => toast('Item saved!'),
+});
+
+// per-call: suppress error toast for this specific call
+await execute({
+  data: form.value,
+  skipErrorNotification: true,
+  onError: (err) => handleLocalError(err),
+});
 ```
 
 ### 7. Batch request (useApiBatch)

@@ -7,6 +7,7 @@ import type {
     UseApiOptions,
     UseApiReturn,
     ApiRequestConfig,
+    ExecuteConfig,
     CacheOptions,
 } from "./types";
 import { useApiConfig } from "./plugin";
@@ -81,8 +82,6 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         ...axiosConfig
     } = options;
 
-    const maxRetries = retry === false ? 0 : retry === true ? 3 : (retry as number);
-
     const applySelect = (raw: T): TSelected =>
         select ? select(raw) : (raw as unknown as TSelected);
 
@@ -132,7 +131,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         return { interval: 0, whenHidden: false };
     };
 
-    const executeRequest = async (config?: ApiRequestConfig<D>): Promise<TSelected | null> => {
+    const executeRequest = async (config?: ExecuteConfig<D>): Promise<TSelected | null> => {
         /**
          * Cache hit behavior (cache.swr: false — default):
          * - mutate() called with cached data
@@ -157,8 +156,16 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
          * All useApi instances in the app share the same cache.
          * Use clearAllCache() on logout to prevent data leaks between users.
          */
-        const cacheOpts = normalizeCacheOptions(options.cache);
+        const cacheOpts = normalizeCacheOptions(config?.cache ?? options.cache);
         let isRevalidating = false;
+
+        const effectiveSkipErrorNotification = config?.skipErrorNotification ?? skipErrorNotification;
+        const effectiveRetryDelay = config?.retryDelay ?? retryDelay;
+        const effectiveRetryStatusCodes = config?.retryStatusCodes ?? retryStatusCodes;
+        const effectiveMaxRetries = (() => {
+            const r = config?.retry ?? retry;
+            return r === false ? 0 : r === true ? 3 : (r as number);
+        })();
 
         if (cacheOpts) {
             const cached = readCache<T>(cacheOpts.id);
@@ -211,6 +218,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         // During revalidation we already have data — don't show loading spinner
         if (!isRevalidating) {
             onBefore?.();
+            config?.onBefore?.();
             state.setLoading(true);
         }
         state.setError(null);
@@ -278,11 +286,14 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                     }
 
                     // Cache INVALIDATION — only on 2xx success, never in catch/finally
-                    if (options.invalidateCache) {
-                        cacheInvalidate(options.invalidateCache);
+                    // per-call config takes precedence over composable-level
+                    const invalidateCacheOption = config?.invalidateCache ?? options.invalidateCache;
+                    if (invalidateCacheOption) {
+                        cacheInvalidate(invalidateCacheOption);
                     }
 
                     onSuccess?.(response);
+                    config?.onSuccess?.(response);
                     notifyFetched(); // reset focus-throttle clock — only on success, not on error
                     devtoolsRequestEndResult = {
                         status: "success",
@@ -302,12 +313,12 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                     const apiError = errorParser ? errorParser(err) : parseApiError(err);
 
                     const canRetry =
-                        retryCount < maxRetries &&
-                        (retryStatusCodes.length === 0 || retryStatusCodes.includes(apiError.status));
+                        retryCount < effectiveMaxRetries &&
+                        (effectiveRetryStatusCodes.length === 0 || effectiveRetryStatusCodes.includes(apiError.status));
 
                     if (canRetry) {
                         retryCount++;
-                        const aborted = await cancellableSleep(retryDelay, controller.signal);
+                        const aborted = await cancellableSleep(effectiveRetryDelay, controller.signal);
                         if (aborted) {
                             // Explicitly reset loading — abort during sleep leaves no in-flight request
                             wasCancelled = true;
@@ -324,12 +335,13 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                         statusCode: apiError.status ?? null,
                         duration: Date.now() - devtoolsRequestStartedAt,
                     };
-                    if (!skipErrorNotification && globalErrorHandler) {
+                    if (!effectiveSkipErrorNotification && globalErrorHandler) {
                         globalErrorHandler(apiError, err);
                     }
                     state.setError(apiError);
                     state.setStatusCode(apiError.status);
                     onError?.(apiError);
+                    config?.onError?.(apiError);
                     return null;
                 }
             }
@@ -346,12 +358,13 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                 statusCode: null,
                 duration: Date.now() - devtoolsRequestStartedAt,
             };
-            if (!skipErrorNotification && globalErrorHandler) {
+            if (!effectiveSkipErrorNotification && globalErrorHandler) {
                 globalErrorHandler(apiError, err);
             }
             state.setError(apiError);
             state.setStatusCode(apiError.status);
             onError?.(apiError);
+            config?.onError?.(apiError);
             return null;
         } finally {
             if (devtoolsRequestId !== null) {
@@ -365,6 +378,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             if (!wasCancelled) {
                 if (!isRevalidating) state.setLoading(false);
                 onFinish?.();
+                config?.onFinish?.();
 
                 // Polling Logic — starts only after the final result (success or all retries exhausted)
                 const { interval, whenHidden } = getPollConfig();
