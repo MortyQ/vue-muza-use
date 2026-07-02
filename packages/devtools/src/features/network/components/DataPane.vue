@@ -9,6 +9,7 @@ let _responseModeLoaded = false;
 </script>
 
 <script setup lang="ts">
+import { Icon } from "@iconify/vue";
 import JsonViewer from "../../../shared/components/JsonViewer.vue";
 import TreeViewer from "../../../shared/components/TreeViewer.vue";
 import type { ApiError } from "../../../shared/types/index";
@@ -48,8 +49,9 @@ async function copy(): Promise<void> {
             <button
                 class="pane-action"
                 :class="{ 'pane-action--active': mode === 'kv' }"
+                :title="mode === 'kv' ? 'Switch to JSON view' : 'Switch to Key-Value view'"
                 @click="toggleMode"
-            >KV</button>
+            ><Icon icon="lucide:list-tree" width="13" height="13" /></button>
             <button class="pane-action" @click="copy">Copy</button>
         </div>
         <div v-if="error" class="error-banner">
@@ -89,6 +91,9 @@ async function copy(): Promise<void> {
     flex: 1;
 }
 .pane-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     height: 22px;
     padding: 0 8px;
     border-radius: 5px;

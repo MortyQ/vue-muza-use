@@ -7,9 +7,13 @@ const props = defineProps<{ value: unknown }>();
 
 const entries = computed((): Array<[string | number, unknown]> => {
     if (props.value === null || props.value === undefined) return [];
-    if (Array.isArray(props.value)) return props.value.map((v, i) => [i, v]);
+    // undefined array items become null, matching JSON.stringify
+    if (Array.isArray(props.value)) return props.value.map((v, i) => [i, v === undefined ? null : v]);
     // safe: null/undefined and arrays handled above; only non-null objects reach here
-    if (typeof props.value === "object") return Object.entries(props.value as Record<string, unknown>);
+    // keys with an undefined value are dropped, matching JSON.stringify
+    if (typeof props.value === "object") {
+        return Object.entries(props.value as Record<string, unknown>).filter(([, v]) => v !== undefined);
+    }
     return [];
 });
 </script>

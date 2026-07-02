@@ -35,9 +35,37 @@ describe("TreeNode — primitives", () => {
 });
 
 describe("TreeNode — object", () => {
-    it("renders Object badge with count", () => {
+    it("renders a key:value preview badge", () => {
         const wrapper = mount(TreeNode, { props: { nodeKey: "obj", value: { a: 1, b: 2 }, depth: 0 } });
-        expect(wrapper.text()).toContain("Object {2}");
+        expect(wrapper.find(".tree-badge").text()).toBe("{a: 1, b: 2}");
+    });
+
+    it("truncates the preview to the first 3 keys with an ellipsis", () => {
+        const wrapper = mount(TreeNode, {
+            props: { nodeKey: "obj", value: { a: 1, b: 2, c: 3, d: 4 }, depth: 0 },
+        });
+        expect(wrapper.find(".tree-badge").text()).toBe("{a: 1, b: 2, c: 3, …}");
+    });
+
+    it("formats string, null, nested object, and nested array values in the preview", () => {
+        const wrapper = mount(TreeNode, {
+            props: {
+                nodeKey: "obj",
+                value: { s: "hello", n: null, o: { x: 1 }, arr: [1, 2] },
+                depth: 0,
+            },
+        });
+        expect(wrapper.find(".tree-badge").text()).toBe('{s: "hello", n: null, o: {…}, …}');
+    });
+
+    it("omits keys with an undefined value from the preview and expanded list", async () => {
+        const wrapper = mount(TreeNode, {
+            props: { nodeKey: "data", value: { a: 1, skipped: undefined }, depth: 0 },
+        });
+        expect(wrapper.find(".tree-badge").text()).toBe("{a: 1}");
+        await wrapper.find(".tree-badge").trigger("click");
+        expect(wrapper.findAll(".tree-node")).toHaveLength(2);
+        expect(wrapper.text()).not.toContain("skipped");
     });
 
     it("shows arrow as visible for objects", () => {
@@ -47,35 +75,47 @@ describe("TreeNode — object", () => {
 
     it("does not show children by default (collapsed)", () => {
         const wrapper = mount(TreeNode, { props: { nodeKey: "obj", value: { a: 1 }, depth: 0 } });
-        expect(wrapper.text()).not.toContain('"a"');
+        expect(wrapper.findAll(".tree-node")).toHaveLength(1);
     });
 
     it("expands children when arrow is clicked", async () => {
         const wrapper = mount(TreeNode, { props: { nodeKey: "obj", value: { a: "hello" }, depth: 0 } });
         await wrapper.find(".tree-arrow").trigger("click");
-        expect(wrapper.text()).toContain("a");
-        expect(wrapper.text()).toContain('"hello"');
+        expect(wrapper.findAll(".tree-node")).toHaveLength(2);
     });
 
     it("expands children when badge is clicked", async () => {
         const wrapper = mount(TreeNode, { props: { nodeKey: "obj", value: { a: "hello" }, depth: 0 } });
         await wrapper.find(".tree-badge").trigger("click");
-        expect(wrapper.text()).toContain("a");
-        expect(wrapper.text()).toContain('"hello"');
+        expect(wrapper.findAll(".tree-node")).toHaveLength(2);
     });
 
     it("collapses when clicked again", async () => {
         const wrapper = mount(TreeNode, { props: { nodeKey: "obj", value: { a: "hello" }, depth: 0 } });
         await wrapper.find(".tree-arrow").trigger("click");
         await wrapper.find(".tree-arrow").trigger("click");
-        expect(wrapper.text()).not.toContain('"hello"');
+        expect(wrapper.findAll(".tree-node")).toHaveLength(1);
     });
 });
 
 describe("TreeNode — array", () => {
-    it("renders Array badge with length", () => {
+    it("renders Array badge with length and a preview of the first 2 items", () => {
         const wrapper = mount(TreeNode, { props: { nodeKey: "items", value: [1, 2, 3], depth: 0 } });
-        expect(wrapper.text()).toContain("Array [3]");
+        expect(wrapper.find(".tree-badge").text()).toBe("Array [3] [1, 2, …]");
+    });
+
+    it("omits the ellipsis when there are 2 or fewer items", () => {
+        const wrapper = mount(TreeNode, { props: { nodeKey: "items", value: [1, 2], depth: 0 } });
+        expect(wrapper.find(".tree-badge").text()).toBe("Array [2] [1, 2]");
+    });
+
+    it("renders an undefined array item as null in the preview and expanded list", async () => {
+        const wrapper = mount(TreeNode, {
+            props: { nodeKey: "items", value: [1, undefined, 3], depth: 0 },
+        });
+        expect(wrapper.find(".tree-badge").text()).toBe("Array [3] [1, null, …]");
+        await wrapper.find(".tree-badge").trigger("click");
+        expect(wrapper.text()).toContain("null");
     });
 
     it("expands array items with numeric index as key when badge clicked", async () => {

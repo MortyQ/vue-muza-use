@@ -114,4 +114,15 @@ describe("PayloadPane — format toggle", () => {
         await wrapper.find("button.pane-action").trigger("click");
         expect(saveFmt).toHaveBeenCalledWith("json");
     });
+
+    it("shows an icon (not the 'KV' text) with a descriptive title on the toggle button", async () => {
+        const wrapper = mount(PayloadPaneComp, {
+            props: { queryParams: { q: "x" }, payload: null, truncated: false },
+        });
+        await flushPromises();
+        const toggle = wrapper.find("button.pane-action");
+        expect(toggle.text()).not.toBe("KV");
+        expect(toggle.find(".iconify, svg").exists()).toBe(true);
+        expect(toggle.attributes("title")).toBe("Switch to JSON view");
+    });
 });

@@ -40,6 +40,18 @@ describe("TreeViewer", () => {
         expect(wrapper.text()).toContain('"x"');
     });
 
+    it("omits a key whose value is undefined", () => {
+        const wrapper = mount(TreeViewer, { props: { value: { a: 1, b: undefined } } });
+        expect(wrapper.findAll(".tree-node")).toHaveLength(1);
+        expect(wrapper.text()).not.toContain("b");
+    });
+
+    it("renders an undefined array item as null", () => {
+        const wrapper = mount(TreeViewer, { props: { value: [1, undefined] } });
+        expect(wrapper.findAll(".tree-node")).toHaveLength(2);
+        expect(wrapper.text()).toContain("null");
+    });
+
     it("passes depth 0 to every top-level TreeNode", () => {
         const wrapper = mount(TreeViewer, { props: { value: { a: 1, b: 2 } } });
         const nodes = wrapper.findAllComponents({ name: "TreeNode" });

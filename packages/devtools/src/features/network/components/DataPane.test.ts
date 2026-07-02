@@ -74,3 +74,16 @@ describe("DataPane — error banner", () => {
         expect(wrapper.text()).toContain("Network Error");
     });
 });
+
+describe("DataPane — format toggle", () => {
+    it("shows an icon (not the 'KV' text) with a descriptive title on the toggle button", async () => {
+        const wrapper = mount(DataPane, {
+            props: { title: "Response", data: { ok: true }, error: null },
+        });
+        await flushPromises();
+        const toggle = wrapper.find("button.pane-action");
+        expect(toggle.text()).not.toBe("KV");
+        expect(toggle.find(".iconify, svg").exists()).toBe(true);
+        expect(toggle.attributes("title")).toBe("Switch to Key-Value view");
+    });
+});

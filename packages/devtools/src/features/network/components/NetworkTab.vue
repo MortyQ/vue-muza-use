@@ -109,14 +109,16 @@ onScopeDispose(() => { dragCleanup?.(); });
             <span class="filter-count">{{ filteredRequests.length }} request{{ filteredRequests.length === 1 ? '' : 's' }}</span>
         </div>
 
-        <!-- Backdrop — closes menu when clicking outside -->
-        <Teleport to="body">
-            <div
-                v-if="settingsOpen"
-                style="position:fixed;inset:0;z-index:99;"
-                @click="closeSettings"
-            />
-        </Teleport>
+        <!-- Backdrop — closes menu when clicking outside. Kept in the panel's own
+             stacking context (not Teleported to body) so it sits above the panel's
+             content but below the menu; a Teleport to body would place it behind
+             the panel, which has a much higher z-index, and clicks inside the
+             panel would never reach it. -->
+        <div
+            v-if="settingsOpen"
+            style="position:fixed;inset:0;z-index:99;"
+            @click="closeSettings"
+        />
 
         <!-- Settings menu -->
         <Transition name="settings-menu">

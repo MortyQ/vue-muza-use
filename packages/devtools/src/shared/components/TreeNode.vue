@@ -19,20 +19,42 @@ const isExpandable = computed(
 );
 const isArray = computed(() => Array.isArray(props.value));
 
+// Array items keep their slot (undefined -> null, matching JSON.stringify);
+// object keys with an undefined value are dropped entirely (matching JSON.stringify).
+const normalizedEntries = computed((): Array<[string | number, unknown]> => {
+    if (!isExpandable.value) return [];
+    // safe: isExpandable guarantees non-null object; isArray narrows to array
+    if (isArray.value) return (props.value as unknown[]).map((v, i) => [i, v === undefined ? null : v]);
+    // safe: isExpandable guarantees non-null object, not an array
+    return Object.entries(props.value as Record<string, unknown>).filter(([, v]) => v !== undefined);
+});
+
+function formatPreviewValue(value: unknown): string {
+    if (value === null) return "null";
+    if (typeof value === "string") return value.length > 20 ? `"${value.slice(0, 20)}…"` : `"${value}"`;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    if (Array.isArray(value)) return `Array(${value.length})`;
+    if (typeof value === "object") return "{…}";
+    return String(value);
+}
+
 const badgeLabel = computed((): string => {
     if (!isExpandable.value) return "";
-    // safe: isExpandable guarantees non-null object; isArray narrows to array
-    if (isArray.value) return `Array [${(props.value as unknown[]).length}]`;
-    // safe: isExpandable guarantees non-null object, not an array
-    return `Object {${Object.keys(props.value as object).length}}`;
+    if (isArray.value) {
+        const length = (props.value as unknown[]).length;
+        const preview = normalizedEntries.value.slice(0, 2).map(([, v]) => formatPreviewValue(v));
+        const ellipsis = length > 2 ? ", …" : "";
+        return `Array [${length}] [${preview.join(", ")}${ellipsis}]`;
+    }
+    const entries = normalizedEntries.value;
+    const preview = entries.slice(0, 3).map(([k, v]) => `${k}: ${formatPreviewValue(v)}`);
+    const ellipsis = entries.length > 3 ? ", …" : "";
+    return `{${preview.join(", ")}${ellipsis}}`;
 });
 
 const childEntries = computed((): Array<[string | number, unknown]> => {
-    if (!expanded.value || !isExpandable.value) return [];
-    // safe: isExpandable guarantees non-null object; isArray narrows to array
-    if (isArray.value) return (props.value as unknown[]).map((v, i) => [i, v]);
-    // safe: isExpandable guarantees non-null object, not an array
-    return Object.entries(props.value as Record<string, unknown>);
+    if (!expanded.value) return [];
+    return normalizedEntries.value;
 });
 
 const displayValue = computed((): string => {
@@ -132,6 +154,8 @@ function toggle(): void {
     font-size: 11px;
     cursor: pointer;
     transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 .tree-badge:hover {
     background: var(--dt-primary-subtle, #312e81);

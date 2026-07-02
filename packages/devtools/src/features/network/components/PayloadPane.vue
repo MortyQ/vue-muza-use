@@ -11,6 +11,7 @@ let _payloadFormatLoaded = false;
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { Icon } from "@iconify/vue";
 import TreeViewer from "../../../shared/components/TreeViewer.vue";
 import JsonViewer from "../../../shared/components/JsonViewer.vue";
 
@@ -62,8 +63,9 @@ async function copy(): Promise<void> {
             <button
                 class="pane-action"
                 :class="{ 'pane-action--active': format === 'kv' }"
+                :title="format === 'kv' ? 'Switch to JSON view' : 'Switch to Key-Value view'"
                 @click="toggleFormat"
-            >KV</button>
+            ><Icon icon="lucide:list-tree" width="13" height="13" /></button>
             <button class="pane-action" @click="copy">Copy</button>
         </div>
 
@@ -122,6 +124,9 @@ async function copy(): Promise<void> {
     flex: 1;
 }
 .pane-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     height: 22px;
     padding: 0 8px;
     border-radius: 5px;
@@ -168,8 +173,8 @@ async function copy(): Promise<void> {
 .section-body {
     overflow: auto;
     padding: 6px 12px;
-    flex-shrink: 0;
-    max-height: 50%;
+    flex: 1;
+    min-height: 0;
 }
 .section-body::-webkit-scrollbar { width: 4px; height: 4px; }
 .section-body::-webkit-scrollbar-thumb { background: var(--dt-border-strong); border-radius: 2px; }
