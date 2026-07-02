@@ -8,6 +8,25 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.5.4] — 2026-07-02
+
+### Improved
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **KV tree object/array preview** — collapsed objects now show a Chrome-style preview of the first 3 `key: value` pairs (e.g. `{id: 1, name: "Anna", …}`) instead of the opaque `Object {3}` badge. Collapsed arrays keep the `Array [n]` length prefix but add a preview of the first 2 elements (e.g. `Array [3] [1, 2, …]`). Long string values are truncated to 20 characters within the preview.
+- **`undefined` values in the KV tree** — object keys with an `undefined` value are now hidden from both the preview and the expanded tree, and `undefined` array items render as `null` — matching `JSON.stringify` semantics so the KV view no longer shows fields the JSON view silently drops.
+- **KV toggle icon** — the `KV` text button on the Payload and Response panes is now a `list-tree` icon with a descriptive tooltip ("Switch to JSON view" / "Switch to Key-Value view").
+
+### Fixed
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **Payload pane empty space** — the `Query Params` and `Body` sections were each hardcoded to `max-height: 50%`, regardless of whether the other section had content. When only one was present, the pane left half its height empty (and scrolled unnecessarily) instead of letting that section fill the available space.
+- **Settings menu click-outside** — the settings-menu backdrop was rendered via `<Teleport to="body">`, placing it in a lower stacking context than the panel itself (`z-index: 99` vs. the panel's `z-index: 99998`). Clicks anywhere inside the panel never reached the backdrop, so the menu only closed when clicking the host page outside the panel entirely. The backdrop now renders in the panel's own stacking context, so any click inside the panel (besides the menu) closes it.
+
+---
+
 ## [1.5.1] — 2026-06-20
 
 ### Fixed
