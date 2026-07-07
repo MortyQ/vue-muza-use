@@ -2,6 +2,34 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+## ⏸️ Execution status (as of 2026-07-07)
+
+**Phase 1 (Tasks 1–9, incl. 2b) and Phase 2 (Tasks 10–12) are DONE, committed on branch `fix/complex_fixes`.**
+Every task was implemented via subagent-driven-development (implementer → spec-compliance
+review → code-quality review → commit), branched off `main` at `4005f1f`.
+
+- 14 commits, HEAD = `eb2be66`. Baseline test suite grew from 467 passed/22 todo to
+  **499 passed/22 todo**; `tsc --noEmit` errors went from 27 (pre-existing, unrelated) to 23
+  (two fixed as a side effect of Task 8, zero new ones introduced anywhere).
+- Notable deviations from the plan's literal text, found during review and fixed before
+  commit: a critical unredacted-token leak on the refresh-*failure* path in Task 2b (the
+  plan only redacted the success path); a `refreshUrl`-without-leading-slash boundary bug
+  in Task 5's `isRefreshRequest`; a missing regression test for the `isDevtoolsExpected()`
+  gate in Task 2; a bridge-construction-failure desync risk in Task 2's `initDevtools`.
+- `fix/complex_fixes` has **not** been merged to `main` or pushed — that decision is
+  pending explicit user confirmation (per `feedback_git_workflow.md`).
+
+**Not started — Phase 3 (feature design briefs A–H) and Phase 4 (v2 candidates).**
+Per this plan's own instructions, Phase 3 briefs are NOT ready-to-execute tasks — each
+needs its own `superpowers:brainstorming` → `superpowers:writing-plans` cycle, and the
+user must choose which brief(s) to pursue before any of them starts. Phase 4 is
+deliberately deferred to a major release and should not be implemented piecemeal.
+
+**Resuming this work:** re-read `.agents/analysis/deep-analysis-2026-07-06.md` §7 (Phase 3
+briefs A–H) for the menu of options, ask the user which brief to pursue, then run
+`superpowers:brainstorming` for that brief. Do not re-run Tasks 1–12 below — they are done
+(all checkboxes marked `[x]`) and already on `fix/complex_fixes`.
+
 **Goal:** Fix all confirmed defects from `.agents/analysis/deep-analysis-2026-07-06.md` (P0), sync docs/skill with reality (P1), and provide design briefs for P2 features.
 
 **Architecture:** Phase 1 = nine independent `fix`/`refactor` commits, each TDD'd, no public API breaks. Phase 2 = documentation-only commits (no release). Phase 3 = design briefs for `minor` features — each needs its own brainstorm + detailed plan before execution. Phase 4 = v2 breaking changes, deliberately deferred.
@@ -37,7 +65,7 @@ Tasks 1–9 are independent. Recommended order below minimizes merge friction (t
 - Modify: `packages/use-api/src/useApi.ts` (~lines 264–275)
 - Test: `packages/use-api/src/__tests__/useApi.executeConfig.test.ts` (append a describe block)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to the existing top-level `describe` in `src/__tests__/useApi.executeConfig.test.ts` (reuse the file's existing mock/mount helpers — read the file first and match its setup):
 
@@ -89,12 +117,12 @@ describe("execute(config) — axios config hygiene", () => {
 
 Adapt helper names (`mockSuccess`, `requestSpy`, `withSetup`) to whatever the existing file actually uses. Add `clearAllCache()` to the file's `beforeEach` if not present (the first test writes cache key `hygiene-key`).
 
-- [ ] **Step 2: Run tests to verify the first one fails**
+- [x] **Step 2: Run tests to verify the first one fails**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/__tests__/useApi.executeConfig.test.ts`
 Expected: FAIL — `axiosArg` HAS property `cache` (etc.). Second test should already pass.
 
-- [ ] **Step 3: Tighten `ExecuteConfig` and `execute` return type in `types.ts`**
+- [x] **Step 3: Tighten `ExecuteConfig` and `execute` return type in `types.ts`**
 
 In the `ExecuteConfig` Omit list, add `"select"` (it was never honored at runtime — removing it from the type surfaces the truth):
 
@@ -120,7 +148,7 @@ In `UseApiReturn`, fix the return type (implementation can only produce `T | nul
     execute: (config?: ExecuteConfig<D>) => Promise<T | null>;
 ```
 
-- [ ] **Step 4: Filter the per-call config in `useApi.ts`**
+- [x] **Step 4: Filter the per-call config in `useApi.ts`**
 
 In `executeRequest`, immediately after the `effectiveMaxRetries` block (~line 168), add:
 
@@ -162,14 +190,14 @@ Then change the axios call (~line 266) to spread the filtered object instead of 
 
 Note: `data`/`params`/`authMode` are destructured out but still handled explicitly via `resolvedData`/`resolvedParams`/the `authMode` spread — behavior unchanged. `method`, `headers`, `responseType`, `signal` (batch) remain in `configAxios` — intended.
 
-- [ ] **Step 5: Run the target file, then the full suite**
+- [x] **Step 5: Run the target file, then the full suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/__tests__/useApi.executeConfig.test.ts`
 Expected: PASS.
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: 469+ passed, 0 failed. If any test passed `select` inside `execute()`, it was dead code — update that test.
 
-- [ ] **Step 6: Commit (after user confirmation)**
+- [x] **Step 6: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/types.ts packages/use-api/src/useApi.ts packages/use-api/src/__tests__/useApi.executeConfig.test.ts
@@ -188,7 +216,7 @@ git commit -m "fix(execute): filter useApi-only options out of per-call axios co
 - Modify: `packages/use-api/src/useApi.ts` (~lines 92–113)
 - Test: `packages/use-api/src/__tests__/devtools.test.ts` (append; read it first — it uses `src/__mocks__/@ametie/vue-muza-devtools.ts`)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src/__tests__/devtools.test.ts` (match its existing imports/mocks):
 
@@ -221,12 +249,12 @@ describe("devtools — pending queue hygiene", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/__tests__/devtools.test.ts`
 Expected: FAIL — `__devtoolsInternals` is not exported.
 
-- [ ] **Step 3: Rework `devtools.ts`**
+- [x] **Step 3: Rework `devtools.ts`**
 
 Replace the module-state block and the two affected methods:
 
@@ -298,7 +326,7 @@ export const devtoolsBridge = {
 } satisfies DevtoolsBridge;
 ```
 
-- [ ] **Step 4: Wire `setDevtoolsExpected` in `plugin.ts`**
+- [x] **Step 4: Wire `setDevtoolsExpected` in `plugin.ts`**
 
 ```ts
 import { initDevtools, setDevtoolsExpected } from "./devtools";
@@ -318,7 +346,7 @@ export function createApi(options: ApiPluginOptions) {
 }
 ```
 
-- [ ] **Step 5: Gate the devtools block in `useApi.ts`**
+- [x] **Step 5: Gate the devtools block in `useApi.ts`**
 
 Wrap the state watch (lines ~102–113) — the `onInstanceCreated` call itself is now a cheap no-op, leave it:
 
@@ -339,17 +367,17 @@ Wrap the state watch (lines ~102–113) — the `onInstanceCreated` call itself 
 
 Add `isDevtoolsExpected` to the import from `./devtools`.
 
-- [ ] **Step 6: Fix fallout in existing devtools tests**
+- [x] **Step 6: Fix fallout in existing devtools tests**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/__tests__/devtools.test.ts src/__tests__/useApi.devtools.test.ts src/plugin.test.ts`
 Existing tests that call `initDevtools` directly or rely on state updates must now see `devtoolsExpected === true`. `initDevtools({ enabled: true })` sets it itself; tests that only mount `createApi({ devtools: { enabled: true } })` also get it via `createApi`. Tests relying on queue-then-flush *without* configuring devtools must be updated to call `__devtoolsInternals().setExpected(true)` first. Add `__devtoolsInternals().reset()` to `beforeEach` of both devtools test files to kill cross-test module state.
 
-- [ ] **Step 7: Full suite**
+- [x] **Step 7: Full suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: all green.
 
-- [ ] **Step 8: Commit (after user confirmation)**
+- [x] **Step 8: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/devtools.ts packages/use-api/src/plugin.ts packages/use-api/src/useApi.ts packages/use-api/src/__tests__/devtools.test.ts packages/use-api/src/__tests__/useApi.devtools.test.ts
@@ -369,7 +397,7 @@ git commit -m "fix(devtools): prevent unbounded pending-event queue and skip ins
 - Modify: `packages/use-api/src/features/interceptors.ts` (instrument the refresh call)
 - Test: `packages/use-api/src/features/interceptors.test.ts` (append)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src/features/interceptors.test.ts` (reuse the file's existing helpers for capturing the response-error interceptor and mocking the refresh POST; adapt names):
 
@@ -434,12 +462,12 @@ describe("devtools — refresh request visibility", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/features/interceptors.test.ts`
 Expected: FAIL — `onRequestStart` never called (no instrumentation exists).
 
-- [ ] **Step 3: Add `redactTokenFields` to `devtools.ts`**
+- [x] **Step 3: Add `redactTokenFields` to `devtools.ts`**
 
 ```ts
 const TOKEN_KEY_RE = /token/i;
@@ -461,7 +489,7 @@ export function redactTokenFields(value: unknown): unknown {
 
 (Not exported from `index.ts` — internal to the package; Brief F's `redact` hook can reuse it later.)
 
-- [ ] **Step 4: Instrument the refresh call in `interceptors.ts`**
+- [x] **Step 4: Instrument the refresh call in `interceptors.ts`**
 
 Add imports:
 
@@ -527,16 +555,16 @@ At the top of the `catch (refreshError)` block:
 
 Note: the plugin-level custom `errorParser` is not reachable from interceptors (no plugin config there) — the default `parseApiError` is fine for devtools display.
 
-- [ ] **Step 5: Run target + full suite**
+- [x] **Step 5: Run target + full suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: all green.
 
-- [ ] **Step 6: Manual verification in the playground**
+- [x] **Step 6: Manual verification in the playground**
 
 Run the playground with devtools enabled, trigger a 401→refresh flow, and confirm: (a) the refresh POST appears in the Network tab with redacted tokens; (b) the original request's long "pending" period now has a visible explanation; (c) the Network tab's instance filter still works (the refresh entry has no instance — it must appear under "all").
 
-- [ ] **Step 7: Commit (after user confirmation)**
+- [x] **Step 7: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/devtools.ts packages/use-api/src/features/interceptors.ts packages/use-api/src/features/interceptors.test.ts
@@ -555,7 +583,7 @@ git commit -m "fix(devtools): record token-refresh requests as standalone entrie
 - Modify: `packages/use-api/src/useApi.ts` (~line 490)
 - Test: create `packages/use-api/src/useApi.pollListener.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -609,12 +637,12 @@ describe("useApi — poll visibility listener", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/useApi.pollListener.test.ts`
 Expected: first test FAILS (1 listener found).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `useApi.ts`, change the guard (~line 490):
 
@@ -625,12 +653,12 @@ In `useApi.ts`, change the guard (~line 490):
     if (poll && typeof document !== "undefined") {
 ```
 
-- [ ] **Step 4: Run target + full suite**
+- [x] **Step 4: Run target + full suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: all green (poll tests exercise `poll: <number>`, still truthy).
 
-- [ ] **Step 5: Commit (after user confirmation)**
+- [x] **Step 5: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/useApi.ts packages/use-api/src/useApi.pollListener.test.ts
@@ -647,7 +675,7 @@ git commit -m "fix(poll): register visibilitychange listener only when polling i
 - Modify: `packages/use-api/src/useApi.ts` (lines 72, 88)
 - Test: create `packages/use-api/src/useApi.initialLoading.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Use the same `mockAxios`/`mountApi` preamble as Task 3's test file (copy it — files must be self-contained), then:
 
@@ -699,12 +727,12 @@ describe("useApi — initialLoading defaults", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/useApi.initialLoading.test.ts`
 Expected: first test FAILS (`loading.value` is `false`).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In the options destructuring (line 72), remove the default:
 
@@ -720,12 +748,12 @@ Line 88 stays:
 
 (Now `??` actually works: `undefined ?? immediate` → `immediate`.)
 
-- [ ] **Step 4: Run target + full suite**
+- [x] **Step 4: Run target + full suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: all green. Watch for existing tests asserting `loading === false` right after mount with `immediate: true` — with no debounce the sync `execute()` already set loading true before, so behavior there is unchanged; only debounce+immediate combos change.
 
-- [ ] **Step 5: Commit (after user confirmation)**
+- [x] **Step 5: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/useApi.ts packages/use-api/src/useApi.initialLoading.test.ts
@@ -742,7 +770,7 @@ git commit -m "fix(loading): default initialLoading to immediate so debounced im
 - Modify: `packages/use-api/src/features/interceptors.ts`
 - Test: `packages/use-api/src/features/interceptors.test.ts` (append)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Read `interceptors.test.ts` first and reuse its axios-instance/interceptor-capture helpers. Append:
 
@@ -779,12 +807,12 @@ describe("refresh endpoint matching", () => {
 
 Adapt `make401Error` / `responseErrorHandler` / `postSpy` to the file's actual helper names; if none exist, follow the pattern already used in that file for capturing `axiosInstance.interceptors.response.use` handlers.
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/features/interceptors.test.ts`
 Expected: first test FAILS — with `includes()`, `/auth/refresh-devices` short-circuits into the refresh-failed branch (no refresh POST, tokens cleared).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `interceptors.ts`, add above `setupInterceptors` (internal helper — no JSDoc required, but one line of intent):
 
@@ -808,12 +836,12 @@ Replace line 114:
 
 (`endsWith` keeps absolute URLs working: `https://api.x.com/auth/refresh` ends with `/auth/refresh`; `/reauth/refresh` does not — the leading `/` in the default `refreshUrl` anchors the segment.)
 
-- [ ] **Step 4: Run target + full suite**
+- [x] **Step 4: Run target + full suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: all green.
 
-- [ ] **Step 5: Commit (after user confirmation)**
+- [x] **Step 5: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/features/interceptors.ts packages/use-api/src/features/interceptors.test.ts
@@ -830,7 +858,7 @@ git commit -m "fix(auth): match refresh endpoint by pathname instead of substrin
 - Modify: `packages/use-api/src/composables/useAbortController.ts`
 - Test: `packages/use-api/src/composables/useAbortController.test.ts` (append)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { CanceledError } from "axios";
@@ -862,12 +890,12 @@ describe("useAbortController — isAbortError", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/composables/useAbortController.test.ts`
 Expected: "signal reflects the NEW controller" FAILS, "recognises axios CanceledError" FAILS.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Rewrite `useAbortController.ts` (keep the module-level singleton pattern; match the file's existing 2-space indent):
 
@@ -931,12 +959,12 @@ export function useAbortController(): UseAbortControllerReturn {
 
 Note: `signal`'s public type changes from `Readonly<Ref>` to `ComputedRef` — structurally compatible for consumers (both are readonly refs); this is a fix, not a break.
 
-- [ ] **Step 4: Run target + full suite**
+- [x] **Step 4: Run target + full suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: all green (existing tests in that file use `getSignal()`/`abortCount` — unaffected).
 
-- [ ] **Step 5: Commit (after user confirmation)**
+- [x] **Step 5: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/composables/useAbortController.ts packages/use-api/src/composables/useAbortController.test.ts
@@ -953,7 +981,7 @@ git commit -m "fix(abort): keep signal ref fresh after abort and detect axios ca
 - Modify: `packages/use-api/src/features/tokenManager.ts`
 - Test: `packages/use-api/src/features/tokenManager.test.ts` (append)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 describe("LocalStorageTokenStorage — storage unavailable", () => {
@@ -985,12 +1013,12 @@ describe("LocalStorageTokenStorage — storage unavailable", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run src/features/tokenManager.test.ts`
 Expected: all three FAIL (throw).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add module-level helpers above `LocalStorageTokenStorage` (internal — no JSDoc needed):
 
@@ -1024,12 +1052,12 @@ function safeRemoveItem(key: string): void {
 
 Replace every direct `localStorage.getItem/setItem/removeItem` call inside `LocalStorageTokenStorage` with the safe helpers (6 call sites: `getAccessToken`, `getRefreshToken`, `setTokens` ×2 (+expires), `clearTokens` ×3, `getTokenExpiresAt`).
 
-- [ ] **Step 4: Run target + full suite**
+- [x] **Step 4: Run target + full suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: all green.
 
-- [ ] **Step 5: Commit (after user confirmation)**
+- [x] **Step 5: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/features/tokenManager.ts packages/use-api/src/features/tokenManager.test.ts
@@ -1046,7 +1074,7 @@ git commit -m "fix(auth): tolerate unavailable localStorage instead of crashing 
 - Modify: `packages/use-api/src/types.ts` (~lines 47–49)
 - Test: type-level only — verified by `tsc` and existing suite
 
-- [ ] **Step 1: Implement the type change**
+- [x] **Step 1: Implement the type change**
 
 Append a new generic with a safe default (appending with a default breaks no existing explicit instantiation):
 
@@ -1060,12 +1088,12 @@ export interface ApiRequestConfig<D = unknown, P = unknown> extends Omit<AxiosRe
 
 `UseApiOptions<T, D, TSelected> extends ApiRequestConfig<D>` — leave as is (`P` defaults to `unknown`, so params accept anything, which is strictly more correct than "must match the body type"). Same for `UseApiBatchOptions` and `ExecuteConfig` — no edits needed.
 
-- [ ] **Step 2: Type-check and run the suite**
+- [x] **Step 2: Type-check and run the suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec tsc --noEmit && pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: clean compile, all tests green.
 
-- [ ] **Step 3: Commit (after user confirmation)**
+- [x] **Step 3: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/types.ts
@@ -1083,7 +1111,7 @@ git commit -m "fix(types): decouple params type from request body generic"
 - Modify: `packages/use-api/src/features/tokenManager.ts`
 - Modify: `packages/use-api/src/features/interceptors.ts`
 
-- [ ] **Step 1: Fix the dangling JSDoc in `types.ts`**
+- [x] **Step 1: Fix the dangling JSDoc in `types.ts`**
 
 Delete the orphaned block (lines ~160–165: `/** Polling configuration. ... */` sitting above the `cache` doc) and move its content onto the `poll` property (line ~182):
 
@@ -1097,7 +1125,7 @@ Delete the orphaned block (lines ~160–165: `/** Polling configuration. ... */`
     poll?: MaybeRefOrGetter<number | { interval: MaybeRefOrGetter<number>; whenHidden?: MaybeRefOrGetter<boolean> }>;
 ```
 
-- [ ] **Step 2: Deduplicate `AuthTokens`**
+- [x] **Step 2: Deduplicate `AuthTokens`**
 
 In `tokenManager.ts`, delete the local `AuthTokens` interface (lines ~11–15) and replace with:
 
@@ -1109,7 +1137,7 @@ export type { AuthTokens };
 
 (The re-export preserves `import { type AuthTokens } from ".../tokenManager"` for any existing internal consumer.)
 
-- [ ] **Step 3: Deduplicate `TOKEN_TYPE`**
+- [x] **Step 3: Deduplicate `TOKEN_TYPE`**
 
 In `interceptors.ts`, delete `export const TOKEN_TYPE = "Bearer";` (line 7) and change the imports:
 
@@ -1121,7 +1149,7 @@ export { TOKEN_TYPE };
 
 (`AUTH_HEADER` stays where it is.)
 
-- [ ] **Step 4: Deprecate the dead refresh-promise API in `tokenManager.ts`**
+- [x] **Step 4: Deprecate the dead refresh-promise API in `tokenManager.ts`**
 
 Add `@deprecated` JSDoc to all three methods (keep bodies unchanged):
 
@@ -1135,12 +1163,12 @@ Add `@deprecated` JSDoc to all three methods (keep bodies unchanged):
 
 (Repeat the same annotation for `getRefreshPromise` and `clearRefreshPromise`.)
 
-- [ ] **Step 5: Type-check + full suite**
+- [x] **Step 5: Type-check + full suite**
 
 Run: `pnpm --filter @ametie/vue-muza-use exec tsc --noEmit && pnpm --filter @ametie/vue-muza-use exec vitest run`
 Expected: clean, all green.
 
-- [ ] **Step 6: Commit (after user confirmation)**
+- [x] **Step 6: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/src/types.ts packages/use-api/src/features/tokenManager.ts packages/use-api/src/features/interceptors.ts
@@ -1158,11 +1186,11 @@ git commit -m "refactor(types): fix dangling poll JSDoc, dedupe AuthTokens/TOKEN
 **Files:**
 - Modify: `.claude/skills/use-api/SKILL.md`
 
-- [ ] **Step 1: Metadata**
+- [x] **Step 1: Metadata**
 
 Set `version` to `1.4` and add a row: `| **verified_against** | @ametie/vue-muza-use 1.5.4 |`.
 
-- [ ] **Step 2: Remove `watch` everywhere**
+- [x] **Step 2: Remove `watch` everywhere**
 
 In the "runtime request behavior" options list (~line 60): delete the `watch` bullet.
 In every code example (~lines 168, 272, 290, 456): delete the `watch: [...]` lines — auto-tracking makes them redundant. E.g. the table request becomes:
@@ -1178,7 +1206,7 @@ const { loading, data } = fetchProducts({
 });
 ```
 
-- [ ] **Step 3: Add an "Auto-tracking (IMPORTANT)" section right after "Core idea"**
+- [x] **Step 3: Add an "Auto-tracking (IMPORTANT)" section right after "Core idea"**
 
 ```markdown
 ## Auto-tracking (IMPORTANT)
@@ -1210,7 +1238,7 @@ const { execute } = saveProduct({
 ```
 ```
 
-- [ ] **Step 4: Fix the mutation scenarios**
+- [x] **Step 4: Fix the mutation scenarios**
 
 Scenario 4 (Save / mutation):
 
@@ -1234,11 +1262,11 @@ const { loading, execute } = fetchOnDemand({
 
 Scenario 3 (Search) keeps auto-tracking (it is the desired behavior) — just delete its `watch: [searchQuery]` line.
 
-- [ ] **Step 5: Fix duplicate numbering**
+- [x] **Step 5: Fix duplicate numbering**
 
 There are two "### 7." sections ("execute() with per-call options" and "Batch request"). Renumber the batch section to "### 8." (and any later ones accordingly).
 
-- [ ] **Step 6: Add a security note section (before "Forbidden patterns")**
+- [x] **Step 6: Add a security note section (before "Forbidden patterns")**
 
 ```markdown
 ## Security notes — token storage
@@ -1259,15 +1287,15 @@ Also call `clearAllCache()` on logout — the in-memory cache is shared and
 otherwise survives across user sessions.
 ```
 
-- [ ] **Step 7: Mention the missing surface**
+- [x] **Step 7: Mention the missing surface**
 
 In the "Advanced options reference" table add rows for: `mutate` (manual data mutation on the return), `poll` object form `{ interval, whenHidden }`, `authMode: "public" | "optional"` (skip/soften auth), `initialData`/`initialLoading`, `useGlobalAbort` + `useAbortController()`. For batch add one sentence covering `concurrency`, `progress`, `settled`.
 
-- [ ] **Step 8: Verify every code block against `types.ts`**
+- [x] **Step 8: Verify every code block against `types.ts`**
 
 Manually check each remaining example compiles conceptually against `UseApiOptions` (no `watch`, no `select` inside `execute()`). No automated check exists — read carefully.
 
-- [ ] **Step 9: Commit (after user confirmation)**
+- [x] **Step 9: Commit (after user confirmation)**
 
 ```bash
 git add .claude/skills/use-api/SKILL.md
@@ -1283,7 +1311,7 @@ git commit -m "docs(skill): v1.4 — remove nonexistent watch option, require la
 - Modify: `.agents/instructions/testing.instructions.md`
 - Modify: `.agents/instructions/library-architecture.instructions.md`
 
-- [ ] **Step 1: `workflow.md` — fix the broken test commands**
+- [x] **Step 1: `workflow.md` — fix the broken test commands**
 
 Replace every `pnpm --filter @ametie/vue-muza-use test --run` with:
 
@@ -1297,7 +1325,7 @@ and the watch-a-file example with:
 pnpm --filter @ametie/vue-muza-use exec vitest src/useApi.swr.test.ts
 ```
 
-- [ ] **Step 2: `testing.instructions.md` — document the real test layout**
+- [x] **Step 2: `testing.instructions.md` — document the real test layout**
 
 Replace "All tests live in `packages/use-api/src/__tests__/`." with:
 
@@ -1309,7 +1337,7 @@ For a new feature, prefer co-location: `src/useApi.<feature>.test.ts`.
 
 Also fix its "Running Tests" section with the same command corrections as Step 1.
 
-- [ ] **Step 3: `library-architecture.instructions.md` — complete the layer map**
+- [x] **Step 3: `library-architecture.instructions.md` — complete the layer map**
 
 Add to the map (after `useApi.helpers.ts`):
 
@@ -1329,7 +1357,7 @@ Also fix `project.md`'s repository structure: it lists only `use-api` and `playg
 
 (Verify the actual layout with `ls` before writing — match reality, not this snippet.)
 
-- [ ] **Step 4: Commit (after user confirmation)**
+- [x] **Step 4: Commit (after user confirmation)**
 
 ```bash
 git add .agents/instructions/workflow.md .agents/instructions/testing.instructions.md .agents/instructions/library-architecture.instructions.md
@@ -1343,7 +1371,7 @@ git commit -m "docs(agents): fix test commands, document real test layout, compl
 **Files:**
 - Modify: `packages/use-api/README.md`
 
-- [ ] **Step 1: Update affected sections**
+- [x] **Step 1: Update affected sections**
 
 1. `execute()` per-call table: remove `select` from overridable options if listed; note that useApi-only keys are no longer forwarded to axios.
 2. `useAbortController` docs/examples: `signal` is now always current after `abort()`; `isAbortError` detects axios cancellations.
@@ -1351,7 +1379,7 @@ git commit -m "docs(agents): fix test commands, document real test layout, compl
 4. Add a "Storage resilience" sentence to the auth section: token storage degrades gracefully when localStorage is unavailable.
 5. Grep the README for `watch:` inside `useApi` examples (NOT `useApiBatch`) and remove any stragglers: `grep -n "watch:" packages/use-api/README.md`.
 
-- [ ] **Step 2: Commit (after user confirmation)**
+- [x] **Step 2: Commit (after user confirmation)**
 
 ```bash
 git add packages/use-api/README.md
