@@ -508,8 +508,10 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     // If immediate=true, it starts.
     if (immediate) execute();
 
-    // Visibility Handling for Polling
-    if (typeof document !== "undefined") {
+    // Visibility Handling for Polling — only when polling is configured.
+    // `poll` may be a ref/getter (always truthy) — that's fine: the handler
+    // itself re-reads getPollConfig() and no-ops when the interval is 0.
+    if (poll && typeof document !== "undefined") {
         const handleVisibility = () => {
             if (document.hidden) return;
             // On tab focus, if polling is enabled and no timer is running, resume/catch-up
