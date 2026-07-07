@@ -2,6 +2,8 @@ import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosErr
 import type { AuthMode } from "../types";
 import { trackAuthEvent, AuthEventType } from "./monitor";
 import { tokenManager } from "./tokenManager";
+import { devtoolsBridge, nextRequestId, isDevtoolsExpected, redactTokenFields } from "../devtools";
+import { parseApiError } from "../utils/errorParser";
 
 export const AUTH_HEADER = "Authorization";
 export const TOKEN_TYPE = "Bearer";
@@ -136,6 +138,9 @@ export function setupInterceptors(
             isRefreshing = true;
             trackAuthEvent(AuthEventType.REFRESH_START, { url: originalRequest.url });
 
+            let devtoolsId: string | null = null;
+            let devtoolsStartedAt = 0;
+
             try {
                 // Resolve refresh payload (can be static object or function)
                 let payload: Record<string, unknown> = {};
@@ -149,6 +154,23 @@ export function setupInterceptors(
                 // This matches the behavior of most production apps where refresh token is in httpOnly cookie
                 const shouldUseCredentials = refreshWithCredentials || !tokenManager.getRefreshToken();
 
+                if (isDevtoolsExpected()) {
+                    devtoolsId = nextRequestId();
+                    devtoolsStartedAt = Date.now();
+                    devtoolsBridge.onRequestStart({
+                        id: devtoolsId,
+                        instanceId: null,
+                        url: refreshUrl,
+                        method: "POST",
+                        startedAt: devtoolsStartedAt,
+                        status: "pending",
+                        statusCode: null,
+                        requestHeaders: {},
+                        payload: redactTokenFields(payload),
+                        queryParams: null,
+                    });
+                }
+
                 const response = await axiosInstance.post<{ accessToken?: string, access_token?: string, refreshToken?: string, refresh_token?: string }>(
                     refreshUrl,
                     payload,
@@ -157,6 +179,15 @@ export function setupInterceptors(
                         withCredentials: shouldUseCredentials
                     } as AxiosRequestConfig & { authMode: AuthMode }
                 );
+
+                if (devtoolsId !== null) {
+                    devtoolsBridge.onRequestEnd(devtoolsId, {
+                        status: "success",
+                        statusCode: response.status,
+                        response: redactTokenFields(response.data),
+                        duration: Date.now() - devtoolsStartedAt,
+                    });
+                }
 
                 let accessToken: string | undefined;
                 let refreshToken: string | undefined;
@@ -190,6 +221,19 @@ export function setupInterceptors(
                 return axiosInstance(originalRequest);
             }
             catch (refreshError) {
+
+                if (devtoolsId !== null) {
+                    const apiError = parseApiError(refreshError);
+                    devtoolsBridge.onRequestEnd(devtoolsId, {
+                        status: "error",
+                        // details carries the raw failed-refresh response body, which can
+                        // echo a stale/partial token or the submitted payload — redact it
+                        // the same as the success path before it reaches devtools history.
+                        error: { ...apiError, details: redactTokenFields(apiError.details) },
+                        statusCode: apiError.status || null,
+                        duration: Date.now() - devtoolsStartedAt,
+                    });
+                }
 
                 trackAuthEvent(AuthEventType.REFRESH_ERROR, { error: refreshError });
                 processQueue(refreshError, null);

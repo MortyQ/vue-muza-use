@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
 import { setupInterceptors } from './interceptors'
 import { tokenManager } from './tokenManager'
+import { devtoolsBridge, __devtoolsInternals } from '../devtools'
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 
 type MockAxiosInstance = AxiosInstance & Mock & {
@@ -321,4 +322,137 @@ describe('Interceptors — known limitations (todo)', () => {
     it.todo('two instances with different refreshUrls — each uses its own refreshUrl independently')
     it.todo('two instances with different onTokenRefreshFailed — each callback fires for its own instance only')
     it.todo('isRefreshing resets to false after refresh failure so subsequent 401s trigger a new refresh attempt')
+})
+
+// ---------------------------------------------------------------------------
+// Devtools — refresh request visibility
+// ---------------------------------------------------------------------------
+
+describe('Interceptors — devtools refresh request visibility', () => {
+    let mockInstance: MockAxiosInstance
+    let errorInterceptor: (error: unknown) => Promise<unknown>
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        __devtoolsInternals().reset()
+        tokenManager.clearTokens()
+
+        mockInstance = createMockInstance()
+        setupInterceptors(mockInstance, { refreshUrl: '/refresh' })
+        errorInterceptor = (mockInstance.interceptors.response.use as Mock).mock.calls[0][1]
+    })
+
+    afterEach(() => {
+        vi.restoreAllMocks()
+    })
+
+    it('records the refresh POST as a standalone request on success', async () => {
+        __devtoolsInternals().setExpected(true)
+        const startSpy = vi.spyOn(devtoolsBridge, 'onRequestStart')
+        const endSpy = vi.spyOn(devtoolsBridge, 'onRequestEnd')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockResolvedValue({ data: { accessToken: 'new-a', refreshToken: 'new-r' }, status: 200 });
+        (mockInstance as unknown as Mock).mockResolvedValue('success')
+
+        const error = { config: { headers: { set: vi.fn() }, url: '/api', _retry: false }, response: { status: 401 } }
+        await errorInterceptor(error)
+
+        expect(startSpy).toHaveBeenCalledWith(expect.objectContaining({
+            url: '/refresh',
+            method: 'POST',
+            instanceId: null,
+            status: 'pending',
+        }))
+        expect(endSpy).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({ status: 'success', statusCode: 200 }),
+        )
+    })
+
+    it('redacts token fields in the recorded refresh response, leaving other fields untouched', async () => {
+        __devtoolsInternals().setExpected(true)
+        const endSpy = vi.spyOn(devtoolsBridge, 'onRequestEnd')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockResolvedValue({
+            data: { accessToken: 'new-a', refreshToken: 'new-r', expiresIn: 3600 },
+            status: 200,
+        });
+        (mockInstance as unknown as Mock).mockResolvedValue('success')
+
+        const error = { config: { headers: { set: vi.fn() }, url: '/api', _retry: false }, response: { status: 401 } }
+        await errorInterceptor(error)
+
+        const result = endSpy.mock.calls[0][1]
+        expect(result).toMatchObject({
+            response: { accessToken: '•••redacted•••', refreshToken: '•••redacted•••', expiresIn: 3600 },
+        })
+    })
+
+    it('redacts nested token fields (e.g. a wrapped extractTokens response shape)', async () => {
+        __devtoolsInternals().setExpected(true)
+        const endSpy = vi.spyOn(devtoolsBridge, 'onRequestEnd')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockResolvedValue({
+            // top-level accessToken satisfies the (no-extractTokens) refresh flow;
+            // `result` simulates a nested shape a consumer's extractTokens might read from
+            data: { accessToken: 'flat-a', result: { accessToken: 'nested-a', refreshToken: 'nested-r' }, requestId: 'r-1' },
+            status: 200,
+        });
+        (mockInstance as unknown as Mock).mockResolvedValue('success')
+
+        const error = { config: { headers: { set: vi.fn() }, url: '/api', _retry: false }, response: { status: 401 } }
+        await errorInterceptor(error)
+
+        const result = endSpy.mock.calls[0][1]
+        expect(result).toMatchObject({
+            response: {
+                accessToken: '•••redacted•••',
+                result: { accessToken: '•••redacted•••', refreshToken: '•••redacted•••' },
+                requestId: 'r-1',
+            },
+        })
+    })
+
+    it('records an error entry when the refresh itself fails, with details redacted', async () => {
+        __devtoolsInternals().setExpected(true)
+        const endSpy = vi.spyOn(devtoolsBridge, 'onRequestEnd')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockRejectedValue(
+            Object.assign(new Error('refresh failed'), {
+                response: { status: 401, data: { accessToken: 'stale-a', message: 'expired' } },
+                isAxiosError: true,
+            }),
+        )
+
+        const error = { config: { headers: { set: vi.fn() }, url: '/api', _retry: false }, response: { status: 401 } }
+        await expect(errorInterceptor(error)).rejects.toBeDefined()
+
+        expect(endSpy).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+                status: 'error',
+                error: expect.objectContaining({
+                    details: expect.objectContaining({ accessToken: '•••redacted•••', message: 'expired' }),
+                }),
+            }),
+        )
+    })
+
+    it('does not touch the bridge when devtools is not expected', async () => {
+        // reset() left devtoolsExpected = false — production default
+        const startSpy = vi.spyOn(devtoolsBridge, 'onRequestStart')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockResolvedValue({ data: { accessToken: 'new-a' }, status: 200 });
+        (mockInstance as unknown as Mock).mockResolvedValue('success')
+
+        const error = { config: { headers: { set: vi.fn() }, url: '/api', _retry: false }, response: { status: 401 } }
+        await errorInterceptor(error)
+
+        expect(startSpy).not.toHaveBeenCalled()
+    })
 })

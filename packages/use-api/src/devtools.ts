@@ -9,6 +9,8 @@ import type {
     RequestEndResult,
 } from "./types";
 
+const TOKEN_KEY_RE = /token|jwt|bearer|secret|password|authoriz(e|ation)|api[_-]?key|session/i;
+
 let bridge: DevtoolsBridge | null = null;
 let devtoolsExpected = false;
 let requestCounter = 0;
@@ -53,6 +55,25 @@ export function __devtoolsInternals(): {
             pendingInstances.clear();
         },
     };
+}
+
+/**
+ * Recursively redact credential-bearing fields (token/jwt/bearer/secret/password/
+ * authorization/apiKey/session, case-insensitive) before a record is handed to
+ * devtools. Applied to auth-refresh payloads/responses/error details so tokens
+ * never enter the devtools history buffer — including when nested (e.g. a
+ * consumer's `extractTokens` response shape wraps tokens under a sub-object).
+ * Non-plain-object leaves (primitives, dates, etc.) are returned unchanged;
+ * arrays are walked element-wise.
+ */
+export function redactTokenFields(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(redactTokenFields);
+    if (value === null || typeof value !== "object") return value;
+    const out: Record<string, unknown> = {};
+    for (const [key, v] of Object.entries(value)) {
+        out[key] = TOKEN_KEY_RE.test(key) ? "•••redacted•••" : redactTokenFields(v);
+    }
+    return out;
 }
 
 /**
