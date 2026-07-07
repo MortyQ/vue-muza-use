@@ -29,6 +29,32 @@ export const REFRESH_TOKEN_KEY = "refreshToken";
 export const TOKEN_EXPIRES_KEY = "tokenExpiresAt";
 
 
+// localStorage can throw (Safari private mode, storage-blocked iframes).
+// Degrade to "no token" instead of crashing the request interceptor.
+function safeGetItem(key: string): string | null {
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function safeSetItem(key: string, value: string): void {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // storage unavailable — token lives only for this request cycle
+    }
+}
+
+function safeRemoveItem(key: string): void {
+    try {
+        localStorage.removeItem(key);
+    } catch {
+        // storage unavailable — nothing to remove
+    }
+}
+
 /**
  * LocalStorage implementation of token storage
  *
@@ -44,14 +70,14 @@ class LocalStorageTokenStorage implements TokenStorage {
     }
 
     getAccessToken(): string | null {
-        return localStorage.getItem(ACCESS_TOKEN_KEY);
+        return safeGetItem(ACCESS_TOKEN_KEY);
     }
 
     getRefreshToken(): string | null {
         if (!this.storeRefreshToken) {
             return null; // Refresh token is stored in httpOnly cookie
         }
-        return localStorage.getItem(REFRESH_TOKEN_KEY);
+        return safeGetItem(REFRESH_TOKEN_KEY);
     }
 
     setTokens(tokens: AuthTokens): void {
@@ -59,30 +85,30 @@ class LocalStorageTokenStorage implements TokenStorage {
             return;
         }
 
-        localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+        safeSetItem(ACCESS_TOKEN_KEY, tokens.accessToken);
 
         if (this.storeRefreshToken) {
             if (tokens.refreshToken) {
-                localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+                safeSetItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
             }
         }
 
         if (tokens.expiresIn) {
             const expiresAt = Date.now() + tokens.expiresIn * 1000;
-            localStorage.setItem(TOKEN_EXPIRES_KEY, expiresAt.toString());
+            safeSetItem(TOKEN_EXPIRES_KEY, expiresAt.toString());
         }
     }
 
     clearTokens(): void {
-        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        safeRemoveItem(ACCESS_TOKEN_KEY);
         if (this.storeRefreshToken) {
-            localStorage.removeItem(REFRESH_TOKEN_KEY);
+            safeRemoveItem(REFRESH_TOKEN_KEY);
         }
-        localStorage.removeItem(TOKEN_EXPIRES_KEY);
+        safeRemoveItem(TOKEN_EXPIRES_KEY);
     }
 
     getTokenExpiresAt(): number | null {
-        const expiresAt = localStorage.getItem(TOKEN_EXPIRES_KEY);
+        const expiresAt = safeGetItem(TOKEN_EXPIRES_KEY);
         return expiresAt ? parseInt(expiresAt, 10) : null;
     }
 
