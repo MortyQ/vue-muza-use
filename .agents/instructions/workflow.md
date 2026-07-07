@@ -17,7 +17,12 @@ pnpm --filter @ametie/vue-muza-use build
 pnpm test
 
 # Run tests — single pass (CI)
-pnpm --filter @ametie/vue-muza-use test --run
+# NOTE: `pnpm --filter ... test --run` silently swallows the --run flag
+# (pnpm eats it before it reaches the underlying script) — use exec instead:
+pnpm --filter @ametie/vue-muza-use exec vitest run
+
+# Run a specific test file
+pnpm --filter @ametie/vue-muza-use exec vitest run src/useApi.swr.test.ts
 
 # Dev mode — rebuild on source change
 pnpm --filter @ametie/vue-muza-use dev

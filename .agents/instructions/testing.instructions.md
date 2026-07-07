@@ -14,15 +14,18 @@ Every new feature, option, or composable must ship with tests. No exceptions.
 
 ## Test File Location and Naming
 
-All tests live in `packages/use-api/src/__tests__/`.
+Tests are co-located with their subject (`<file>.test.ts` next to the source file);
+cross-cutting integration tests live in `packages/use-api/src/__tests__/`.
+For a new feature, prefer co-location: `src/useApi.<feature>.test.ts`.
 
 | Subject | File naming |
 |---------|-------------|
 | Core `useApi` behavior | `useApi.core.test.ts` |
 | Feature-specific behavior | `useApi.<feature>.test.ts` |
-| Internal composable | `<composable>.test.ts` |
-| Feature module | `<module>.test.ts` |
+| Internal composable | `<composable>.test.ts` (next to the composable, e.g. `composables/useAbortController.test.ts`) |
+| Feature module | `<module>.test.ts` (next to the module, e.g. `features/tokenManager.test.ts`) |
 | Helpers | `useApi.helpers.test.ts` |
+| Cross-cutting integration | `__tests__/<topic>.test.ts` |
 
 Create a new file for a new feature (`useApi.myNewOption.test.ts`) rather than appending to an existing file.
 
@@ -144,12 +147,16 @@ When adding a new option or behavior to `useApi`, write tests for all five:
 # from repo root — watch mode
 pnpm test
 
-# single pass (CI)
-pnpm --filter @ametie/vue-muza-use test --run
+# single pass (CI) — NOTE: `test --run` silently swallows --run via pnpm;
+# use exec vitest run instead
+pnpm --filter @ametie/vue-muza-use exec vitest run
+
+# single pass, one file
+pnpm --filter @ametie/vue-muza-use exec vitest run src/useApi.swr.test.ts
 
 # watch a specific file
-pnpm --filter @ametie/vue-muza-use test -- useApi.swr
+pnpm --filter @ametie/vue-muza-use exec vitest src/useApi.swr.test.ts
 
 # coverage report
-pnpm --filter @ametie/vue-muza-use test --coverage
+pnpm --filter @ametie/vue-muza-use exec vitest run --coverage
 ```
