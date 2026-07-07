@@ -1,12 +1,12 @@
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError, AxiosRequestConfig } from "axios";
 import type { AuthMode } from "../types";
 import { trackAuthEvent, AuthEventType } from "./monitor";
-import { tokenManager } from "./tokenManager";
+import { tokenManager, TOKEN_TYPE } from "./tokenManager";
 import { devtoolsBridge, nextRequestId, isDevtoolsExpected, redactTokenFields } from "../devtools";
 import { parseApiError } from "../utils/errorParser";
 
 export const AUTH_HEADER = "Authorization";
-export const TOKEN_TYPE = "Bearer";
+export { TOKEN_TYPE };
 
 export interface InterceptorOptions {
     refreshUrl?: string;

@@ -158,12 +158,6 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      */
     refetchOnReconnect?: boolean;
     /**
-     * Polling configuration.
-     * - Pass a **number** (ms) for simple polling.
-     * - Pass an **object** `{ interval: number, whenHidden?: boolean }` for advanced control.
-     * Properties inside the object can also be Refs.
-     */
-    /**
      * Cache the response data by a string id.
      * - String shorthand: `cache: 'key'` uses DEFAULT_STALE_TIME (5 min)
      * - Object form: `cache: { id: 'key', staleTime: 10_000 }` for custom TTL
@@ -179,6 +173,12 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      * Useful for POST/PUT/DELETE that should bust related GET caches.
      */
     invalidateCache?: string | string[];
+    /**
+     * Polling configuration.
+     * - Pass a **number** (ms) for simple polling.
+     * - Pass an **object** `{ interval: number, whenHidden?: boolean }` for advanced control.
+     * Properties inside the object can also be Refs.
+     */
     poll?: MaybeRefOrGetter<number | { interval: MaybeRefOrGetter<number>; whenHidden?: MaybeRefOrGetter<boolean> }>;
 }
 

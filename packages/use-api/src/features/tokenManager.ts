@@ -8,11 +8,9 @@
  * - Single point of access to tokens
  */
 
-export interface AuthTokens {
-    accessToken: string;
-    refreshToken?: string;
-    expiresIn?: number;
-}
+import type { AuthTokens } from "../types";
+
+export type { AuthTokens };
 
 export interface TokenStorage {
     getAccessToken(): string | null;
@@ -194,6 +192,9 @@ class TokenManager {
 
     /**
      * Set token refresh promise (to prevent race conditions)
+     *
+     * @deprecated Not used by the library — the 401 refresh mutex lives in
+     * `setupInterceptors()` (`isRefreshing` + `failedQueue`). Will be removed in v2.0.
      */
     setRefreshPromise(promise: Promise<string | null>): void {
         this.refreshPromise = promise;
@@ -201,6 +202,9 @@ class TokenManager {
 
     /**
      * Get token refresh promise
+     *
+     * @deprecated Not used by the library — the 401 refresh mutex lives in
+     * `setupInterceptors()` (`isRefreshing` + `failedQueue`). Will be removed in v2.0.
      */
     getRefreshPromise(): Promise<string | null> | null {
         return this.refreshPromise;
@@ -208,6 +212,9 @@ class TokenManager {
 
     /**
      * Clear token refresh promise
+     *
+     * @deprecated Not used by the library — the 401 refresh mutex lives in
+     * `setupInterceptors()` (`isRefreshing` + `failedQueue`). Will be removed in v2.0.
      */
     clearRefreshPromise(): void {
         this.refreshPromise = null;
