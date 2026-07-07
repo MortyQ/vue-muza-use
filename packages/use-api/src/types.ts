@@ -215,6 +215,7 @@ export type ExecuteConfig<D = unknown> = Omit<
     | "refetchOnFocus"
     | "refetchOnReconnect"
     | "poll"
+    | "select"
 >;
 
 export interface UseApiReturn<T = unknown, D = unknown> {
@@ -229,7 +230,7 @@ export interface UseApiReturn<T = unknown, D = unknown> {
      * Use it to show a subtle refresh indicator without blocking the UI.
      */
     revalidating: Ref<boolean>;
-    execute: (config?: ExecuteConfig<D>) => Promise<T | null | undefined>;
+    execute: (config?: ExecuteConfig<D>) => Promise<T | null>;
     abort: (message?: string) => void;
     reset: () => void;
     /**

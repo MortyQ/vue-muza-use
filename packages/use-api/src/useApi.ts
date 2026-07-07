@@ -167,6 +167,28 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             return r === false ? 0 : r === true ? 3 : (r as number);
         })();
 
+        // Per-call config must get the same filtering as setup-time options:
+        // useApi-only keys must never reach axios.request(). authMode/data/params
+        // are also excluded here (unlike the setup-time list above) because they're
+        // re-applied explicitly below via resolvedData/resolvedParams/the authMode
+        // spread — this list is not meant to mirror the setup-time one key-for-key.
+        const {
+            cache: _cfgCache,
+            invalidateCache: _cfgInvalidateCache,
+            retry: _cfgRetry,
+            retryDelay: _cfgRetryDelay,
+            retryStatusCodes: _cfgRetryStatusCodes,
+            skipErrorNotification: _cfgSkip,
+            onBefore: _cfgOnBefore,
+            onSuccess: _cfgOnSuccess,
+            onError: _cfgOnError,
+            onFinish: _cfgOnFinish,
+            authMode: _cfgAuthMode,
+            data: _cfgData,
+            params: _cfgParams,
+            ...configAxios
+        } = config ?? {};
+
         if (cacheOpts) {
             const cached = readCache<T>(cacheOpts.id);
             if (cached !== null) {
@@ -267,7 +289,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                         url: requestUrl,
                         method,
                         ...axiosConfig,
-                        ...config,
+                        ...configAxios,
                         data: resolvedData,
                         params: resolvedParams,
                         signal: controller.signal,

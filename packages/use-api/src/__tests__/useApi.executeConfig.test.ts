@@ -5,6 +5,7 @@
  *  - lifecycle callbacks (onBefore, onSuccess, onError, onFinish) merge with composable-level
  *  - cache per-call replaces composable-level
  *  - invalidateCache per-call merges with composable-level
+ *  - axios config hygiene: useApi-only keys never forwarded to axios.request, genuine axios keys still are
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { defineComponent, type MaybeRefOrGetter } from "vue";
@@ -350,6 +351,56 @@ describe("execute() — per-call config", () => {
             await flushPromises();
 
             expect(globalOnError).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    // =========================================================================
+    // execute(config) — axios config hygiene
+    // =========================================================================
+
+    describe("execute(config) — axios config hygiene", () => {
+        it("does not forward useApi-only options to axios.request", async () => {
+            mockAxios.request = vi.fn().mockResolvedValue(makeResponse({ ok: true }));
+
+            const { result } = mountApi();
+            await result.execute({
+                cache: "hygiene-key",
+                invalidateCache: "other-key",
+                retry: 2,
+                retryDelay: 5,
+                retryStatusCodes: [500],
+                skipErrorNotification: true,
+                onBefore: () => {},
+                onSuccess: () => {},
+                onError: () => {},
+                onFinish: () => {},
+            });
+            await flushPromises();
+
+            const axiosArg = (mockAxios.request as ReturnType<typeof vi.fn>).mock.calls[0][0];
+            for (const key of [
+                "cache", "invalidateCache", "retry", "retryDelay", "retryStatusCodes",
+                "skipErrorNotification", "onBefore", "onSuccess", "onError", "onFinish",
+            ]) {
+                expect(axiosArg).not.toHaveProperty(key);
+            }
+        });
+
+        it("still forwards genuine axios keys per call (headers, method, responseType)", async () => {
+            mockAxios.request = vi.fn().mockResolvedValue(makeResponse({ ok: true }));
+
+            const { result } = mountApi();
+            await result.execute({
+                method: "POST",
+                headers: { "X-Test": "1" },
+                responseType: "blob",
+            });
+            await flushPromises();
+
+            const axiosArg = (mockAxios.request as ReturnType<typeof vi.fn>).mock.calls[0][0];
+            expect(axiosArg.method).toBe("POST");
+            expect(axiosArg.headers).toEqual({ "X-Test": "1" });
+            expect(axiosArg.responseType).toBe("blob");
         });
     });
 });
