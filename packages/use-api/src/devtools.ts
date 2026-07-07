@@ -9,9 +9,14 @@ import type {
     RequestEndResult,
 } from "./types";
 
+const TOKEN_KEY_RE = /token|jwt|bearer|secret|password|authoriz(e|ation)|api[_-]?key|session/i;
+
 let bridge: DevtoolsBridge | null = null;
+let devtoolsExpected = false;
 let requestCounter = 0;
-const pendingCalls: Array<() => void> = [];
+// Keyed by instance id so a destroy can remove its own queued "created" event.
+// Only onInstanceCreated ever queues — all other bridge methods are no-ops until load.
+const pendingInstances = new Map<string, () => void>();
 
 /**
  * Increments and returns a unique request ID for devtools tracking.
@@ -19,6 +24,56 @@ const pendingCalls: Array<() => void> = [];
  */
 export function nextRequestId(): string {
     return `req_${++requestCounter}`;
+}
+
+/**
+ * Marks whether a devtools bridge is ever going to load for this app.
+ * Called synchronously from createApi() — before any useApi() instance exists —
+ * so instrumentation can skip all queueing/watching when devtools is off.
+ */
+export function setDevtoolsExpected(expected: boolean): void {
+    devtoolsExpected = expected;
+}
+
+/** Whether devtools was configured for this app (bridge loaded or loading). */
+export function isDevtoolsExpected(): boolean {
+    return devtoolsExpected;
+}
+
+/** @internal Test-only accessors — not exported from index.ts. */
+export function __devtoolsInternals(): {
+    pendingCount: () => number;
+    setExpected: (v: boolean) => void;
+    reset: () => void;
+} {
+    return {
+        pendingCount: () => pendingInstances.size,
+        setExpected: (v: boolean) => { devtoolsExpected = v; },
+        reset: () => {
+            bridge = null;
+            devtoolsExpected = false;
+            pendingInstances.clear();
+        },
+    };
+}
+
+/**
+ * Recursively redact credential-bearing fields (token/jwt/bearer/secret/password/
+ * authorization/apiKey/session, case-insensitive) before a record is handed to
+ * devtools. Applied to auth-refresh payloads/responses/error details so tokens
+ * never enter the devtools history buffer — including when nested (e.g. a
+ * consumer's `extractTokens` response shape wraps tokens under a sub-object).
+ * Non-plain-object leaves (primitives, dates, etc.) are returned unchanged;
+ * arrays are walked element-wise.
+ */
+export function redactTokenFields(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(redactTokenFields);
+    if (value === null || typeof value !== "object") return value;
+    const out: Record<string, unknown> = {};
+    for (const [key, v] of Object.entries(value)) {
+        out[key] = TOKEN_KEY_RE.test(key) ? "•••redacted•••" : redactTokenFields(v);
+    }
+    return out;
 }
 
 /**
@@ -33,9 +88,18 @@ export function nextRequestId(): string {
  */
 export async function initDevtools(options: DevtoolsOptions, app: App): Promise<void> {
     if (!options.enabled) return;
-    bridge = _createBridge(options, app);
-    for (const fn of pendingCalls) fn();
-    pendingCalls.length = 0;
+    devtoolsExpected = true;
+    try {
+        bridge = _createBridge(options, app);
+    } catch {
+        // Bridge failed to load — degrade to the same no-op behavior as
+        // "devtools never configured" instead of queueing forever.
+        devtoolsExpected = false;
+        pendingInstances.clear();
+        return;
+    }
+    for (const fn of pendingInstances.values()) fn();
+    pendingInstances.clear();
 }
 
 /**
@@ -53,11 +117,12 @@ export const devtoolsBridge = {
     onInstanceCreated(id: string, url: string | undefined, options: DevtoolsInstanceOptions): void {
         if (bridge) {
             bridge.onInstanceCreated(id, url, options);
-        } else {
-            pendingCalls.push(() => bridge?.onInstanceCreated(id, url, options));
+        } else if (devtoolsExpected) {
+            pendingInstances.set(id, () => bridge?.onInstanceCreated(id, url, options));
         }
     },
     onInstanceDestroyed(id: string): void {
+        pendingInstances.delete(id);
         bridge?.onInstanceDestroyed(id);
     },
     onStateUpdate(id: string, state: Partial<DevtoolsInstanceState>): void {

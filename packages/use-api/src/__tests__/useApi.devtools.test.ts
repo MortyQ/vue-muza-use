@@ -18,12 +18,14 @@ vi.mock("../devtools", () => {
         nextRequestId: vi.fn(() => "req_1"),
         devtoolsBridge: bridge,
         initDevtools: vi.fn(),
+        setDevtoolsExpected: vi.fn(),
+        isDevtoolsExpected: vi.fn(() => true),
     };
 });
 
 import { useApi } from "../useApi";
 import { createApi } from "../plugin";
-import { devtoolsBridge } from "../devtools";
+import { devtoolsBridge, isDevtoolsExpected } from "../devtools";
 
 const mockAxios = {
     request: vi.fn(),
@@ -67,6 +69,23 @@ describe("useApi — devtools: onInstanceCreated", () => {
         const [, , opts] = vi.mocked(devtoolsBridge.onInstanceCreated).mock.calls[0];
         expect(opts.immediate).toBe(true);
         expect(opts.retry).toBe(3);
+    });
+});
+
+describe("useApi — devtools: state watch gated by isDevtoolsExpected", () => {
+    it("does not call onStateUpdate when devtools is not expected", async () => {
+        vi.mocked(isDevtoolsExpected).mockReturnValueOnce(false);
+        const [{ execute }] = withSetup(() => useApi("/users"));
+        execute();
+        await flushPromises();
+        expect(devtoolsBridge.onStateUpdate).not.toHaveBeenCalled();
+    });
+
+    it("calls onStateUpdate when devtools is expected", async () => {
+        const [{ execute }] = withSetup(() => useApi("/users"));
+        execute();
+        await flushPromises();
+        expect(devtoolsBridge.onStateUpdate).toHaveBeenCalled();
     });
 });
 

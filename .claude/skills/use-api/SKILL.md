@@ -6,8 +6,9 @@
 |---|---|
 | **name** | `use-api` |
 | **description** | Feature-scoped API layer pattern built on `@ametie/vue-muza-use`. Generates and refactors typed composable wrappers for HTTP requests in Vue 3 apps. |
-| **version** | 1.3 |
+| **version** | 1.4 |
 | **applies_to** | `**/api/use*.ts`, `**/*.vue`, `**/*.ts` (when dealing with HTTP requests) |
+| **verified_against** | `@ametie/vue-muza-use` 1.5.4 |
 
 ## Auto-Activation Triggers
 
@@ -57,8 +58,9 @@ This codebase uses a feature API wrapper pattern:
 
 All runtime request behavior is passed from the component into the returned factory call:
 - `data`
-- `watch`
+- `params`
 - `immediate`
+- `lazy`
 - `debounce`
 - `responseType`
 - `onSuccess`
@@ -73,6 +75,39 @@ All runtime request behavior is passed from the component into the returned fact
 - `withCredentials`
 
 For one-off behavior on a single `execute()` call, pass `ExecuteConfig` directly to `execute()` instead of the composable options — see [execute() per-call overrides](#execute-per-call-overrides) below.
+
+---
+
+## Auto-tracking (IMPORTANT)
+
+`useApi` automatically re-fetches when reactive dependencies inside the `url`,
+`params`, or `data` getters change. There is **no `watch` option** — passing one
+is a TypeScript error. This replaced an older `watch: [...]` API; if you see
+`watch` in existing code or in generated examples elsewhere, it is stale.
+
+- **Reads (GET):** pass getters, get auto-refetch for free. `immediate: true`
+  fires the initial request.
+- **Mutations (POST/PUT/PATCH/DELETE) and manual requests:** ALWAYS pass
+  `lazy: true`. Without it, a reactive `data: () => form.value` getter fires
+  the mutation on every form edit (auto-tracking is `lazy: false` by default
+  for every method, not just GET).
+- **Escape hatch:** `ignoreUpdates(() => { ... })` (from the composable's
+  return) mutates reactive deps without triggering a request (synchronous
+  changes only).
+
+```ts
+// ✅ read — auto-tracked
+const { data } = fetchProducts({
+  params: () => ({ page: page.value }),
+  immediate: true,
+});
+
+// ✅ mutation — lazy + manual execute()
+const { execute } = saveProduct({
+  data: () => form.value,
+  lazy: true,
+});
+```
 
 ---
 
@@ -165,7 +200,6 @@ const { loading, data } = fetchProducts({
     page: page.value,
     sort: sort.value,
   }),
-  watch: [page, sort, filters],
   immediate: true,
 });
 
@@ -260,6 +294,11 @@ These options are available in `UseApiOptions` and flow through the factory patt
 | `refetchOnFocus` | Re-fetches when the browser tab regains focus. `true` uses a 60s throttle; `{ throttle: 0 }` always refetches. | Dashboards, feeds — keep data fresh when user returns to the tab |
 | `refetchOnReconnect` | Re-fetches when the browser comes back online (`online` event). No throttle. | Any data that may go stale during network outages |
 | `withCredentials` | Overrides the Axios instance default for this request only. | When a specific request needs different cookie/CORS credential behavior than the global setting |
+| `poll` | `poll: 5000` (ms) for simple polling, or `poll: { interval: 5000, whenHidden: false }` to control whether polling continues while the tab is hidden. | Status/progress screens, dashboards that need periodic refresh |
+| `authMode: "public" \| "optional"` | `"public"` skips the Authorization header and the 401-refresh flow entirely; `"optional"` sends the token if present but doesn't force a refresh on 401. Default is `"default"` (token required, 401 triggers refresh). | Public endpoints (login, signup) or endpoints that behave differently for anonymous vs. authenticated users |
+| `initialData` / `initialLoading` | Seed `data`/`loading` before the first request resolves (e.g. from SSR-adjacent hydration or a cached value). `initialLoading` defaults to `immediate`'s value. | Avoiding a loading flash when you already have data to show |
+| `useGlobalAbort` | Opt this request into the global `useAbortController()` — a call to `abort()` anywhere cancels it too. Default `true`. | Set `false` for requests that must survive a global filter-change abort (e.g. a background upload) |
+| `mutate` (on the return value, not an option) | Manually set `data` without making a request — `const { mutate } = fetchThing(); mutate(newValue)`. | Optimistic updates, or patching cached data after a related mutation elsewhere |
 
 ---
 
@@ -268,8 +307,7 @@ These options are available in `UseApiOptions` and flow through the factory patt
 ### 1. Table request
 ```ts
 const { loading, data } = fetchSomethingTable({
-  data: () => ({ ...filters.value, page: page.value, sort: sort.value }),
-  watch: [page, sort, filters],
+  params: () => ({ ...filters.value, page: page.value, sort: sort.value }),
   immediate: true,
 });
 ```
@@ -286,8 +324,7 @@ const { loading, execute } = downloadSomething({
 ### 3. Search request
 ```ts
 const { loading, data } = searchSomething({
-  data: () => ({ query: searchQuery.value }),
-  watch: [searchQuery],
+  params: () => ({ query: searchQuery.value }),
   debounce: 300,
   immediate: true,
 });
@@ -297,6 +334,7 @@ const { loading, data } = searchSomething({
 ```ts
 const { loading, execute } = saveItem({
   data: () => form.value,
+  lazy: true,           // REQUIRED: without it every form edit fires the request
   onSuccess: () => router.push("/list"),
 });
 ```
@@ -313,6 +351,7 @@ const { data } = fetchStatus({
 ```ts
 const { loading, execute } = fetchOnDemand({
   data: () => payload.value,
+  lazy: true,           // manual control — deps must not auto-trigger
 });
 // called manually: execute()
 ```
@@ -341,7 +380,7 @@ await execute({
 });
 ```
 
-### 7. Batch request (useApiBatch)
+### 8. Batch request (useApiBatch)
 ```ts
 // feature/<feature>/api/use<Feature>.ts
 import { useApiBatch, type UseApiBatchOptions } from "@ametie/vue-muza-use";
@@ -374,6 +413,11 @@ const { successfulData: users, loading: usersLoading } = fetchUsersByIds(
   () => watchedIds.value,  // auto-tracked, no lazy:true needed
 );
 ```
+
+`useApiBatch` also accepts `concurrency` (worker-pool limit on parallel requests),
+`progress` (a `Ref` tracking `{ completed, total }` as items finish), and `settled`
+(when `true`, non-2xx results land in the results array instead of throwing —
+useful for "delete what we can, report the rest" bulk flows).
 
 ---
 
@@ -409,6 +453,26 @@ downloadUsers({
   onSuccess: (response) => download(response.data, fileName, contentType),
 })
 ```
+
+---
+
+## Security notes — token storage
+
+`createApiClient` supports multiple auth modes (see `withCredentials`/`authOptions`
+docs). Defaults store BOTH the access and refresh token in localStorage —
+acceptable for internal tools, but any XSS can exfiltrate the long-lived refresh
+token. For production apps prefer:
+
+```ts
+// Hybrid: Bearer access token + httpOnly refresh cookie
+createApiClient({
+  baseURL: "/api",
+  authOptions: { refreshWithCredentials: true },
+})
+```
+
+Also call `clearAllCache()` on logout — the in-memory cache is shared across the
+whole app and otherwise survives across user sessions on the same page.
 
 ---
 
@@ -453,9 +517,8 @@ export default () => {
 const { fetchSomething, downloadSomething } = useFeature();
 
 const { loading, data } = fetchSomething({
-  watch: [page, filters],
   immediate: true,
-  data: () => ({ ...filters.value, page: page.value }),
+  params: () => ({ ...filters.value, page: page.value }),
 });
 ```
 

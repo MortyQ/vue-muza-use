@@ -8,7 +8,7 @@
  *  - getAuthHeader(): "Bearer <token>" or null
  *  - setStorage(): replacing storage doesn't affect original localStorage
  */
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
     TokenManager,
     LocalStorageTokenStorage,
@@ -198,5 +198,72 @@ describe('TokenManager — setStorage', () => {
         tm.setStorage(memStorage)
 
         expect(tm.getAuthHeader()).toBe('Bearer mem-token')
+    })
+})
+
+// ---------------------------------------------------------------------------
+// LocalStorageTokenStorage — storage unavailable
+// ---------------------------------------------------------------------------
+
+describe('LocalStorageTokenStorage — storage unavailable', () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it('getAccessToken returns null instead of throwing', () => {
+        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+            throw new Error('SecurityError: denied')
+        })
+        const storage = new LocalStorageTokenStorage()
+        expect(storage.getAccessToken()).toBeNull()
+    })
+
+    it('getRefreshToken returns null instead of throwing', () => {
+        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+            throw new Error('SecurityError: denied')
+        })
+        const storage = new LocalStorageTokenStorage()
+        expect(storage.getRefreshToken()).toBeNull()
+    })
+
+    it('setTokens does not throw', () => {
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new Error('QuotaExceededError')
+        })
+        const storage = new LocalStorageTokenStorage()
+        expect(() => storage.setTokens({ accessToken: 'a' })).not.toThrow()
+    })
+
+    it('setTokens does not throw when storing refreshToken and expiresIn', () => {
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new Error('QuotaExceededError')
+        })
+        const storage = new LocalStorageTokenStorage()
+        expect(() =>
+            storage.setTokens({ accessToken: 'a', refreshToken: 'r', expiresIn: 3600 })
+        ).not.toThrow()
+    })
+
+    it('clearTokens does not throw', () => {
+        vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+            throw new Error('SecurityError: denied')
+        })
+        const storage = new LocalStorageTokenStorage()
+        expect(() => storage.clearTokens()).not.toThrow()
+    })
+
+    it('getTokenExpiresAt returns null instead of throwing', () => {
+        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+            throw new Error('SecurityError: denied')
+        })
+        const storage = new LocalStorageTokenStorage()
+        expect(storage.getTokenExpiresAt()).toBeNull()
+    })
+
+    it('isTokenExpired returns false instead of throwing when getTokenExpiresAt throws internally', () => {
+        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+            throw new Error('SecurityError: denied')
+        })
+        const storage = new LocalStorageTokenStorage()
+        expect(() => storage.isTokenExpired()).not.toThrow()
+        expect(storage.isTokenExpired()).toBe(false)
     })
 })

@@ -44,9 +44,9 @@ export interface ApiState<T = unknown> {
     statusCode: number | null
 }
 
-export interface ApiRequestConfig<D = unknown> extends Omit<AxiosRequestConfig<D>, "data" | "params"> {
+export interface ApiRequestConfig<D = unknown, P = unknown> extends Omit<AxiosRequestConfig<D>, "data" | "params"> {
     data?: MaybeRefOrGetter<D> | D;
-    params?: MaybeRefOrGetter<D> | D;
+    params?: MaybeRefOrGetter<P> | P;
     skipErrorNotification?: boolean;
     authMode?: AuthMode;
     retry?: boolean | number;
@@ -158,12 +158,6 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      */
     refetchOnReconnect?: boolean;
     /**
-     * Polling configuration.
-     * - Pass a **number** (ms) for simple polling.
-     * - Pass an **object** `{ interval: number, whenHidden?: boolean }` for advanced control.
-     * Properties inside the object can also be Refs.
-     */
-    /**
      * Cache the response data by a string id.
      * - String shorthand: `cache: 'key'` uses DEFAULT_STALE_TIME (5 min)
      * - Object form: `cache: { id: 'key', staleTime: 10_000 }` for custom TTL
@@ -179,6 +173,12 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      * Useful for POST/PUT/DELETE that should bust related GET caches.
      */
     invalidateCache?: string | string[];
+    /**
+     * Polling configuration.
+     * - Pass a **number** (ms) for simple polling.
+     * - Pass an **object** `{ interval: number, whenHidden?: boolean }` for advanced control.
+     * Properties inside the object can also be Refs.
+     */
     poll?: MaybeRefOrGetter<number | { interval: MaybeRefOrGetter<number>; whenHidden?: MaybeRefOrGetter<boolean> }>;
 }
 
@@ -215,6 +215,7 @@ export type ExecuteConfig<D = unknown> = Omit<
     | "refetchOnFocus"
     | "refetchOnReconnect"
     | "poll"
+    | "select"
 >;
 
 export interface UseApiReturn<T = unknown, D = unknown> {
@@ -229,7 +230,7 @@ export interface UseApiReturn<T = unknown, D = unknown> {
      * Use it to show a subtle refresh indicator without blocking the UI.
      */
     revalidating: Ref<boolean>;
-    execute: (config?: ExecuteConfig<D>) => Promise<T | null | undefined>;
+    execute: (config?: ExecuteConfig<D>) => Promise<T | null>;
     abort: (message?: string) => void;
     reset: () => void;
     /**

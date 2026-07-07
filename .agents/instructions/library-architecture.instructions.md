@@ -23,11 +23,20 @@ packages/use-api/src/
   utils/
     debounce.ts                  ← cancellable debounce with DebounceCancelledError
     errorParser.ts               ← normalize Axios errors → ApiError shape
-  useApi.ts                      ← core composable — orchestrates all layers above (18 KB)
+    urlUtils.ts                  ← parse query params from URL strings (devtools display)
+  devtools.ts                    ← devtools bridge proxy — no-op when devtools disabled
+  useApi.ts                      ← core composable — orchestrates all layers above
   useApiBatch.ts                 ← parallel batch request composable
   useApi.helpers.ts              ← useApiGet, useApiPost, useApiPut, useApiPatch, useApiDelete
   index.ts                       ← public barrel export — the ONLY surface consumers see
 ```
+
+**Test layout (actual, as of 1.5.4):** most `*.test.ts` files are co-located next to
+their subject (`useApi.ts` → `useApi.test.ts`, `composables/useAbortController.ts` →
+`composables/useAbortController.test.ts`, etc.). `__tests__/` holds a handful of
+cross-cutting integration tests (`devtools.test.ts`, `useApi.devtools.test.ts`,
+`useApi.executeConfig.test.ts`, `cache.test.ts`). See `testing.instructions.md`
+for the current convention — don't assume everything lives in `__tests__/`.
 
 ---
 

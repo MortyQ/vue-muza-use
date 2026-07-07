@@ -22,6 +22,8 @@ describe("initDevtools", () => {
         vi.clearAllMocks();
         // Reset module to clear the bridge singleton between tests
         vi.resetModules();
+        const { __devtoolsInternals } = await import("../devtools");
+        __devtoolsInternals().reset();
     });
 
     it("does nothing when enabled is false", async () => {
@@ -35,10 +37,38 @@ describe("initDevtools", () => {
         await initDevtools({ enabled: true }, mockApp);
         expect(mockCreateBridge).toHaveBeenCalledWith({ enabled: true }, mockApp);
     });
+
+    it("degrades to no-op (does not leak pending queue) if createBridge throws", async () => {
+        mockCreateBridge.mockImplementationOnce(() => { throw new Error("bridge init failed"); });
+        const { initDevtools, devtoolsBridge, isDevtoolsExpected, __devtoolsInternals } = await import("../devtools");
+
+        // Simulate the window where devtools is expected but the bridge hasn't
+        // loaded yet — a create fires here and would normally queue.
+        __devtoolsInternals().setExpected(true);
+        devtoolsBridge.onInstanceCreated("id-fail", "/x", {
+            authMode: "default", cache: undefined, retry: false, poll: 0, immediate: false, lazy: false,
+        });
+        expect(__devtoolsInternals().pendingCount()).toBe(1);
+
+        await initDevtools({ enabled: true }, mockApp);
+
+        expect(isDevtoolsExpected()).toBe(false);
+        expect(__devtoolsInternals().pendingCount()).toBe(0);
+
+        // Further instance events after the failed init must stay no-ops.
+        devtoolsBridge.onInstanceCreated("id-after", "/y", {
+            authMode: "default", cache: undefined, retry: false, poll: 0, immediate: false, lazy: false,
+        });
+        expect(__devtoolsInternals().pendingCount()).toBe(0);
+    });
 });
 
 describe("devtoolsBridge — before init", () => {
-    beforeEach(() => { vi.resetModules(); });
+    beforeEach(async () => {
+        vi.resetModules();
+        const { __devtoolsInternals } = await import("../devtools");
+        __devtoolsInternals().reset();
+    });
 
     it("onInstanceCreated is a no-op when bridge is null", async () => {
         const { devtoolsBridge } = await import("../devtools");
@@ -113,5 +143,34 @@ describe("nextRequestId", () => {
         const b = nextRequestId();
         expect(a).not.toBe(b);
         expect(a.startsWith("req_")).toBe(true);
+    });
+});
+
+describe("devtools — pending queue hygiene", () => {
+    beforeEach(async () => {
+        vi.resetModules();
+        const { __devtoolsInternals } = await import("../devtools");
+        __devtoolsInternals().reset();
+    });
+
+    it("does not queue instance events when devtools was never configured", async () => {
+        const { devtoolsBridge, __devtoolsInternals } = await import("../devtools");
+        // devtoolsExpected is false after reset — simulates production without devtools
+        devtoolsBridge.onInstanceCreated("i1", "/a", {
+            authMode: "default", cache: undefined, retry: false, poll: 0, immediate: false, lazy: false,
+        });
+        expect(__devtoolsInternals().pendingCount()).toBe(0);
+    });
+
+    it("queues when devtools is expected, and drops the entry if the instance is destroyed before the bridge loads", async () => {
+        const { devtoolsBridge, __devtoolsInternals } = await import("../devtools");
+        __devtoolsInternals().setExpected(true);
+        devtoolsBridge.onInstanceCreated("i2", "/b", {
+            authMode: "default", cache: undefined, retry: false, poll: 0, immediate: false, lazy: false,
+        });
+        expect(__devtoolsInternals().pendingCount()).toBe(1);
+
+        devtoolsBridge.onInstanceDestroyed("i2");
+        expect(__devtoolsInternals().pendingCount()).toBe(0);
     });
 });

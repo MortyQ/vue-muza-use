@@ -15,6 +15,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { CanceledError } from 'axios'
 import { useAbortController } from './useAbortController'
 
 // ---------------------------------------------------------------------------
@@ -137,5 +138,35 @@ describe('useAbortController — singleton', () => {
         const before = a.abortCount.value
         b.abort()
         expect(a.abortCount.value).toBe(before + 1)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// signal freshness
+// ---------------------------------------------------------------------------
+
+describe('useAbortController — signal freshness', () => {
+    it('signal reflects the NEW controller after abort()', () => {
+        const { signal, abort } = useAbortController()
+        const before = signal.value
+
+        abort()
+
+        expect(before.aborted).toBe(true)
+        expect(signal.value).not.toBe(before)
+        expect(signal.value.aborted).toBe(false)
+    })
+})
+
+describe('useAbortController — isAbortError (axios)', () => {
+    it('recognises axios CanceledError', () => {
+        const { isAbortError } = useAbortController()
+        expect(isAbortError(new CanceledError('canceled'))).toBe(true)
+    })
+
+    it('still recognises DOM AbortError and rejects ordinary errors', () => {
+        const { isAbortError } = useAbortController()
+        expect(isAbortError(new DOMException('aborted', 'AbortError'))).toBe(true)
+        expect(isAbortError(new Error('nope'))).toBe(false)
     })
 })

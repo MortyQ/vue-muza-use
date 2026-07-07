@@ -16,7 +16,7 @@ import { useApiState } from "./composables/useApiState";
 import { useAbortController } from "./composables/useAbortController";
 import { readCache, writeCache, invalidateCache as cacheInvalidate, DEFAULT_STALE_TIME } from "./features/cacheManager";
 import { useRefetchTriggers } from "./composables/useRefetchTriggers";
-import { devtoolsBridge, nextRequestId } from "./devtools";
+import { devtoolsBridge, nextRequestId, isDevtoolsExpected } from "./devtools";
 import type { RequestEndResult } from "./types";
 
 const DEFAULT_RETRY_STATUS_CODES = [408, 429, 500, 502, 503, 504];
@@ -69,7 +69,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         retryStatusCodes = globalOptions?.retryStatusCodes ?? DEFAULT_RETRY_STATUS_CODES,
         authMode = "default",
         useGlobalAbort = globalOptions?.useGlobalAbort ?? true,
-        initialLoading = false,
+        initialLoading,
         poll = 0,
         // Explicitly excluded from axiosConfig — these are useApi-only options
         // and must not be forwarded to axios.request()
@@ -99,7 +99,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         immediate: options.immediate ?? false,
         lazy: options.lazy ?? false,
     });
-    if (getCurrentScope()) {
+    if (getCurrentScope() && isDevtoolsExpected()) {
         watch(
             () => ({
                 loading: state.loading.value,
@@ -166,6 +166,28 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             const r = config?.retry ?? retry;
             return r === false ? 0 : r === true ? 3 : (r as number);
         })();
+
+        // Per-call config must get the same filtering as setup-time options:
+        // useApi-only keys must never reach axios.request(). authMode/data/params
+        // are also excluded here (unlike the setup-time list above) because they're
+        // re-applied explicitly below via resolvedData/resolvedParams/the authMode
+        // spread — this list is not meant to mirror the setup-time one key-for-key.
+        const {
+            cache: _cfgCache,
+            invalidateCache: _cfgInvalidateCache,
+            retry: _cfgRetry,
+            retryDelay: _cfgRetryDelay,
+            retryStatusCodes: _cfgRetryStatusCodes,
+            skipErrorNotification: _cfgSkip,
+            onBefore: _cfgOnBefore,
+            onSuccess: _cfgOnSuccess,
+            onError: _cfgOnError,
+            onFinish: _cfgOnFinish,
+            authMode: _cfgAuthMode,
+            data: _cfgData,
+            params: _cfgParams,
+            ...configAxios
+        } = config ?? {};
 
         if (cacheOpts) {
             const cached = readCache<T>(cacheOpts.id);
@@ -267,7 +289,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                         url: requestUrl,
                         method,
                         ...axiosConfig,
-                        ...config,
+                        ...configAxios,
                         data: resolvedData,
                         params: resolvedParams,
                         signal: controller.signal,
@@ -486,8 +508,10 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     // If immediate=true, it starts.
     if (immediate) execute();
 
-    // Visibility Handling for Polling
-    if (typeof document !== "undefined") {
+    // Visibility Handling for Polling — only when polling is configured.
+    // `poll` may be a ref/getter (always truthy) — that's fine: the handler
+    // itself re-reads getPollConfig() and no-ops when the interval is 0.
+    if (poll && typeof document !== "undefined") {
         const handleVisibility = () => {
             if (document.hidden) return;
             // On tab focus, if polling is enabled and no timer is running, resume/catch-up

@@ -1229,13 +1229,13 @@ const { data, loading } = useApi<OrdersResponse>('/orders', {
 ```typescript
 import { useAbortController, useApi } from '@ametie/vue-muza-use'
 
-const { abortAll } = useAbortController()
+const { abort } = useAbortController()
 
 const { data: products } = useApi('/products')
 const { data: stats } = useApi('/stats')
 
 const resetFilters = () => {
-  abortAll()
+  abort() // cancels every in-flight request started with useGlobalAbort: true
 }
 ```
 
@@ -1679,6 +1679,12 @@ const api = createApiClient({
 **Security:** 🔒 Protected from XSS attacks
 **Backend requirement:** Must set `Set-Cookie` with `HttpOnly; Secure; SameSite`
 
+#### Storage resilience
+
+Token reads/writes degrade gracefully when `localStorage` is unavailable (Safari
+private mode, storage-blocked iframes) instead of throwing out of the request
+interceptor — reads return `null` (treated as "no token"), writes silently no-op.
+
 ---
 
 ### withCredentials — Per-Request Cookie Control
@@ -2099,7 +2105,7 @@ Three type parameters — all optional with defaults:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `initialData` | `TSelected` | `null` | Initial value for `data` before the first request completes |
-| `initialLoading` | `boolean` | `false` | Initial value for `loading` — set `true` to show a spinner before the first request fires |
+| `initialLoading` | `boolean` | `immediate`'s value | Initial value for `loading`. Defaults to whatever `immediate` is set to, so an `immediate: true` request debounced by `debounce` still shows `loading: true` during the debounce window. Pass explicitly to override. |
 
 **Lifecycle Hooks:**
 
@@ -2167,6 +2173,12 @@ await execute({
 // Override authMode for this call only
 await execute({ authMode: 'public' })
 ```
+
+Per-call `useApi`-only options (`cache`, `invalidateCache`, `retry`, `retryDelay`,
+`retryStatusCodes`, `skipErrorNotification`, the lifecycle callbacks) are filtered
+out before the request is sent — they are never forwarded to `axios.request()`,
+so they won't leak into `response.config`, interceptors, or devtools records.
+`select` cannot be overridden per call — it is a setup-time-only option.
 
 ---
 
@@ -2302,18 +2314,20 @@ type BatchInput = string | BatchRequestConfig
 ```typescript
 import { useAbortController } from '@ametie/vue-muza-use'
 
-const { abortAll, getSignal, abortCount } = useAbortController()
+const { abort, getSignal, signal, isAbortError, abortCount } = useAbortController()
 
-abortAll('Filter reset')
+abort() // cancels every request started with useGlobalAbort: true (the default)
 ```
 
 **Returns:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `abortAll` | `(reason?: string) => void` | Cancel all requests currently subscribed to this controller |
-| `getSignal` | `() => AbortSignal` | Get the current AbortSignal to attach to manual fetch calls |
-| `abortCount` | `Ref<number>` | Increments each time `abortAll` is called |
+| `abort` | `() => void` | Cancel all requests currently subscribed to this controller and start a fresh one |
+| `getSignal` | `() => AbortSignal` | Get the current AbortSignal (non-reactive read) — attach to manual fetch/axios calls |
+| `signal` | `ComputedRef<AbortSignal>` | Reactive signal — `signal.value` stays current across `abort()` calls, unlike a one-time snapshot |
+| `isAbortError` | `(error: unknown) => boolean` | `true` for DOM `AbortError` and axios cancellation errors (`CanceledError`/`ERR_CANCELED`) |
+| `abortCount` | `Readonly<Ref<number>>` | Increments each time `abort` is called |
 
 ---
 

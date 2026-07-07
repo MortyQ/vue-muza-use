@@ -1,10 +1,12 @@
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError, AxiosRequestConfig } from "axios";
 import type { AuthMode } from "../types";
 import { trackAuthEvent, AuthEventType } from "./monitor";
-import { tokenManager } from "./tokenManager";
+import { tokenManager, TOKEN_TYPE } from "./tokenManager";
+import { devtoolsBridge, nextRequestId, isDevtoolsExpected, redactTokenFields } from "../devtools";
+import { parseApiError } from "../utils/errorParser";
 
 export const AUTH_HEADER = "Authorization";
-export const TOKEN_TYPE = "Bearer";
+export { TOKEN_TYPE };
 
 export interface InterceptorOptions {
     refreshUrl?: string;
@@ -51,6 +53,19 @@ interface ExtendedInternalAxiosRequestConfig extends InternalAxiosRequestConfig 
 interface FailedRequestQueue {
     resolve: (value: string) => void;
     reject: (reason: unknown) => void;
+}
+
+// Matches the refresh endpoint by exact path or path suffix, anchored on a "/"
+// boundary (case-sensitive, like URL paths generally) — not by substring, so
+// e.g. "/auth/refresh-devices" is never misclassified as the refresh endpoint
+// itself. The "/" boundary check also guards a refreshUrl configured without
+// its leading slash (e.g. "refresh") from matching unrelated siblings like
+// "/users/refresh" via a bare endsWith.
+function isRefreshRequest(url: string | undefined, refreshUrl: string): boolean {
+    if (!url) return false;
+    const path = url.split("?")[0].split("#")[0];
+    const anchoredSuffix = refreshUrl.startsWith("/") ? refreshUrl : `/${refreshUrl}`;
+    return path === anchoredSuffix || path.endsWith(anchoredSuffix);
 }
 
 export function setupInterceptors(
@@ -111,7 +126,7 @@ export function setupInterceptors(
                 return Promise.reject(error);
             }
 
-            if (originalRequest.url?.includes(refreshUrl)) {
+            if (isRefreshRequest(originalRequest.url, refreshUrl)) {
                 isRefreshing = false;
                 processQueue(error, null);
                 tokenManager.clearTokens();
@@ -136,6 +151,9 @@ export function setupInterceptors(
             isRefreshing = true;
             trackAuthEvent(AuthEventType.REFRESH_START, { url: originalRequest.url });
 
+            let devtoolsId: string | null = null;
+            let devtoolsStartedAt = 0;
+
             try {
                 // Resolve refresh payload (can be static object or function)
                 let payload: Record<string, unknown> = {};
@@ -149,6 +167,23 @@ export function setupInterceptors(
                 // This matches the behavior of most production apps where refresh token is in httpOnly cookie
                 const shouldUseCredentials = refreshWithCredentials || !tokenManager.getRefreshToken();
 
+                if (isDevtoolsExpected()) {
+                    devtoolsId = nextRequestId();
+                    devtoolsStartedAt = Date.now();
+                    devtoolsBridge.onRequestStart({
+                        id: devtoolsId,
+                        instanceId: null,
+                        url: refreshUrl,
+                        method: "POST",
+                        startedAt: devtoolsStartedAt,
+                        status: "pending",
+                        statusCode: null,
+                        requestHeaders: {},
+                        payload: redactTokenFields(payload),
+                        queryParams: null,
+                    });
+                }
+
                 const response = await axiosInstance.post<{ accessToken?: string, access_token?: string, refreshToken?: string, refresh_token?: string }>(
                     refreshUrl,
                     payload,
@@ -157,6 +192,15 @@ export function setupInterceptors(
                         withCredentials: shouldUseCredentials
                     } as AxiosRequestConfig & { authMode: AuthMode }
                 );
+
+                if (devtoolsId !== null) {
+                    devtoolsBridge.onRequestEnd(devtoolsId, {
+                        status: "success",
+                        statusCode: response.status,
+                        response: redactTokenFields(response.data),
+                        duration: Date.now() - devtoolsStartedAt,
+                    });
+                }
 
                 let accessToken: string | undefined;
                 let refreshToken: string | undefined;
@@ -190,6 +234,19 @@ export function setupInterceptors(
                 return axiosInstance(originalRequest);
             }
             catch (refreshError) {
+
+                if (devtoolsId !== null) {
+                    const apiError = parseApiError(refreshError);
+                    devtoolsBridge.onRequestEnd(devtoolsId, {
+                        status: "error",
+                        // details carries the raw failed-refresh response body, which can
+                        // echo a stale/partial token or the submitted payload — redact it
+                        // the same as the success path before it reaches devtools history.
+                        error: { ...apiError, details: redactTokenFields(apiError.details) },
+                        statusCode: apiError.status || null,
+                        duration: Date.now() - devtoolsStartedAt,
+                    });
+                }
 
                 trackAuthEvent(AuthEventType.REFRESH_ERROR, { error: refreshError });
                 processQueue(refreshError, null);

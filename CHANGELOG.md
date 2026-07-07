@@ -8,6 +8,29 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.5.5] — Unreleased
+
+### Fixed
+
+#### `@ametie/vue-muza-use`
+
+- **Per-call `execute()` config leaked into axios requests** — `cache`, `invalidateCache`, `retry`, `retryDelay`, `retryStatusCodes`, `skipErrorNotification`, and the lifecycle callbacks passed to `execute({...})` were spread raw into `axios.request()`, making them visible in `response.config`, interceptors, and devtools records. They are now filtered out before the request is sent. `select` was also removed from `ExecuteConfig`'s type (it was silently ignored at runtime — a setup-time-only option), and `execute()`'s return type no longer claims an impossible `undefined`.
+- **Devtools instance-event queue grew unbounded when devtools was disabled** — every `useApi()` call (amplified by `useApiBatch`, one instance per item per execution) permanently retained a closure in a pending-events queue that was only ever flushed if devtools was configured. The queue is now a `Map` keyed by instance id, only populated when devtools is expected, and a bridge-construction failure degrades to the same no-op behavior as devtools being absent instead of leaking forever. The devtools state-watch (`deep: true`) also no longer runs at all when devtools is disabled.
+- **Token-refresh requests were invisible in devtools** — the refresh POST fires inside the axios response interceptor, entirely bypassing `useApi`'s instrumentation, so a 401'd request appeared stuck "pending" for the whole refresh+replay with no explanation. It's now recorded as a standalone devtools entry (`instanceId: null`), with payload/response/error-details passed through a recursive redactor (`token`/`jwt`/`bearer`/`secret`/`password`/`authorization`/`apiKey`/`session`, case-insensitive) so no credential — including nested response shapes and refresh-failure error bodies — ever reaches devtools history.
+- **`poll` visibilitychange listener registered for every instance** — every `useApi()` call added a `document` listener for poll catch-up-on-focus, even when `poll` was never configured. The listener is now only registered when polling is actually configured.
+- **`initialLoading` never fell back to `immediate`** — `initialLoading` defaulted to `false` at destructure time, so the intended `initialLoading ?? immediate` fallback was dead code. With `immediate: true` and a `debounce`, `loading` stayed `false` during the initial debounce window since the deferred `execute()` hadn't set it yet. `initialLoading` now correctly defaults to `immediate`'s value when not explicitly set.
+- **Refresh-endpoint detection by substring** — the 401 handler used `url.includes(refreshUrl)` to detect a failed refresh, so a 401 from an unrelated endpoint like `/auth/refresh-devices` was misclassified as the refresh endpoint itself, incorrectly clearing tokens. Detection now requires an exact path match or a `/`-anchored suffix match.
+- **`useAbortController().signal` went stale after the first `abort()`** — `signal` was a one-time snapshot taken at call time; after `abort()` swapped in a new controller, `signal.value` stayed pointed at the old, permanently-aborted signal forever — silently breaking any consumer following the composable's own documented usage pattern. `signal` is now a `computed` that re-derives from the current controller on every `abort()`. `isAbortError` also now recognizes axios `CanceledError`/`ERR_CANCELED`, not just DOM `AbortError`.
+- **`localStorage` access could crash the request interceptor** — Safari private mode and storage-blocked iframes throw on any `localStorage` access; that exception previously propagated straight out of the interceptor and broke every request. Token storage now degrades to "no token" on read failures and no-ops on write failures instead of throwing.
+
+### Improved
+
+#### `@ametie/vue-muza-use`
+
+- **`params` decoupled from the request-body type** — `ApiRequestConfig<D>`'s `params` field shared the request-body generic `D`, so a typed POST body forced correctly-shaped query params into a type error. `params` now has its own independent generic (default `unknown`).
+
+---
+
 ## [1.5.4] — 2026-07-02
 
 ### Improved

@@ -17,6 +17,7 @@ useApi/
 │   │   ├── tsconfig.json
 │   │   ├── tsup.config.ts
 │   │   └── vitest.config.ts
+│   ├── devtools/         # Devtools panel — @ametie/vue-muza-devtools (published separately)
 │   └── playground/       # Dev/test sandbox — not published
 ├── pnpm-workspace.yaml
 └── CLAUDE.md
