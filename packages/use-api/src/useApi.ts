@@ -69,7 +69,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         retryStatusCodes = globalOptions?.retryStatusCodes ?? DEFAULT_RETRY_STATUS_CODES,
         authMode = "default",
         useGlobalAbort = globalOptions?.useGlobalAbort ?? true,
-        initialLoading = false,
+        initialLoading,
         poll = 0,
         // Explicitly excluded from axiosConfig — these are useApi-only options
         // and must not be forwarded to axios.request()
