@@ -456,3 +456,73 @@ describe('Interceptors — devtools refresh request visibility', () => {
         expect(startSpy).not.toHaveBeenCalled()
     })
 })
+
+// ---------------------------------------------------------------------------
+// Refresh endpoint matching — exact/suffix match, not substring
+// ---------------------------------------------------------------------------
+
+describe('refresh endpoint matching', () => {
+    let mockInstance2: MockAxiosInstance
+    let errorInterceptor2: (error: unknown) => Promise<unknown>
+
+    beforeEach(() => {
+        mockInstance2 = createMockInstance()
+        setupInterceptors(mockInstance2, { refreshUrl: '/auth/refresh' })
+        errorInterceptor2 = (mockInstance2.interceptors.response.use as Mock).mock.calls[0][1]
+    })
+
+    it('does NOT treat /auth/refresh-devices as the refresh endpoint', async () => {
+        tokenManager.setTokens({ accessToken: 'old-token' })
+        mockInstance2.post.mockResolvedValue({ data: { accessToken: 'new-token' } });
+        (mockInstance2 as unknown as Mock).mockResolvedValue('success')
+
+        const error = {
+            config: { headers: { set: vi.fn() }, url: '/auth/refresh-devices', _retry: false },
+            response: { status: 401 },
+        }
+
+        await errorInterceptor2(error)
+
+        // Should have gone down the NORMAL refresh path (POST to the refresh endpoint),
+        // not the "refresh itself failed" short-circuit.
+        expect(mockInstance2.post).toHaveBeenCalledWith('/auth/refresh', expect.anything(), expect.anything())
+    })
+
+    it('still detects the exact refresh URL (with query string) as the refresh endpoint', async () => {
+        const clearSpy = vi.spyOn(tokenManager, 'clearTokens')
+        tokenManager.setTokens({ accessToken: 'old-token' })
+
+        const error = {
+            config: { headers: { set: vi.fn() }, url: '/auth/refresh?device=web', _retry: false },
+            response: { status: 401 },
+        }
+
+        await expect(errorInterceptor2(error)).rejects.toBeDefined()
+
+        // Refresh endpoint itself failed -> tokens cleared, no second refresh POST attempted
+        expect(clearSpy).toHaveBeenCalled()
+        expect(mockInstance2.post).not.toHaveBeenCalled()
+        clearSpy.mockRestore()
+    })
+
+    it('anchors on a "/" boundary even when refreshUrl is configured without a leading slash', async () => {
+        const mockInstance3 = createMockInstance()
+        setupInterceptors(mockInstance3, { refreshUrl: 'refresh' })
+        const errorInterceptor3 = (mockInstance3.interceptors.response.use as Mock).mock.calls[0][1]
+
+        tokenManager.setTokens({ accessToken: 'old-token' })
+        mockInstance3.post.mockResolvedValue({ data: { accessToken: 'new-token' } });
+        (mockInstance3 as unknown as Mock).mockResolvedValue('success')
+
+        const error = {
+            config: { headers: { set: vi.fn() }, url: '/my-refresh', _retry: false },
+            response: { status: 401 },
+        }
+
+        await errorInterceptor3(error)
+
+        // "/my-refresh" has no "/" boundary before "refresh" — a bare endsWith("refresh")
+        // would wrongly match it; the "/" anchor must exclude it.
+        expect(mockInstance3.post).toHaveBeenCalledWith('refresh', expect.anything(), expect.anything())
+    })
+})

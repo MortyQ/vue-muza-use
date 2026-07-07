@@ -55,6 +55,19 @@ interface FailedRequestQueue {
     reject: (reason: unknown) => void;
 }
 
+// Matches the refresh endpoint by exact path or path suffix, anchored on a "/"
+// boundary (case-sensitive, like URL paths generally) — not by substring, so
+// e.g. "/auth/refresh-devices" is never misclassified as the refresh endpoint
+// itself. The "/" boundary check also guards a refreshUrl configured without
+// its leading slash (e.g. "refresh") from matching unrelated siblings like
+// "/users/refresh" via a bare endsWith.
+function isRefreshRequest(url: string | undefined, refreshUrl: string): boolean {
+    if (!url) return false;
+    const path = url.split("?")[0].split("#")[0];
+    const anchoredSuffix = refreshUrl.startsWith("/") ? refreshUrl : `/${refreshUrl}`;
+    return path === anchoredSuffix || path.endsWith(anchoredSuffix);
+}
+
 export function setupInterceptors(
     axiosInstance: AxiosInstance,
     options: InterceptorOptions = {}
@@ -113,7 +126,7 @@ export function setupInterceptors(
                 return Promise.reject(error);
             }
 
-            if (originalRequest.url?.includes(refreshUrl)) {
+            if (isRefreshRequest(originalRequest.url, refreshUrl)) {
                 isRefreshing = false;
                 processQueue(error, null);
                 tokenManager.clearTokens();
