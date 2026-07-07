@@ -18,6 +18,8 @@ import { createApi, useApiConfig, API_INJECTION_KEY } from './plugin'
 
 vi.mock("./devtools", () => ({
     initDevtools: vi.fn().mockResolvedValue(undefined),
+    setDevtoolsExpected: vi.fn(),
+    isDevtoolsExpected: vi.fn(() => false),
     devtoolsBridge: {
         onInstanceCreated: vi.fn(),
         onInstanceDestroyed: vi.fn(),
@@ -27,7 +29,7 @@ vi.mock("./devtools", () => ({
     },
 }));
 
-import { initDevtools } from "./devtools";
+import { initDevtools, setDevtoolsExpected } from "./devtools";
 
 // ---------------------------------------------------------------------------
 // Shared mock
@@ -167,5 +169,17 @@ describe("createApi — devtools integration", () => {
         const mockApp = { provide: vi.fn() } as unknown as App;
         plugin.install(mockApp);
         expect(initDevtools).not.toHaveBeenCalled();
+    });
+
+    it("marks devtools as expected when devtools.enabled is true", () => {
+        vi.clearAllMocks();
+        createApi({ axios: mockAxios, devtools: { enabled: true } });
+        expect(setDevtoolsExpected).toHaveBeenCalledWith(true);
+    });
+
+    it("marks devtools as not expected when devtools option is absent", () => {
+        vi.clearAllMocks();
+        createApi({ axios: mockAxios });
+        expect(setDevtoolsExpected).toHaveBeenCalledWith(false);
     });
 });

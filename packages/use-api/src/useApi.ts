@@ -16,7 +16,7 @@ import { useApiState } from "./composables/useApiState";
 import { useAbortController } from "./composables/useAbortController";
 import { readCache, writeCache, invalidateCache as cacheInvalidate, DEFAULT_STALE_TIME } from "./features/cacheManager";
 import { useRefetchTriggers } from "./composables/useRefetchTriggers";
-import { devtoolsBridge, nextRequestId } from "./devtools";
+import { devtoolsBridge, nextRequestId, isDevtoolsExpected } from "./devtools";
 import type { RequestEndResult } from "./types";
 
 const DEFAULT_RETRY_STATUS_CODES = [408, 429, 500, 502, 503, 504];
@@ -99,7 +99,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         immediate: options.immediate ?? false,
         lazy: options.lazy ?? false,
     });
-    if (getCurrentScope()) {
+    if (getCurrentScope() && isDevtoolsExpected()) {
         watch(
             () => ({
                 loading: state.loading.value,
