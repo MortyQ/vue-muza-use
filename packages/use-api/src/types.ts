@@ -44,9 +44,9 @@ export interface ApiState<T = unknown> {
     statusCode: number | null
 }
 
-export interface ApiRequestConfig<D = unknown> extends Omit<AxiosRequestConfig<D>, "data" | "params"> {
+export interface ApiRequestConfig<D = unknown, P = unknown> extends Omit<AxiosRequestConfig<D>, "data" | "params"> {
     data?: MaybeRefOrGetter<D> | D;
-    params?: MaybeRefOrGetter<D> | D;
+    params?: MaybeRefOrGetter<P> | P;
     skipErrorNotification?: boolean;
     authMode?: AuthMode;
     retry?: boolean | number;
