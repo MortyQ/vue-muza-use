@@ -11,18 +11,28 @@ interface CacheEntry<T = unknown> {
 const cacheStore = new Map<string, CacheEntry>();
 
 /**
+ * Read a cache entry together with its age in milliseconds.
+ * Returns null if the entry is missing or expired (expired entries are
+ * deleted immediately on read). The age lets callers apply their own
+ * freshness policy (e.g. CacheOptions.freshFor) at read time.
+ */
+function readCacheEntry<T>(id: string): { data: T; ageMs: number } | null {
+    const entry = cacheStore.get(id) as CacheEntry<T> | undefined;
+    if (!entry) return null;
+    const ageMs = Date.now() - entry.cachedAt;
+    if (ageMs >= entry.staleTime) {
+        cacheStore.delete(id);
+        return null;
+    }
+    return { data: entry.data, ageMs };
+}
+
+/**
  * Read a cache entry. Returns data if valid, null if stale or missing.
  * Expired entries are deleted immediately on read.
  */
 function readCache<T>(id: string): T | null {
-    const entry = cacheStore.get(id) as CacheEntry<T> | undefined;
-    if (!entry) return null;
-    const isValid = Date.now() - entry.cachedAt < entry.staleTime;
-    if (!isValid) {
-        cacheStore.delete(id);
-        return null;
-    }
-    return entry.data;
+    return readCacheEntry<T>(id)?.data ?? null;
 }
 
 /**
@@ -47,4 +57,4 @@ function clearAllCache(): void {
     cacheStore.clear();
 }
 
-export { readCache, writeCache, invalidateCache, clearAllCache };
+export { readCache, readCacheEntry, writeCache, invalidateCache, clearAllCache };

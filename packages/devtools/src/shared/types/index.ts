@@ -110,16 +110,28 @@ export type RequestEndResult =
 export type AuthMode = "default" | "public" | "optional";
 
 /**
+ * Human-readable duration string, e.g. "500ms", "30s", "5m", "1.5h", "1d".
+ * Mirrors DurationString in @ametie/vue-muza-use — keep in sync.
+ */
+export type DurationString = `${number}ms` | `${number}s` | `${number}m` | `${number}h` | `${number}d`;
+
+/** A duration in milliseconds or a DurationString. */
+export type DurationInput = number | DurationString;
+
+/**
  * Cache configuration for a request.
+ * Mirrors CacheOptions in @ametie/vue-muza-use — keep in sync.
  *
  * @property id Unique cache key
- * @property staleTime How long (ms) cached data is considered fresh; default 300_000
+ * @property staleTime How long cached data lives (ms or duration string); default 300_000
  * @property swr Serve stale data instantly while revalidating in background
+ * @property freshFor Age below which an SWR hit skips background revalidation; default 0
  */
 export interface CacheOptions {
     id: string;
-    staleTime?: number;
+    staleTime?: DurationInput;
     swr?: boolean;
+    freshFor?: DurationInput;
 }
 
 /**

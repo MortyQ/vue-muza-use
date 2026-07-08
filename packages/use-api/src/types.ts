@@ -11,13 +11,26 @@ export interface ApiError {
 
 export type AuthMode = "default" | "public" | "optional";
 
+/**
+ * Human-readable duration string: a number followed by a unit.
+ * Supported units: `ms` (milliseconds), `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
+ *
+ * @example "500ms" · "30s" · "5m" · "1.5h" · "1d"
+ */
+export type DurationString = `${number}ms` | `${number}s` | `${number}m` | `${number}h` | `${number}d`;
+
+/**
+ * A duration in milliseconds, or a {@link DurationString} like `"5m"` / `"1h"`.
+ */
+export type DurationInput = number | DurationString;
+
 export interface CacheOptions {
     id: string;
     /**
-     * How long the cached entry is valid in milliseconds.
+     * How long the cached entry is valid — milliseconds or a duration string (`"5m"`, `"1h"`, `"1d"`).
      * Default: 300_000 (5 minutes)
      */
-    staleTime?: number;
+    staleTime?: DurationInput;
     /**
      * Stale-while-revalidate: serve cached data instantly while revalidating in the background.
      * On a cache hit, data is set immediately (no loading state) and a fresh request runs silently.
@@ -35,6 +48,25 @@ export interface CacheOptions {
      * ```
      */
     swr?: boolean;
+    /**
+     * Age below which a cached entry is "fresh": served WITHOUT background
+     * revalidation even when `swr: true`. Milliseconds or a duration string.
+     * Only meaningful together with `swr: true` (non-SWR hits already skip
+     * the network for the whole `staleTime` window).
+     *
+     * Default: 0 — every SWR hit revalidates.
+     *
+     * @example
+     * ```ts
+     * // Instant display; network at most once an hour; loading spinner only
+     * // after a day (or after an explicit invalidateCache('report')).
+     * useApi('/daily-report', {
+     *   cache: { id: 'report', swr: true, freshFor: '1h', staleTime: '1d' },
+     *   immediate: true,
+     * })
+     * ```
+     */
+    freshFor?: DurationInput;
 }
 
 export interface ApiState<T = unknown> {

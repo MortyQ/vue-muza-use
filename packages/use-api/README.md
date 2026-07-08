@@ -87,6 +87,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
   - [ignoreUpdates — Update Without Re-fetching](#ignoreupdates--update-without-re-fetching)
 - [Response Caching](#response-caching)
   - [Stale-While-Revalidate (SWR)](#stale-while-revalidate-swr)
+  - [freshFor — Skip Revalidation While Data Is Fresh](#freshfor--skip-revalidation-while-data-is-fresh)
 - [Refetch Triggers](#refetch-triggers)
 - [Polling (Background Updates)](#polling-background-updates)
 - [Error Handling](#error-handling)
@@ -706,8 +707,18 @@ const { data } = useApi('/reports', {
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `id` | `string` | — | Unique cache key |
-| `staleTime` | `number` | `300_000` | TTL in milliseconds. Entry is deleted on next read after this time |
+| `staleTime` | `DurationInput` | `300_000` | TTL — milliseconds or a duration string (`'5m'`, `'1h'`). Entry is deleted on next read after this time |
 | `swr` | `boolean` | `false` | Stale-while-revalidate: serve cached data instantly while revalidating in the background. See [SWR](#stale-while-revalidate-swr) |
+| `freshFor` | `DurationInput` | `0` | Age below which an SWR hit is served **without** background revalidation. Only meaningful with `swr: true`. See [freshFor](#freshfor--skip-revalidation-while-data-is-fresh) |
+
+**`DurationInput`** — every duration field accepts either milliseconds (`number`) or a
+human-readable string: `'500ms'`, `'30s'`, `'5m'`, `'1.5h'`, `'1d'`. Typos in the unit
+(`'5x'`) are TypeScript errors, and `'1h'` can't silently mean the wrong number of zeros:
+
+```typescript
+cache: { id: 'report', staleTime: '1d' }   // ✅ 86_400_000 ms — no arithmetic, no mistakes
+cache: { id: 'report', staleTime: 24_000_000 } // ⚠️ compiles, but this is ~6.7h, not 24h
+```
 
 #### Out of Scope (by design)
 
@@ -786,6 +797,47 @@ const { data, revalidating, error } = useApi('/dashboard', {
 })
 // data.value stays the cached value even after a failed revalidation
 ```
+
+#### freshFor — Skip Revalidation While Data Is Fresh
+
+**TL;DR: `freshFor` adds a "fresh enough, don't even revalidate" tier — SWR stops hitting the network on every single cache hit.**
+
+By default (`freshFor: 0`) every SWR cache hit fires a background request. With `freshFor`
+set, the entry's age decides what happens:
+
+| Entry age | Behavior |
+|---|---|
+| under `freshFor` | cache served, **no network**, `revalidating` stays `false` |
+| `freshFor` → `staleTime` | cache served instantly + silent background revalidation |
+| past `staleTime` | entry deleted — normal request with `loading: true` |
+
+```typescript
+// Daily report: instant display, network at most once an hour,
+// loading spinner only when data is more than a day old.
+const { data, revalidating } = useApi('/daily-report', {
+  cache: { id: 'report', swr: true, freshFor: '1h', staleTime: '1d' },
+  immediate: true,
+})
+```
+
+**Using SWR as a drop-in upgrade for the plain cache.** Take your current `staleTime`,
+move it to `freshFor`, and give `staleTime` a larger value:
+
+```typescript
+// Before: within 1m — silent cache; after 1m — full request with a loading flash
+cache: { id: 'products', staleTime: '1m' }
+
+// After: within 1m — identical silent cache; between 1m and 1h — instant data
+// with an invisible background refresh; loading flash only past 1h
+cache: { id: 'products', swr: true, freshFor: '1m', staleTime: '1h' }
+```
+
+Freshness is evaluated **per read, per consumer** — two `useApi` instances sharing one
+cache id can use different `freshFor` values (e.g. a dashboard widget tolerates `'1h'`,
+a detail page wants `'1m'`).
+
+An explicit `invalidateCache(id)` always wins: the entry is gone, the next call is a
+normal network request regardless of `freshFor`.
 
 ---
 
@@ -2140,7 +2192,7 @@ Three type parameters — all optional with defaults:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `cache` | `string \| CacheOptions` | `undefined` | Cache the response in memory. String shorthand uses default 5-min TTL. `CacheOptions.swr: true` enables stale-while-revalidate. See [Response Caching](#response-caching) |
+| `cache` | `string \| CacheOptions` | `undefined` | Cache the response in memory. String shorthand uses default 5-min TTL. `CacheOptions.swr: true` enables stale-while-revalidate; `freshFor` skips revalidation while the entry is young. Durations accept `'5m'`/`'1h'` strings. See [Response Caching](#response-caching) |
 | `invalidateCache` | `string \| string[]` | `undefined` | Cache key(s) to delete on 2xx success. Never fires on error |
 
 **Refetch Triggers:**

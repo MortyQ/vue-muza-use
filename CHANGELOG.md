@@ -8,7 +8,22 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
-## [1.5.5] — Unreleased
+## [1.5.6] — Unreleased
+
+### Added
+
+#### `@ametie/vue-muza-use`
+
+- **`CacheOptions.freshFor` — two-tier SWR freshness** — a new "fresh enough, skip the network" tier for `swr: true` caches. Entries younger than `freshFor` are served silently with **no** background revalidation (`revalidating` stays `false`); entries between `freshFor` and `staleTime` keep the current SWR behavior (instant cache + silent refresh); past `staleTime` the entry is dropped and a normal `loading` request runs. Default `freshFor: 0` preserves the previous behavior exactly (every SWR hit revalidates). Freshness is evaluated per read, so two instances sharing one cache id can use different `freshFor` values. Recipe for rarely-changing data: `cache: { id, swr: true, freshFor: "1h", staleTime: "1d" }` + event-driven `invalidateCache(id)`.
+- **Duration strings for cache timings** — `staleTime` and `freshFor` accept human-readable strings alongside milliseconds: `"500ms"`, `"30s"`, `"5m"`, `"1.5h"`, `"1d"` (new `DurationInput`/`DurationString` types). The unit suffix is validated at the type level — `"5x"` is a TypeScript error — eliminating the `24_000_000 ≠ 24h` class of arithmetic bugs.
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **`CacheOptions` type copy synced** — the panel's local copy of `CacheOptions` now mirrors the library's (`freshFor`, `DurationInput`), keeping instance-options display type-compatible.
+
+---
+
+## [1.5.5] — 2026-07-07
 
 ### Fixed
 
