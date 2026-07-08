@@ -14,7 +14,8 @@ import { useApiConfig } from "./plugin";
 import { parseApiError } from "./utils/errorParser";
 import { useApiState } from "./composables/useApiState";
 import { useAbortController } from "./composables/useAbortController";
-import { readCache, writeCache, invalidateCache as cacheInvalidate, DEFAULT_STALE_TIME } from "./features/cacheManager";
+import { readCacheEntry, writeCache, invalidateCache as cacheInvalidate, DEFAULT_STALE_TIME } from "./features/cacheManager";
+import { parseDuration } from "./utils/time";
 import { useRefetchTriggers } from "./composables/useRefetchTriggers";
 import { devtoolsBridge, nextRequestId, isDevtoolsExpected } from "./devtools";
 import type { RequestEndResult } from "./types";
@@ -22,17 +23,23 @@ import type { RequestEndResult } from "./types";
 const DEFAULT_RETRY_STATUS_CODES = [408, 429, 500, 502, 503, 504];
 
 /**
- * Normalise the `cache` option into a consistent shape with a guaranteed `staleTime` and `swr` flag.
+ * Normalise the `cache` option into a consistent shape with guaranteed `staleTime`,
+ * `swr` and `freshFor` values (duration strings resolved to milliseconds).
  * Returns null if caching is not configured.
  */
 function normalizeCacheOptions(
     cache: string | CacheOptions | undefined,
-): { id: string; staleTime: number; swr: boolean } | null {
+): { id: string; staleTime: number; swr: boolean; freshFor: number } | null {
     if (!cache) return null;
     if (typeof cache === "string") {
-        return { id: cache, staleTime: DEFAULT_STALE_TIME, swr: false };
+        return { id: cache, staleTime: DEFAULT_STALE_TIME, swr: false, freshFor: 0 };
     }
-    return { id: cache.id, staleTime: cache.staleTime ?? DEFAULT_STALE_TIME, swr: cache.swr ?? false };
+    return {
+        id: cache.id,
+        staleTime: cache.staleTime !== undefined ? parseDuration(cache.staleTime) : DEFAULT_STALE_TIME,
+        swr: cache.swr ?? false,
+        freshFor: cache.freshFor !== undefined ? parseDuration(cache.freshFor) : 0,
+    };
 }
 
 /**
@@ -141,7 +148,9 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
          *
          * Cache hit behavior (cache.swr: true — SWR):
          * - mutate() called with cached data immediately (no loading flash)
-         * - revalidating set to true
+         * - entry age < freshFor → treated like a non-SWR hit: NO request,
+         *   revalidating stays false (default freshFor: 0 = always revalidate)
+         * - otherwise: revalidating set to true
          * - axios request IS made in the background
          * - on success: data updated silently, revalidating: false
          * - on error: error set, revalidating: false
@@ -190,11 +199,13 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         } = config ?? {};
 
         if (cacheOpts) {
-            const cached = readCache<T>(cacheOpts.id);
+            const cached = readCacheEntry<T>(cacheOpts.id);
             if (cached !== null) {
-                state.mutate(applySelect(cached));
-                if (!cacheOpts.swr) {
-                    return applySelect(cached);
+                state.mutate(applySelect(cached.data));
+                // Fresh SWR hits (age < freshFor) behave exactly like non-SWR hits:
+                // no background request, revalidating stays false
+                if (!cacheOpts.swr || cached.ageMs < cacheOpts.freshFor) {
+                    return applySelect(cached.data);
                 }
                 // SWR: serve cache immediately, continue to fetch fresh data in background
                 isRevalidating = true;
