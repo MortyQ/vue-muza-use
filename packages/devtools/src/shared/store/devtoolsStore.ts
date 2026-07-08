@@ -5,6 +5,7 @@ import type {
     DevtoolsInstanceState,
     DevtoolsOptions,
     RequestRecord,
+    RequestStartRecord,
     RequestEndResult,
 } from "../types/index";
 
@@ -97,7 +98,7 @@ export function updateInstanceState(id: string, partial: Partial<DevtoolsInstanc
  * Payload and queryParams are truncated if they exceed maxPayloadSize.
  */
 export function addRequest(
-    partial: Omit<RequestRecord, "duration" | "response" | "error" | "truncated" | "instanceOptions">,
+    partial: RequestStartRecord,
 ): void {
     const { value: truncatedPayload, truncated: payloadTruncated } = truncateValue(partial.payload, state.config.maxPayloadSize);
     const { value: truncatedQueryParams, truncated: queryParamsTruncated } = truncateValue(partial.queryParams, state.config.maxPayloadSize);
@@ -147,6 +148,7 @@ export function updateRequest(id: string, result: RequestEndResult): void {
             statusCode: result.statusCode,
             response: truncatedResponse,
             duration: result.duration,
+            cachedAt: result.cachedAt,
             truncated: record.truncated || truncated,
         };
     } else if (result.status === "error") {

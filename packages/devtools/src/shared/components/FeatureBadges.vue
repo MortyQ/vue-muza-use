@@ -1,7 +1,7 @@
 <!-- Renders feature badges (cache, swr, polling, etc.) for a useApi instance. -->
 <script setup lang="ts">
 import { computed } from "vue";
-import type { DevtoolsInstanceOptions, CacheOptions } from "../types/index";
+import type { DevtoolsInstanceOptions } from "../types/index";
 
 const props = defineProps<{ options: DevtoolsInstanceOptions }>();
 
@@ -18,10 +18,12 @@ const badges = computed<Badge[]>(() => {
     const b: Badge[] = [];
     const { cache, poll, retry, batch, debounce, immediate, lazy } = props.options;
 
+    // `cache` is the resolved config (cacheDefaults already merged in) — `id`
+    // present only for a manual key, "auto" otherwise; `swr` reflects the true
+    // effective value even when it comes from cacheDefaults, not this instance.
     if (cache) {
-        const id = typeof cache === "string" ? cache : (cache as CacheOptions).id;
-        b.push({ key: "cache", label: "cache", sub: id, variant: "cache" });
-        if (typeof cache === "object" && (cache as CacheOptions).swr) {
+        b.push({ key: "cache", label: "cache", sub: cache.id ?? "auto", variant: "cache" });
+        if (cache.swr) {
             b.push({ key: "swr", label: "swr", variant: "swr" });
         }
     }

@@ -8,6 +8,24 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.6.0] — Unreleased
+
+### Added
+
+#### `@ametie/vue-muza-use`
+
+- **Automatic cache keys** — `CacheOptions.id` is now optional. `cache: true` (or any cache object without `id`) derives the key at request time from `method + url + params + data` via stable sorted-key serialization, so every page/filter/body combination gets its own cache entry — eliminating the "one id, different params → wrong data served" bug class for paginated and filtered lists. A manual `id` opts out. The resolved key of the last executed request is exposed as `cacheKey: Ref<string | null>` on the `useApi` return.
+- **`globalOptions.cacheDefaults`** — project-wide default cache fields (`swr`, `staleTime`, `freshFor`) set once in `createApi()` and merged per-field under each request's own `cache` option (precedence: `cacheDefaults` < composable `cache` < per-call `execute({ cache })`). Never activates caching by itself — a request must still pass `cache` explicitly; any `id` in the defaults is ignored.
+- **Prefix cache invalidation** — `invalidateCache` (both the imperative export and the request option) accepts `{ prefix: string }` to bust every key starting with the prefix, e.g. `invalidateCache({ prefix: "auto:GET:/products" })` clears all cached pages/filters of an endpoint after a mutation. An empty prefix is a no-op.
+- **Devtools bridge: cache metadata** — request-start records now carry the resolved `cacheKey`, and success results carry `cachedAt` (the moment the response was written to the cache); instance options report the *resolved* cache config with `cacheDefaults` merged in, so the panel shows the true effective `swr`/`staleTime`/`freshFor`.
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **Cache info strip in request details** — a new section between the detail header and tabs for cache-active requests: the resolved cache key (single-line with click-to-expand for long auto keys; copy button always copies the full value) plus a one-click **prefix copy** (`auto:GET:/products`) for bulk invalidation; humanized `staleTime`/`freshFor`/`swr` config; and a **live freshness countdown** (`fresh — 7s left` → `revalidates on hit — stale in 4m 52s` → `expired`) ticking once per second while the panel is open. Requires `@ametie/vue-muza-use` from this release for the `cacheKey`/`cachedAt` bridge fields — with older library versions the strip renders without key/countdown and may show placeholder config values.
+- **Cache badge understands auto keys** — the `cache` feature badge now shows `cache · auto` for auto-keyed instances (or `cache · <id>` for manual keys), and the `swr` badge reflects the effective value even when it comes from `cacheDefaults`.
+
+---
+
 ## [1.5.6] — Unreleased
 
 ### Added

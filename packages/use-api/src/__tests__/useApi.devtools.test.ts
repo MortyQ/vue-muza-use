@@ -26,6 +26,7 @@ vi.mock("../devtools", () => {
 import { useApi } from "../useApi";
 import { createApi } from "../plugin";
 import { devtoolsBridge, isDevtoolsExpected } from "../devtools";
+import { clearAllCache } from "../features/cacheManager";
 
 const mockAxios = {
     request: vi.fn(),
@@ -148,5 +149,57 @@ describe("useApi — devtools: onRequestStart / onRequestEnd", () => {
         exec2();
         await flushPromises();
         expect(devtoolsBridge.onRequestStart).not.toHaveBeenCalled();
+    });
+});
+
+describe("useApi — devtools: cache info fields", () => {
+    beforeEach(() => {
+        clearAllCache();
+    });
+
+    it("onRequestStart record carries the resolved cacheKey when cache is active", async () => {
+        const [{ execute }] = withSetup(() =>
+            useApi("/test", { cache: true, params: { page: 1 } }),
+        );
+        execute();
+        await flushPromises();
+        expect(devtoolsBridge.onRequestStart).toHaveBeenCalledWith(
+            expect.objectContaining({ cacheKey: "auto:GET:/test:{\"page\":1}:" }),
+        );
+    });
+
+    it("onRequestStart record carries cacheKey: null when caching is off", async () => {
+        const [{ execute }] = withSetup(() => useApi("/test"));
+        execute();
+        await flushPromises();
+        expect(devtoolsBridge.onRequestStart).toHaveBeenCalledWith(
+            expect.objectContaining({ cacheKey: null }),
+        );
+    });
+
+    it("onRequestEnd success result carries cachedAt when the response was cached", async () => {
+        const before = Date.now();
+        const [{ execute }] = withSetup(() =>
+            useApi("/test", { cache: true }),
+        );
+        execute();
+        await flushPromises();
+        const calls = vi.mocked(devtoolsBridge.onRequestEnd).mock.calls;
+        const [, result] = calls[calls.length - 1];
+        expect(result.status).toBe("success");
+        expect(result).toEqual(expect.objectContaining({ cachedAt: expect.any(Number) }));
+        if (result.status === "success" && result.cachedAt !== undefined) {
+            expect(result.cachedAt).toBeGreaterThanOrEqual(before);
+        }
+    });
+
+    it("onRequestEnd success result has NO cachedAt when caching is off", async () => {
+        const [{ execute }] = withSetup(() => useApi("/test"));
+        execute();
+        await flushPromises();
+        const calls = vi.mocked(devtoolsBridge.onRequestEnd).mock.calls;
+        const [, result] = calls[calls.length - 1];
+        expect(result.status).toBe("success");
+        expect(result).not.toHaveProperty("cachedAt");
     });
 });

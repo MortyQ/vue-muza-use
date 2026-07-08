@@ -6,9 +6,9 @@
 |---|---|
 | **name** | `use-api` |
 | **description** | Feature-scoped API layer pattern built on `@ametie/vue-muza-use`. Generates and refactors typed composable wrappers for HTTP requests in Vue 3 apps. |
-| **version** | 1.5 |
+| **version** | 1.6 |
 | **applies_to** | `**/api/use*.ts`, `**/*.vue`, `**/*.ts` (when dealing with HTTP requests) |
-| **verified_against** | `@ametie/vue-muza-use` 1.5.6 (freshFor + duration strings) |
+| **verified_against** | `@ametie/vue-muza-use` 1.6.0 (auto cache keys + cacheDefaults) |
 
 ## Auto-Activation Triggers
 
@@ -289,7 +289,10 @@ These options are available in `UseApiOptions` and flow through the factory patt
 | Option | What it does | When to consider |
 |--------|-------------|-----------------|
 | `select` | Transforms response data before storing in `data`. Re-applied on every fetch, polling tick, and SWR revalidation. | When the component needs a different shape than what the server returns |
+| `cache: true` | Auto-keys the entry from `method + url + params + data` (no manual `id`). Each page/filter/body combo gets its own entry — the correct default for paginated or filtered lists. Exposes the resolved key as `cacheKey`. Manual `id` opts out. | Server pagination/filtering where a static `id` would serve the wrong page |
 | `cache: { id, swr: true }` | Returns cached data immediately, fetches fresh data silently in the background. Exposes `revalidating` ref. | When instant display matters and brief staleness is acceptable |
+| `invalidateCache({ prefix })` | Busts every auto-keyed variation of an endpoint at once, e.g. `{ prefix: 'auto:GET:/products' }` after a create/update. | Invalidating all pages/filters of a list following a mutation |
+| `globalOptions.cacheDefaults` (in `createApi`) | Project-wide default cache fields (`swr`, `staleTime`, `freshFor`), merged per-field under each request's own `cache`. Does NOT enable caching by itself — a request must still pass `cache`. | Setting one caching policy for the whole app instead of repeating it per composable |
 | `cache: { swr: true, freshFor }` | Entries younger than `freshFor` are served with NO background revalidation — SWR stops hitting the network on every hit. Age tiers: `< freshFor` silent cache; `freshFor…staleTime` cache + silent refresh; `> staleTime` normal loading request. | Rarely-changing data (`freshFor: "1h", staleTime: "1d"` + event-driven `invalidateCache`); upgrading a plain cache to SWR without extra traffic |
 | `cache` / `invalidateCache` | In-memory response cache with configurable TTL. `invalidateCache` busts related caches on mutation success. Duration fields (`staleTime`, `freshFor`) accept ms numbers or strings: `"30s"`, `"5m"`, `"1.5h"`, `"1d"` — prefer strings (typo-safe, no `24_000_000 ≠ 24h` bugs). | Repeated reads of rarely-changing data; POST/PUT/DELETE that should invalidate GET caches |
 | `refetchOnFocus` | Re-fetches when the browser tab regains focus. `true` uses a 60s throttle; `{ throttle: 0 }` always refetches. | Dashboards, feeds — keep data fresh when user returns to the tab |

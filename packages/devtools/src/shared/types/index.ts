@@ -86,7 +86,20 @@ export interface RequestRecord {
     truncated: boolean;
     /** Snapshot of the instance's feature options taken at request creation time. Populated if the instance was registered; undefined for batch or untracked requests. */
     instanceOptions: DevtoolsInstanceOptions | undefined;
+    /** Resolved cache key for this request; null when caching inactive; undefined for standalone records. Mirrors use-api. */
+    cacheKey?: string | null;
+    /** Unix ms timestamp when the response was written to the cache; absent/undefined if caching was off. Mirrors use-api. */
+    cachedAt?: number;
 }
+
+/**
+ * The shape accepted when a request STARTS. Duration, response, error, truncated,
+ * instanceOptions, and cachedAt are added on completion — never at start.
+ */
+export type RequestStartRecord = Omit<
+    RequestRecord,
+    "duration" | "response" | "error" | "truncated" | "instanceOptions" | "cachedAt"
+>;
 
 /**
  * Result of a completed HTTP request.
@@ -94,7 +107,7 @@ export interface RequestRecord {
  * Discriminated union on `status` — only relevant fields are present per branch.
  */
 export type RequestEndResult =
-    | { status: "success"; statusCode: number; response: unknown; duration: number }
+    | { status: "success"; statusCode: number; response: unknown; duration: number; cachedAt?: number }
     | { status: "error"; error: ApiError; statusCode: number | null; duration: number }
     | { status: "aborted"; duration: number };
 
@@ -122,13 +135,13 @@ export type DurationInput = number | DurationString;
  * Cache configuration for a request.
  * Mirrors CacheOptions in @ametie/vue-muza-use — keep in sync.
  *
- * @property id Unique cache key
+ * @property id Cache key. Optional — omit to auto-derive from method+url+params+data
  * @property staleTime How long cached data lives (ms or duration string); default 300_000
  * @property swr Serve stale data instantly while revalidating in background
  * @property freshFor Age below which an SWR hit skips background revalidation; default 0
  */
 export interface CacheOptions {
-    id: string;
+    id?: string;
     staleTime?: DurationInput;
     swr?: boolean;
     freshFor?: DurationInput;
@@ -150,10 +163,17 @@ export interface DevtoolsInstanceState {
 }
 
 /**
+ * Resolved cache config as seen by devtools — cacheDefaults already merged in.
+ * `id` is present only for a manual (non-auto) key. `null`/`undefined` when caching is off.
+ * Mirrors DevtoolsResolvedCache in @ametie/vue-muza-use — keep in sync.
+ */
+export type DevtoolsResolvedCache = { id?: string; staleTime: number; swr: boolean; freshFor: number } | null | undefined;
+
+/**
  * Configuration options applied to a useApi composable instance.
  *
  * @property authMode Which auth strategy is used
- * @property cache Cache options, cache ID string, or undefined if caching disabled
+ * @property cache Resolved cache config (cacheDefaults merged in), or null if caching disabled
  * @property retry Retry on 5xx; true/false or max retry count
  * @property poll Polling interval in milliseconds; 0 = disabled
  * @property immediate Execute request immediately on composable creation
@@ -161,7 +181,7 @@ export interface DevtoolsInstanceState {
  */
 export interface DevtoolsInstanceOptions {
     authMode: AuthMode;
-    cache: CacheOptions | string | undefined;
+    cache: DevtoolsResolvedCache;
     retry: boolean | number;
     poll: number;
     immediate: boolean;
@@ -220,8 +240,8 @@ export interface DevtoolsBridge {
     onInstanceDestroyed: (id: string) => void;
     /** Called when a useApi instance's reactive state changes. */
     onStateUpdate: (id: string, state: Partial<DevtoolsInstanceState>) => void;
-    /** Called when a request begins. Duration, response, error, truncated, and instanceOptions are added on completion or derived internally. */
-    onRequestStart: (record: Omit<RequestRecord, "duration" | "response" | "error" | "truncated" | "instanceOptions">) => void;
+    /** Called when a request begins. Duration, response, error, truncated, instanceOptions, and cachedAt are added on completion or derived internally. */
+    onRequestStart: (record: RequestStartRecord) => void;
     /** Called when a request completes (success, error, or abort). */
     onRequestEnd: (id: string, result: RequestEndResult) => void;
 }

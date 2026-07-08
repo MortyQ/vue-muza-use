@@ -7,6 +7,7 @@ import DetailTabs from "./DetailTabs.vue";
 import SplitView from "./SplitView.vue";
 import DataPane from "./DataPane.vue";
 import PayloadPane from "./PayloadPane.vue";
+import CacheInfoBar from "./CacheInfoBar.vue";
 
 defineProps<{ request: RequestRecord; instanceOptions?: DevtoolsInstanceOptions }>();
 defineEmits<{ close: [] }>();
@@ -18,6 +19,11 @@ const activeTab = ref<TabId>("split");
 <template>
     <div class="request-detail">
         <DetailHeader :request="request" :instance-options="instanceOptions" @close="$emit('close')" />
+        <CacheInfoBar
+            v-if="instanceOptions?.cache"
+            :request="request"
+            :cache="instanceOptions.cache"
+        />
         <DetailTabs :active-tab="activeTab" :has-error="!!request.error" @select="activeTab = $event" />
 
         <div class="detail-content">

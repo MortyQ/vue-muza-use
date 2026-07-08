@@ -573,6 +573,33 @@ const { data, loading } = useApi<Category[]>('/categories', {
 The first call hits the network and caches the result under the key `'categories'`.
 Every subsequent `execute()` within 5 minutes is served from cache instantly — `loading` never becomes `true` and no axios request is made.
 
+#### Automatic Cache Keys — `cache: true`
+
+**TL;DR: Omit the `id` and the key is derived from `method + url + params + data`, so every page / filter combination gets its own cache entry automatically.**
+
+A static string `id` is a footgun for paginated or filtered lists: the same key is reused for every page, so a cache hit serves the *wrong* page. Pass `cache: true` (or an object without `id`) and the key is built at request time from the actual request:
+
+```vue
+<script setup lang="ts">
+const page = ref(1)
+const filters = ref({ brand: ['ART'], channel: [10, 1] })
+
+const { data, cacheKey } = useApi<Product[]>('/products', {
+  // key = auto:GET:/products:{params}:{data} — unique per page + filter set
+  cache: true,
+  params: () => ({ page: page.value }),
+  data: () => filters.value,
+  immediate: true,
+})
+// Flipping `page` fetches each page once; returning to a visited page is instant.
+</script>
+```
+
+- Params and body are serialized with sorted keys, so `{ a, b }` and `{ b, a }` map to the same entry; array order **is** significant (`[10, 1] ≠ [1, 10]`).
+- `cache: true` ≡ `cache: {}`. Add fields to override defaults while keeping the auto key: `cache: { swr: true, freshFor: '1m' }`.
+- Provide an explicit `id` to opt out and pin a manual key: `cache: { id: 'products' }`.
+- The resolved key is exposed as `cacheKey` (a `Ref<string | null>`) on the return — pass it to `invalidateCache(cacheKey.value)` to bust that exact entry, or use prefix invalidation (below) to bust every page at once.
+
 #### Custom TTL — CacheOptions Object
 
 ```vue
@@ -654,9 +681,16 @@ invalidateCache('products')
 // Bust multiple keys at once
 invalidateCache(['products', 'categories'])
 
+// Bust every auto-keyed variation of an endpoint by key prefix —
+// e.g. all cached pages/filters of the products list after a create/update
+invalidateCache({ prefix: 'auto:GET:/products' })
+
 // Wipe everything — call on logout to prevent data leaks between users
 clearAllCache()
 ```
+
+> [!NOTE]
+> An empty prefix (`{ prefix: '' }`) is a no-op — it will **not** wipe the whole cache. Use `clearAllCache()` for that.
 
 #### cache + auto-tracking
 
@@ -699,14 +733,14 @@ const { data } = useApi('/reports', {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `cache` | `string \| CacheOptions` | `undefined` | Enable caching. String = `{ id, staleTime: 300_000 }` shorthand |
-| `invalidateCache` | `string \| string[]` | `undefined` | Cache key(s) to delete on 2xx success |
+| `cache` | `string \| boolean \| CacheOptions` | `undefined` | Enable caching. `true`/`{}` = auto-key + defaults; string = manual key shorthand |
+| `invalidateCache` | `string \| string[] \| { prefix }` | `undefined` | Cache key(s) or a key prefix to delete on 2xx success |
 
 **`CacheOptions`**
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | `string` | — | Unique cache key |
+| `id` | `string` | *(auto)* | Manual cache key. **Omit** to auto-derive the key from `method + url + params + data` |
 | `staleTime` | `DurationInput` | `300_000` | TTL — milliseconds or a duration string (`'5m'`, `'1h'`). Entry is deleted on next read after this time |
 | `swr` | `boolean` | `false` | Stale-while-revalidate: serve cached data instantly while revalidating in the background. See [SWR](#stale-while-revalidate-swr) |
 | `freshFor` | `DurationInput` | `0` | Age below which an SWR hit is served **without** background revalidation. Only meaningful with `swr: true`. See [freshFor](#freshfor--skip-revalidation-while-data-is-fresh) |
@@ -894,9 +928,26 @@ app.use(createApi({
   globalOptions: {
     refetchOnFocus: true,
     refetchOnReconnect: true,
+    // Project-wide cache behavior — applied per-field under each request's own `cache`.
+    cacheDefaults: { swr: true, staleTime: '6h', freshFor: '30m' },
   },
 }))
 ```
+
+With `cacheDefaults` above, `cache: true` on any request inherits SWR + those timings, so you write it once instead of on every composable:
+
+```typescript
+// Inherits swr / staleTime / freshFor from cacheDefaults; auto-keyed.
+const { data } = useApi('/products', { cache: true, immediate: true })
+
+// Override a single field; the rest still come from cacheDefaults.
+const { data: report } = useApi('/report', { cache: { freshFor: '5m' }, immediate: true })
+```
+
+> [!IMPORTANT]
+> `cacheDefaults` **never enables caching by itself** — a request is cached only if it explicitly passes `cache`. This prevents accidentally caching mutations. Any `id` inside `cacheDefaults` is ignored.
+
+Merge precedence (per-field, later wins): `cacheDefaults` < composable `cache` < per-call `execute({ cache })`.
 
 Opt individual requests out with `refetchOnFocus: false`:
 
@@ -2192,8 +2243,8 @@ Three type parameters — all optional with defaults:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `cache` | `string \| CacheOptions` | `undefined` | Cache the response in memory. String shorthand uses default 5-min TTL. `CacheOptions.swr: true` enables stale-while-revalidate; `freshFor` skips revalidation while the entry is young. Durations accept `'5m'`/`'1h'` strings. See [Response Caching](#response-caching) |
-| `invalidateCache` | `string \| string[]` | `undefined` | Cache key(s) to delete on 2xx success. Never fires on error |
+| `cache` | `string \| boolean \| CacheOptions` | `undefined` | Cache the response in memory. `true`/`{}` auto-keys from method+url+params+data; string/`{ id }` uses a manual key. `swr: true` enables stale-while-revalidate; `freshFor` skips revalidation while the entry is young. Durations accept `'5m'`/`'1h'` strings. Global defaults via `globalOptions.cacheDefaults`. See [Response Caching](#response-caching) |
+| `invalidateCache` | `string \| string[] \| { prefix }` | `undefined` | Cache key(s) or a key prefix to delete on 2xx success. Never fires on error |
 
 **Refetch Triggers:**
 
@@ -2268,6 +2319,7 @@ Three type parameters — all optional with defaults:
 | `statusCode` | `Ref<number \| null>` | HTTP status code from the last completed request |
 | `response` | `Ref<AxiosResponse<unknown> \| null>` | Full Axios response object including headers (raw, before `select`) |
 | `revalidating` | `Ref<boolean>` | `true` while a background SWR revalidation is in flight. Always `false` when `cache: { swr: true }` is not set |
+| `cacheKey` | `Ref<string \| null>` | Resolved cache key of the last executed request (auto-derived or manual `id`). `null` before the first execute or when caching is inactive. Pass to `invalidateCache(cacheKey.value)` |
 | `execute(config?)` | `(config?: ExecuteConfig<D>) => Promise<TSelected \| null>` | Manually trigger the request, optionally overriding options for this call only. See [execute() — Per-Call Option Overrides](#execute--per-call-option-overrides) |
 | `mutate(newData)` | `(newData: TSelected \| null \| ((prev: TSelected \| null) => TSelected \| null)) => void` | Update `data` locally without a network request; clears `error` |
 | `abort(msg?)` | `(message?: string) => void` | Cancel the current in-flight request |
