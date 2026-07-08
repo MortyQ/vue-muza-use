@@ -8,7 +8,7 @@
 | **description** | Feature-scoped API layer pattern built on `@ametie/vue-muza-use`. Generates and refactors typed composable wrappers for HTTP requests in Vue 3 apps. |
 | **version** | 1.5 |
 | **applies_to** | `**/api/use*.ts`, `**/*.vue`, `**/*.ts` (when dealing with HTTP requests) |
-| **verified_against** | `@ametie/vue-muza-use` 1.6.0 (freshFor + duration strings) |
+| **verified_against** | `@ametie/vue-muza-use` 1.5.6 (freshFor + duration strings) |
 
 ## Auto-Activation Triggers
 
