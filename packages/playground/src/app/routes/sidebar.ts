@@ -11,6 +11,7 @@ export const sidebar = createSidebar({
             { id: "core-lazy", label: "Lazy Mode", to: "/core/lazy" },
             { id: "core-debounce", label: "Debounce", to: "/core/debounce" },
             { id: "core-select", label: "Select Transform", to: "/core/select" },
+            { id: "core-auto-cache-keys", label: "Auto Cache Keys", to: "/core/auto-cache-keys" },
         ]},
         { id: "batch", label: "Batch", icon: "mdi:layers-triple", children: [
             { id: "batch-basic", label: "Basic Batch", to: "/batch/basic" },

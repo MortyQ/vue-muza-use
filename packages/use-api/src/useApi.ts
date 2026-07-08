@@ -16,30 +16,73 @@ import { useApiState } from "./composables/useApiState";
 import { useAbortController } from "./composables/useAbortController";
 import { readCacheEntry, writeCache, invalidateCache as cacheInvalidate, DEFAULT_STALE_TIME } from "./features/cacheManager";
 import { parseDuration } from "./utils/time";
+import { stableStringify } from "./utils/stableStringify";
 import { useRefetchTriggers } from "./composables/useRefetchTriggers";
 import { devtoolsBridge, nextRequestId, isDevtoolsExpected } from "./devtools";
 import type { RequestEndResult } from "./types";
 
 const DEFAULT_RETRY_STATUS_CODES = [408, 429, 500, 502, 503, 504];
 
+type NormalizedCache = { id?: string; staleTime: number; swr: boolean; freshFor: number };
+
+/** Coerce a `cache` value into a partial CacheOptions (`true` → {}, `"id"` → { id }). */
+function toCacheObject(cache: string | boolean | CacheOptions | undefined): CacheOptions {
+    if (cache === true || cache === undefined || cache === false) return {};
+    if (typeof cache === "string") return { id: cache };
+    return cache;
+}
+
 /**
- * Normalise the `cache` option into a consistent shape with guaranteed `staleTime`,
- * `swr` and `freshFor` values (duration strings resolved to milliseconds).
- * Returns null if caching is not configured.
+ * Merge the cache configuration into a resolved shape (duration strings → ms).
+ *
+ * Caching is active only when the request itself asks for it — a truthy
+ * `optionCache` (composable-level) or `callCache` (per-call). `cacheDefaults`
+ * never activates caching; it only fills fields. Per-call `cache: false`
+ * disables caching for that call.
+ *
+ * Fields merge per-field with precedence: `cacheDefaults` < composable < per-call.
+ * `id` is taken from composable/per-call only (`cacheDefaults.id` is ignored);
+ * when absent the key is derived automatically by `resolveCacheKey`.
  */
 function normalizeCacheOptions(
-    cache: string | CacheOptions | undefined,
-): { id: string; staleTime: number; swr: boolean; freshFor: number } | null {
-    if (!cache) return null;
-    if (typeof cache === "string") {
-        return { id: cache, staleTime: DEFAULT_STALE_TIME, swr: false, freshFor: 0 };
-    }
+    optionCache: string | boolean | CacheOptions | undefined,
+    callCache: string | boolean | CacheOptions | undefined,
+    cacheDefaults: Partial<CacheOptions> | undefined,
+): NormalizedCache | null {
+    if (callCache === false) return null; // explicit per-call opt-out
+    if (!optionCache && !callCache) return null; // activation gate — defaults alone never cache
+
+    const base = toCacheObject(optionCache);
+    const over = toCacheObject(callCache);
+    const pick = <K extends keyof CacheOptions>(key: K): CacheOptions[K] =>
+        over[key] ?? base[key] ?? cacheDefaults?.[key];
+
+    const staleTime = pick("staleTime");
+    const freshFor = pick("freshFor");
+
     return {
-        id: cache.id,
-        staleTime: cache.staleTime !== undefined ? parseDuration(cache.staleTime) : DEFAULT_STALE_TIME,
-        swr: cache.swr ?? false,
-        freshFor: cache.freshFor !== undefined ? parseDuration(cache.freshFor) : 0,
+        id: over.id ?? base.id,
+        staleTime: staleTime !== undefined ? parseDuration(staleTime) : DEFAULT_STALE_TIME,
+        swr: pick("swr") ?? false,
+        freshFor: freshFor !== undefined ? parseDuration(freshFor) : 0,
     };
+}
+
+/**
+ * Resolve the concrete cache key for a request. Returns the manual `id` when set,
+ * otherwise an auto key derived from method + url + params + data so that each
+ * distinct params/body combination gets its own cache entry. The `auto:METHOD:url`
+ * prefix supports bulk invalidation via `invalidateCache({ prefix })`.
+ */
+function resolveCacheKey(
+    normalized: NormalizedCache,
+    method: string,
+    url: string,
+    params: unknown,
+    data: unknown,
+): string {
+    if (normalized.id !== undefined) return normalized.id;
+    return `auto:${method.toUpperCase()}:${url}:${stableStringify(params)}:${stableStringify(data)}`;
 }
 
 /**
@@ -95,12 +138,16 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     const startLoading = initialLoading ?? immediate;
     const state = useApiState<TSelected>(initialData as TSelected | null, { initialLoading: startLoading });
     const revalidating = ref(false);
+    const cacheKey = ref<string | null>(null);
 
     // Devtools: track this instance
     const instanceId = getCurrentInstance() != null ? useId() : nextRequestId();
     devtoolsBridge.onInstanceCreated(instanceId, toValue(url), {
         authMode: options.authMode ?? "default",
-        cache: options.cache,
+        // Resolved snapshot (cacheDefaults merged in), not the raw `options.cache` —
+        // otherwise `cache: true` shows as a bare, meaningless value in devtools and
+        // swr/freshFor inherited from cacheDefaults would be invisible.
+        cache: normalizeCacheOptions(options.cache, undefined, globalOptions?.cacheDefaults),
         retry: options.retry ?? false,
         poll: (() => { const v = toValue(options.poll); return typeof v === "number" ? v : 0; })(),
         immediate: options.immediate ?? false,
@@ -165,7 +212,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
          * All useApi instances in the app share the same cache.
          * Use clearAllCache() on logout to prevent data leaks between users.
          */
-        const cacheOpts = normalizeCacheOptions(config?.cache ?? options.cache);
+        const cacheOpts = normalizeCacheOptions(options.cache, config?.cache, globalOptions?.cacheDefaults);
         let isRevalidating = false;
 
         const effectiveSkipErrorNotification = config?.skipErrorNotification ?? skipErrorNotification;
@@ -198,8 +245,26 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             ...configAxios
         } = config ?? {};
 
-        if (cacheOpts) {
-            const cached = readCacheEntry<T>(cacheOpts.id);
+        // Resolve request inputs up-front: the auto cache key is derived from
+        // method + url + params + data, so all three must be known before the
+        // cache read below. (These were previously resolved later, inside the
+        // try block — hoisting is safe: toValue runs in this imperative body,
+        // not inside the reactive tracking scope.)
+        const requestUrl = toValue(url);
+        const rawData = config?.data !== undefined ? config.data : axiosConfig.data;
+        const resolvedData = toValue(rawData);
+        const rawParams = config?.params !== undefined ? config.params : axiosConfig.params;
+        const resolvedParams = toValue(rawParams);
+
+        // Concrete cache key: manual id (no url needed) or auto key (needs url).
+        const key =
+            cacheOpts && (cacheOpts.id !== undefined || requestUrl)
+                ? resolveCacheKey(cacheOpts, method, requestUrl ?? "", resolvedParams, resolvedData)
+                : null;
+        cacheKey.value = key;
+
+        if (cacheOpts && key !== null) {
+            const cached = readCacheEntry<T>(key);
             if (cached !== null) {
                 state.mutate(applySelect(cached.data));
                 // Fresh SWR hits (age < freshFor) behave exactly like non-SWR hits:
@@ -215,7 +280,6 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
 
         // Clear previous poll timer to avoid overlaps if manual execute happened
         if (pollTimer) clearTimeout(pollTimer);
-        const requestUrl = toValue(url);
 
         if (abortController.value) abortController.value.abort("Cancelled by new request");
         const controller = new AbortController();
@@ -268,12 +332,6 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                 throw new Error("Request URL is missing");
             }
 
-            const rawData = config?.data !== undefined ? config.data : axiosConfig.data;
-            const resolvedData = toValue(rawData);
-
-            const rawParams = config?.params !== undefined ? config.params : axiosConfig.params;
-            const resolvedParams = toValue(rawParams);
-
             // Parse query params from the URL string as fallback when params weren't passed as an option
             const devtoolsQueryParams: unknown = resolvedParams ?? parseUrlQueryParams(requestUrl);
 
@@ -291,6 +349,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                 requestHeaders: {},
                 payload: resolvedData ?? null,
                 queryParams: devtoolsQueryParams,
+                cacheKey: key,
             });
 
             // eslint-disable-next-line no-constant-condition
@@ -314,8 +373,10 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                     state.setStatusCode(response.status);
 
                     // Cache WRITE — only on 2xx success; always store raw data
-                    if (cacheOpts) {
-                        writeCache(cacheOpts.id, response.data, cacheOpts.staleTime);
+                    let cacheWrittenAt: number | undefined;
+                    if (cacheOpts && key !== null) {
+                        writeCache(key, response.data, cacheOpts.staleTime);
+                        cacheWrittenAt = Date.now();
                     }
 
                     // Cache INVALIDATION — only on 2xx success, never in catch/finally
@@ -333,6 +394,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                         statusCode: response.status,
                         response: response.data,
                         duration: Date.now() - devtoolsRequestStartedAt,
+                        ...(cacheWrittenAt !== undefined ? { cachedAt: cacheWrittenAt } : {}),
                     };
                     return selected;
 
@@ -564,5 +626,5 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
          }, { deep: true });
     }
 
-    return { ...state, revalidating, execute, abort, reset, ignoreUpdates };
+    return { ...state, revalidating, cacheKey, execute, abort, reset, ignoreUpdates };
 }

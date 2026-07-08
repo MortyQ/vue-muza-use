@@ -1,3 +1,5 @@
+import type { InvalidateInput } from "../types";
+
 export const DEFAULT_STALE_TIME = 300_000; // 5 minutes
 
 interface CacheEntry<T = unknown> {
@@ -43,10 +45,23 @@ function writeCache<T>(id: string, data: T, staleTime: number): void {
 }
 
 /**
- * Invalidate one or multiple cache entries by id.
+ * Invalidate cache entries by exact id(s) or by key prefix.
+ *
+ * - `string` / `string[]` — delete those exact keys.
+ * - `{ prefix }` — delete every key starting with `prefix` (e.g. bust all
+ *   auto-keyed pages of an endpoint). An empty `prefix` is a no-op so it can
+ *   never accidentally wipe the whole cache.
  */
-function invalidateCache(id: string | string[]): void {
-    const ids = Array.isArray(id) ? id : [id];
+function invalidateCache(input: InvalidateInput): void {
+    if (typeof input === "object" && !Array.isArray(input)) {
+        const { prefix } = input;
+        if (!prefix) return; // empty prefix must not clear everything
+        for (const key of cacheStore.keys()) {
+            if (key.startsWith(prefix)) cacheStore.delete(key);
+        }
+        return;
+    }
+    const ids = Array.isArray(input) ? input : [input];
     ids.forEach((key) => cacheStore.delete(key));
 }
 

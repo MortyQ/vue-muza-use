@@ -25,7 +25,16 @@ export type DurationString = `${number}ms` | `${number}s` | `${number}m` | `${nu
 export type DurationInput = number | DurationString;
 
 export interface CacheOptions {
-    id: string;
+    /**
+     * Explicit cache key. **Optional** — when omitted, the key is derived
+     * automatically at request time from `method + url + params + data`, so each
+     * distinct set of query params / request body gets its own cache entry
+     * (ideal for paginated or filtered lists). Provide `id` to opt out of
+     * auto-keying and pin a stable manual key.
+     *
+     * `cache: true` and `cache: {}` are equivalent: auto-key + defaults.
+     */
+    id?: string;
     /**
      * How long the cached entry is valid — milliseconds or a duration string (`"5m"`, `"1h"`, `"1d"`).
      * Default: 300_000 (5 minutes)
@@ -68,6 +77,16 @@ export interface CacheOptions {
      */
     freshFor?: DurationInput;
 }
+
+/**
+ * Accepted input for cache invalidation.
+ * - `string` / `string[]` — delete exact cache key(s).
+ * - `{ prefix }` — delete every key starting with `prefix`. Handy for busting
+ *   all auto-keyed variations of an endpoint at once, e.g.
+ *   `{ prefix: "auto:GET:/products" }` clears every cached page/filter combo.
+ *   An empty `prefix` is a no-op (it will not wipe the whole cache).
+ */
+export type InvalidateInput = string | string[] | { prefix: string };
 
 export interface ApiState<T = unknown> {
     data: T | null
@@ -190,21 +209,28 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      */
     refetchOnReconnect?: boolean;
     /**
-     * Cache the response data by a string id.
-     * - String shorthand: `cache: 'key'` uses DEFAULT_STALE_TIME (5 min)
-     * - Object form: `cache: { id: 'key', staleTime: 10_000 }` for custom TTL
+     * Cache the response data.
+     * - `cache: true` / `cache: {}` — auto-key from `method + url + params + data`
+     *   (each distinct params/body gets its own entry) + any `cacheDefaults`.
+     * - String shorthand: `cache: 'key'` — manual key, defaults for the rest.
+     * - Object form: `cache: { id: 'key', staleTime: 10_000 }` — manual key + custom fields.
+     *   Omit `id` (`cache: { swr: true }`) to auto-key while overriding specific fields.
+     *
+     * Fields resolve per-field with precedence: `globalOptions.cacheDefaults`
+     * < composable `cache` < per-call `execute({ cache })`.
      *
      * On cache hit: mutate() is called with cached data, loading stays false,
      * onBefore/onSuccess/onFinish are NOT called, axios request is NOT made.
      * Cache is written only on HTTP 2xx success.
      */
-    cache?: string | CacheOptions;
+    cache?: string | boolean | CacheOptions;
     /**
-     * Invalidate one or more cache entries on HTTP 2xx success.
+     * Invalidate cache entries on HTTP 2xx success.
+     * Accepts exact key(s) or `{ prefix }` for bulk invalidation (see {@link InvalidateInput}).
      * Fires only after a confirmed successful response — never in catch/finally.
      * Useful for POST/PUT/DELETE that should bust related GET caches.
      */
-    invalidateCache?: string | string[];
+    invalidateCache?: InvalidateInput;
     /**
      * Polling configuration.
      * - Pass a **number** (ms) for simple polling.
@@ -262,6 +288,13 @@ export interface UseApiReturn<T = unknown, D = unknown> {
      * Use it to show a subtle refresh indicator without blocking the UI.
      */
     revalidating: Ref<boolean>;
+    /**
+     * The resolved cache key of the last executed request — the auto-derived
+     * key (`auto:METHOD:url:...`) or the manual `id`. `null` before the first
+     * execute, or when caching is not active for the request.
+     * Pass it to `invalidateCache(cacheKey.value)` to bust this exact entry.
+     */
+    cacheKey: Ref<string | null>;
     execute: (config?: ExecuteConfig<D>) => Promise<T | null>;
     abort: (message?: string) => void;
     reset: () => void;
@@ -330,6 +363,17 @@ export interface ApiPluginOptions {
          * Per-request value (including `false`) takes precedence.
          */
         refetchOnReconnect?: boolean;
+        /**
+         * Project-wide default fields for the `cache` option (`staleTime`, `swr`,
+         * `freshFor`). Applied per-field under a request's own `cache` — e.g. set
+         * `{ swr: true, staleTime: "6h", freshFor: "30m" }` once instead of on
+         * every composable.
+         *
+         * **Does NOT enable caching.** A request must still pass `cache`
+         * explicitly to be cached — otherwise every request (including mutations)
+         * would silently cache. Any `id` here is ignored.
+         */
+        cacheDefaults?: Partial<CacheOptions>;
     };
 }
 
@@ -491,9 +535,12 @@ export interface DevtoolsInstanceState {
 }
 
 /** Configuration options of a useApi instance as seen by devtools. */
+/** Resolved cache config as seen by devtools — cacheDefaults already merged in, `id` present only for manual (non-auto) keys. Null/undefined when caching is off. */
+export type DevtoolsResolvedCache = { id?: string; staleTime: number; swr: boolean; freshFor: number } | null | undefined;
+
 export interface DevtoolsInstanceOptions {
     authMode: AuthMode;
-    cache: CacheOptions | string | undefined;
+    cache: DevtoolsResolvedCache;
     retry: boolean | number;
     poll: number;
     immediate: boolean;
@@ -512,11 +559,21 @@ export interface DevtoolsRequestRecord {
     requestHeaders: Record<string, string>;
     payload: unknown;
     queryParams: unknown;
+    /**
+     * Resolved cache key for this request (auto-derived or manual id).
+     * Null when caching is not active. Optional — standalone records
+     * (e.g. token refresh) omit it.
+     */
+    cacheKey?: string | null;
 }
 
-/** Result of a completed HTTP request, sent to devtools on request end. */
+/**
+ * Result of a completed HTTP request, sent to devtools on request end.
+ * `cachedAt` — Unix ms timestamp of the moment the response was written to
+ * the cache; absent when caching was off for the request.
+ */
 export type RequestEndResult =
-    | { status: "success"; statusCode: number; response: unknown; duration: number }
+    | { status: "success"; statusCode: number; response: unknown; duration: number; cachedAt?: number }
     | { status: "error"; error: ApiError; statusCode: number | null; duration: number }
     | { status: "aborted"; duration: number };
 

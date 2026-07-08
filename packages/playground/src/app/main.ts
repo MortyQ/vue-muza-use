@@ -21,6 +21,16 @@ app.use(createApi({
         maxHistory: 200,
         maxPayloadSize: 100_000,
     },
+    globalOptions: {
+        // Project-wide cache defaults — applied per-field under any request's
+        // own `cache` option. Never activates caching by itself (a request must
+        // still pass `cache`). See features/core/AutoCacheKeys.vue for a demo.
+        cacheDefaults: {
+            swr: true,
+            staleTime: "5m",
+            freshFor: "10s",
+        },
+    },
 }));
 
 app.component("VToaster", VToaster);

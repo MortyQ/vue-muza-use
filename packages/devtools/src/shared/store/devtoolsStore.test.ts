@@ -167,3 +167,50 @@ describe("getRequestsByInstance", () => {
         expect(getRequestsByInstance("a")[0].id).toBe("r1");
     });
 });
+
+describe("cache metadata threading", () => {
+    it("addRequest preserves cacheKey on the stored record", () => {
+        addRequest({
+            id: "r-ck", instanceId: null, url: "/lists", method: "GET",
+            startedAt: 1000, status: "pending", statusCode: null,
+            requestHeaders: {}, payload: null, queryParams: null,
+            cacheKey: 'auto:GET:/lists:{"page":1}:',
+        });
+        const rec = requests.value.find((r) => r.id === "r-ck")!;
+        expect(rec.cacheKey).toBe('auto:GET:/lists:{"page":1}:');
+    });
+
+    it("updateRequest merges cachedAt from a success result", () => {
+        addRequest({
+            id: "r-ca", instanceId: null, url: "/lists", method: "GET",
+            startedAt: 1000, status: "pending", statusCode: null,
+            requestHeaders: {}, payload: null, queryParams: null, cacheKey: "manual",
+        });
+        updateRequest("r-ca", { status: "success", statusCode: 200, response: {}, duration: 40, cachedAt: 1234567 });
+        const rec = requests.value.find((r) => r.id === "r-ca")!;
+        expect(rec.cachedAt).toBe(1234567);
+    });
+
+    it("success result without cachedAt leaves the field undefined on the record", () => {
+        addRequest({
+            id: "r-nc", instanceId: null, url: "/lists", method: "GET",
+            startedAt: 1000, status: "pending", statusCode: null,
+            requestHeaders: {}, payload: null, queryParams: null, cacheKey: null,
+        });
+        updateRequest("r-nc", { status: "success", statusCode: 200, response: {}, duration: 40 });
+        const rec = requests.value.find((r) => r.id === "r-nc")!;
+        expect(rec.cachedAt).toBeUndefined();
+    });
+
+    it("cacheKey survives an aborted update", () => {
+        addRequest({
+            id: "r-ab", instanceId: null, url: "/lists", method: "GET",
+            startedAt: 1000, status: "pending", statusCode: null,
+            requestHeaders: {}, payload: null, queryParams: null,
+            cacheKey: 'auto:GET:/lists:{"page":1}:',
+        });
+        updateRequest("r-ab", { status: "aborted", duration: 5 });
+        const rec = requests.value.find((r) => r.id === "r-ab")!;
+        expect(rec.cacheKey).toBe('auto:GET:/lists:{"page":1}:');
+    });
+});
