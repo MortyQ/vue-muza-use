@@ -8,7 +8,32 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
-## [1.6.0] — Unreleased
+## [1.6.1] — 2026-07-09
+
+### Fixed
+
+#### `@ametie/vue-muza-use`
+
+- **401s swallowed by a successful token refresh are now visible to devtools** — when a request hit a 401, the response interceptor refreshed the token and transparently retried, so the devtools record ended as a plain success and the 401 never surfaced anywhere. `useApi` now threads its devtools request id through the axios config, and the interceptor fires a new `onRequestAuthRetry` bridge event at both retry points (direct refresh-success and the queued-requests path) so the panel can flag the record. The event is intentionally **not** fired when the refresh fails — those records keep surfacing as plain 401 errors. The bridge method is optional and the call is guarded, so an older `@ametie/vue-muza-devtools` is a silent no-op.
+- **Request/response headers captured for devtools** — request headers were emitted as a hardcoded `{}` at request start (before interceptors add `Authorization` etc.), and response headers were never captured at all, leaving the panel's Headers tab permanently empty. Headers are now captured at request completion — success from `response.config.headers`/`response.headers`, failures from the axios error — normalized to plain records (`AxiosHeaders` unwrapped, array values joined) with credential-bearing headers (`Authorization`, `Cookie`, api-keys, …) masked as `Bearer eyJab…[redacted]`. Token-refresh request records include their headers too.
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **File uploads no longer render as an empty object** — `JSON.stringify(FormData)` silently yields `{}`, so file-upload payloads showed nothing. FormData is now normalized to a plain object with browser-like descriptors (`file "a.png" (image/png, 12.3 kB)`; duplicate keys collect into an array), and top-level `File`/`Blob` bodies become descriptor strings — which also fixes `responseType: "blob"` downloads showing `{}` in the Response pane.
+- **Headers tab populated and split into sections** — the tab now shows **Request Headers** and **Response Headers** sections with per-section empty states. Headers arrive at request completion, so pending records show both empty states until the request ends.
+- **`401 → refreshed` badge** — requests that hit a 401 and were transparently retried after a token refresh now carry an amber warning badge in the request list row and the detail header (new `warning` Badge variant), so silent auth recoveries are visible at a glance.
+
+### Improved
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **Cache bar: prefix before key** — for auto cache keys the invalidation prefix (`auto:GET:/products`) is now rendered first as visible text with its own copy button, followed by the full key, instead of hiding the prefix behind a copy-only button after the key.
+- **Cache config chips** — the flat `staleTime 5m · freshFor 10s · swr` config line is now rendered as individual chips, with the `swr` chip using the same cyan accent as the feature badges.
+- **Icon copy buttons** — `CopyButton` is now an icon button (`copy` → `check` on success) with hover/press feedback instead of a plain-text "copy" label.
+
+---
+
+## [1.6.0] — 2026-07-08
 
 ### Added
 
@@ -26,7 +51,7 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
-## [1.5.6] — Unreleased
+## [1.5.6] — 2026-07-08
 
 ### Added
 
