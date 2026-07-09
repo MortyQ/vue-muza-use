@@ -458,6 +458,145 @@ describe('Interceptors — devtools refresh request visibility', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Devtools — 401 retry visibility (onRequestAuthRetry)
+// ---------------------------------------------------------------------------
+
+describe('Interceptors — devtools 401 retry visibility', () => {
+    let mockInstance: MockAxiosInstance
+    let errorInterceptor: (error: unknown) => Promise<unknown>
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        __devtoolsInternals().reset()
+        tokenManager.clearTokens()
+
+        mockInstance = createMockInstance()
+        setupInterceptors(mockInstance, { refreshUrl: '/refresh' })
+        errorInterceptor = (mockInstance.interceptors.response.use as Mock).mock.calls[0][1]
+    })
+
+    afterEach(() => {
+        vi.restoreAllMocks()
+    })
+
+    it('flags the original request when the refresh succeeds and the request is retried', async () => {
+        __devtoolsInternals().setExpected(true)
+        const retrySpy = vi.spyOn(devtoolsBridge, 'onRequestAuthRetry')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockResolvedValue({ data: { accessToken: 'new-a' }, status: 200 });
+        (mockInstance as unknown as Mock).mockResolvedValue('success')
+
+        const error = {
+            config: { headers: { set: vi.fn() }, url: '/api', _retry: false, _devtoolsRequestId: 'req_42' },
+            response: { status: 401 },
+        }
+        await errorInterceptor(error)
+
+        expect(retrySpy).toHaveBeenCalledTimes(1)
+        expect(retrySpy).toHaveBeenCalledWith('req_42')
+    })
+
+    it('flags each queued request when a shared refresh succeeds', async () => {
+        __devtoolsInternals().setExpected(true)
+        const retrySpy = vi.spyOn(devtoolsBridge, 'onRequestAuthRetry')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        let resolveRefresh!: (v: unknown) => void
+        mockInstance.post.mockReturnValue(new Promise(r => { resolveRefresh = r }));
+        (mockInstance as unknown as Mock).mockResolvedValue('success')
+
+        const makeError = (id: string) => ({
+            config: { headers: { set: vi.fn() }, url: `/api/${id}`, _retry: false, _devtoolsRequestId: id },
+            response: { status: 401 },
+        })
+        const p1 = errorInterceptor(makeError('req_1'))
+        const p2 = errorInterceptor(makeError('req_2'))
+        const p3 = errorInterceptor(makeError('req_3'))
+
+        resolveRefresh({ data: { accessToken: 'fresh' }, status: 200 })
+        await Promise.all([p1, p2, p3])
+
+        expect(retrySpy).toHaveBeenCalledTimes(3)
+        expect(retrySpy).toHaveBeenCalledWith('req_1')
+        expect(retrySpy).toHaveBeenCalledWith('req_2')
+        expect(retrySpy).toHaveBeenCalledWith('req_3')
+    })
+
+    it('does NOT flag the request when the refresh fails (record must stay a plain 401 error)', async () => {
+        __devtoolsInternals().setExpected(true)
+        const retrySpy = vi.spyOn(devtoolsBridge, 'onRequestAuthRetry')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockRejectedValue(new Error('refresh failed'))
+
+        const error = {
+            config: { headers: { set: vi.fn() }, url: '/api', _retry: false, _devtoolsRequestId: 'req_42' },
+            response: { status: 401 },
+        }
+        await expect(errorInterceptor(error)).rejects.toBeDefined()
+
+        expect(retrySpy).not.toHaveBeenCalled()
+    })
+
+    it('does NOT flag when devtools is not expected', async () => {
+        // reset() left devtoolsExpected = false — production default
+        const retrySpy = vi.spyOn(devtoolsBridge, 'onRequestAuthRetry')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockResolvedValue({ data: { accessToken: 'new-a' }, status: 200 });
+        (mockInstance as unknown as Mock).mockResolvedValue('success')
+
+        const error = {
+            config: { headers: { set: vi.fn() }, url: '/api', _retry: false, _devtoolsRequestId: 'req_42' },
+            response: { status: 401 },
+        }
+        await errorInterceptor(error)
+
+        expect(retrySpy).not.toHaveBeenCalled()
+    })
+
+    it('does NOT flag when the request carries no _devtoolsRequestId', async () => {
+        __devtoolsInternals().setExpected(true)
+        const retrySpy = vi.spyOn(devtoolsBridge, 'onRequestAuthRetry')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockResolvedValue({ data: { accessToken: 'new-a' }, status: 200 });
+        (mockInstance as unknown as Mock).mockResolvedValue('success')
+
+        const error = { config: { headers: { set: vi.fn() }, url: '/api', _retry: false }, response: { status: 401 } }
+        await errorInterceptor(error)
+
+        expect(retrySpy).not.toHaveBeenCalled()
+    })
+
+    it('includes request/response headers on the recorded refresh success', async () => {
+        __devtoolsInternals().setExpected(true)
+        const endSpy = vi.spyOn(devtoolsBridge, 'onRequestEnd')
+
+        tokenManager.setTokens({ accessToken: 'expired' })
+        mockInstance.post.mockResolvedValue({
+            data: { accessToken: 'new-a' },
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+            config: { headers: { accept: 'application/json' } },
+        });
+        (mockInstance as unknown as Mock).mockResolvedValue('success')
+
+        const error = { config: { headers: { set: vi.fn() }, url: '/api', _retry: false }, response: { status: 401 } }
+        await errorInterceptor(error)
+
+        expect(endSpy).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+                requestHeaders: { accept: 'application/json' },
+                responseHeaders: { 'content-type': 'application/json' },
+            }),
+        )
+    })
+})
+
+// ---------------------------------------------------------------------------
 // Refresh endpoint matching — exact/suffix match, not substring
 // ---------------------------------------------------------------------------
 

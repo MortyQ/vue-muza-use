@@ -17,6 +17,7 @@ import { useAbortController } from "./composables/useAbortController";
 import { readCacheEntry, writeCache, invalidateCache as cacheInvalidate, DEFAULT_STALE_TIME } from "./features/cacheManager";
 import { parseDuration } from "./utils/time";
 import { stableStringify } from "./utils/stableStringify";
+import { normalizeHeaders } from "./utils/headerUtils";
 import { useRefetchTriggers } from "./composables/useRefetchTriggers";
 import { devtoolsBridge, nextRequestId, isDevtoolsExpected } from "./devtools";
 import type { RequestEndResult } from "./types";
@@ -363,7 +364,9 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                         data: resolvedData,
                         params: resolvedParams,
                         signal: controller.signal,
-                        ...({ authMode: config?.authMode || authMode } as unknown as AxiosRequestConfig),
+                        // _devtoolsRequestId lets the 401-refresh interceptor flag this
+                        // request's devtools record when it is transparently retried
+                        ...({ authMode: config?.authMode || authMode, _devtoolsRequestId: devtoolsRequestId } as unknown as AxiosRequestConfig),
                     } as AxiosRequestConfig);
 
                     const selected = applySelect(response.data);
@@ -395,6 +398,14 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                         response: response.data,
                         duration: Date.now() - devtoolsRequestStartedAt,
                         ...(cacheWrittenAt !== undefined ? { cachedAt: cacheWrittenAt } : {}),
+                        // Headers exist only post-flight (interceptors mutate config.headers),
+                        // so they're captured at end — not in onRequestStart
+                        ...(isDevtoolsExpected()
+                            ? {
+                                  requestHeaders: normalizeHeaders(response.config?.headers),
+                                  responseHeaders: normalizeHeaders(response.headers),
+                              }
+                            : {}),
                     };
                     return selected;
 
@@ -429,6 +440,12 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                         error: apiError,
                         statusCode: apiError.status ?? null,
                         duration: Date.now() - devtoolsRequestStartedAt,
+                        ...(isDevtoolsExpected() && isAxiosError(err)
+                            ? {
+                                  requestHeaders: normalizeHeaders(err.config?.headers),
+                                  responseHeaders: normalizeHeaders(err.response?.headers),
+                              }
+                            : {}),
                     };
                     if (!effectiveSkipErrorNotification && globalErrorHandler) {
                         globalErrorHandler(apiError, err);

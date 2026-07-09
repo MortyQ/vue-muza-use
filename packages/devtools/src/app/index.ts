@@ -3,7 +3,7 @@ import type { DevtoolsBridge, DevtoolsOptions, DevtoolsTab } from "../shared/typ
 import { initDevtoolsStore } from "../shared/store/devtoolsStore";
 import { registerTab } from "../shared/plugins/tabRegistry";
 import { onInstanceCreated, onInstanceDestroyed, onStateUpdate } from "../shared/instrumentation/instanceTracker";
-import { onRequestStart, onRequestEnd } from "../shared/instrumentation/requestTracker";
+import { onRequestStart, onRequestEnd, onRequestAuthRetry } from "../shared/instrumentation/requestTracker";
 import { mountDevtoolsPanel } from "./devtoolsPlugin";
 import { networkTab } from "../features/network/index";
 
@@ -31,5 +31,6 @@ export function createBridge(options: DevtoolsOptions, _app: App): DevtoolsBridg
         onStateUpdate,
         onRequestStart,
         onRequestEnd,
+        onRequestAuthRetry,
     };
 }

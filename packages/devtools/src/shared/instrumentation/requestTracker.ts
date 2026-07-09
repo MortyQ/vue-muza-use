@@ -1,4 +1,4 @@
-import { addRequest, updateRequest } from "../store/devtoolsStore";
+import { addRequest, updateRequest, flagRequestAuthRetry } from "../store/devtoolsStore";
 import type { RequestStartRecord, RequestEndResult } from "../types/index";
 
 /**
@@ -15,4 +15,11 @@ export function onRequestStart(
  */
 export function onRequestEnd(id: string, result: RequestEndResult): void {
     updateRequest(id, result);
+}
+
+/**
+ * Called when a request hit a 401 and was transparently retried after a token refresh.
+ */
+export function onRequestAuthRetry(id: string): void {
+    flagRequestAuthRetry(id);
 }

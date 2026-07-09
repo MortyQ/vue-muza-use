@@ -134,4 +134,9 @@ export const devtoolsBridge = {
     onRequestEnd(id: string, result: RequestEndResult): void {
         bridge?.onRequestEnd(id, result);
     },
+    onRequestAuthRetry(id: string): void {
+        // Double optional chain: bridge may be null (devtools off), and an older
+        // @ametie/vue-muza-devtools may not implement this method yet.
+        bridge?.onRequestAuthRetry?.(id);
+    },
 } satisfies DevtoolsBridge;

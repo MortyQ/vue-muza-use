@@ -6,6 +6,7 @@ import {
     updateInstanceState,
     addRequest,
     updateRequest,
+    flagRequestAuthRetry,
     clearRequests,
     getRequestsByInstance,
     instances,
@@ -145,6 +146,92 @@ describe("updateRequest", () => {
 
     it("ignores unknown request id", () => {
         expect(() => updateRequest("unknown", { status: "aborted", duration: 0 })).not.toThrow();
+    });
+
+    it("merges requestHeaders and responseHeaders on success", () => {
+        updateRequest("r1", {
+            status: "success", statusCode: 200, response: null, duration: 50,
+            requestHeaders: { Accept: "application/json" },
+            responseHeaders: { "content-type": "application/json" },
+        });
+        const r = requests.value.find(r => r.id === "r1")!;
+        expect(r.requestHeaders).toEqual({ Accept: "application/json" });
+        expect(r.responseHeaders).toEqual({ "content-type": "application/json" });
+    });
+
+    it("merges requestHeaders and responseHeaders on error", () => {
+        updateRequest("r1", {
+            status: "error", error: { message: "fail", status: 500 }, statusCode: 500, duration: 30,
+            requestHeaders: { Accept: "application/json" },
+            responseHeaders: { "content-type": "text/plain" },
+        });
+        const r = requests.value.find(r => r.id === "r1")!;
+        expect(r.requestHeaders).toEqual({ Accept: "application/json" });
+        expect(r.responseHeaders).toEqual({ "content-type": "text/plain" });
+    });
+
+    it("keeps the start-time requestHeaders when the result omits them", () => {
+        updateRequest("r1", { status: "success", statusCode: 200, response: null, duration: 50 });
+        const r = requests.value.find(r => r.id === "r1")!;
+        expect(r.requestHeaders).toEqual({});
+        expect(r.responseHeaders).toBeUndefined();
+    });
+});
+
+describe("payload normalization (FormData / Blob)", () => {
+    it("stores a FormData payload as a plain object with file descriptors", () => {
+        const form = new FormData();
+        form.append("title", "hi");
+        form.append("doc", new File(["abc"], "doc.pdf", { type: "application/pdf" }));
+        addRequest({ id: "r1", instanceId: null, url: "/upload", method: "POST",
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: form, queryParams: null });
+        const r = requests.value[0];
+        expect(r.truncated).toBe(false);
+        expect(r.payload).toEqual({ title: "hi", doc: 'file "doc.pdf" (application/pdf, 3 B)' });
+    });
+
+    it("stores a Blob response as a descriptor string", () => {
+        addRequest({ id: "r1", instanceId: null, url: "/download", method: "GET",
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
+        updateRequest("r1", {
+            status: "success", statusCode: 200,
+            response: new Blob(["x".repeat(80)], { type: "application/pdf" }),
+            duration: 10,
+        });
+        const r = requests.value.find(r => r.id === "r1")!;
+        expect(r.response).toBe("blob (application/pdf, 80 B)");
+        expect(r.truncated).toBe(false);
+    });
+});
+
+describe("flagRequestAuthRetry", () => {
+    beforeEach(() => {
+        addRequest({ id: "r1", instanceId: "id-1", url: "/users", method: "GET",
+            startedAt: Date.now(), status: "pending", statusCode: null, requestHeaders: {}, payload: null, queryParams: null });
+    });
+
+    it("sets authRetried on the record", () => {
+        flagRequestAuthRetry("r1");
+        expect(requests.value.find(r => r.id === "r1")!.authRetried).toBe(true);
+    });
+
+    it("ignores unknown request ids", () => {
+        expect(() => flagRequestAuthRetry("unknown")).not.toThrow();
+        expect(requests.value.find(r => r.id === "r1")!.authRetried).toBeUndefined();
+    });
+
+    it("survives a subsequent success update", () => {
+        flagRequestAuthRetry("r1");
+        updateRequest("r1", { status: "success", statusCode: 200, response: null, duration: 50 });
+        const r = requests.value.find(r => r.id === "r1")!;
+        expect(r.status).toBe("success");
+        expect(r.authRetried).toBe(true);
+    });
+
+    it("survives a subsequent error update", () => {
+        flagRequestAuthRetry("r1");
+        updateRequest("r1", { status: "error", error: { message: "fail", status: 500 }, statusCode: 500, duration: 30 });
+        expect(requests.value.find(r => r.id === "r1")!.authRetried).toBe(true);
     });
 });
 

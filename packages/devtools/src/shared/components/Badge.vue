@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ label: string; variant?: "success" | "error" | "pending" | "aborted" | "neutral" }>();
+defineProps<{ label: string; variant?: "success" | "error" | "pending" | "aborted" | "neutral" | "warning" }>();
 
 const variantClass: Record<string, string> = {
     success: "badge--success",
@@ -7,6 +7,7 @@ const variantClass: Record<string, string> = {
     pending: "badge--pending",
     aborted: "badge--aborted",
     neutral: "badge--neutral",
+    warning: "badge--warning",
 };
 </script>
 
@@ -31,4 +32,5 @@ const variantClass: Record<string, string> = {
 .badge--pending { background: var(--dt-warning-subtle);   color: var(--dt-warning); }
 .badge--aborted { background: oklch(20% 0.01 250);        color: var(--dt-foreground-muted); }
 .badge--neutral { background: oklch(22% 0.015 250);       color: var(--dt-foreground-secondary); }
+.badge--warning { background: var(--dt-warning-subtle);   color: var(--dt-warning); }
 </style>

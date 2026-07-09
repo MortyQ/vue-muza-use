@@ -13,6 +13,7 @@ vi.mock("../devtools", () => {
         onStateUpdate: vi.fn(),
         onRequestStart: vi.fn(),
         onRequestEnd: vi.fn(),
+        onRequestAuthRetry: vi.fn(),
     };
     return {
         nextRequestId: vi.fn(() => "req_1"),
@@ -149,6 +150,89 @@ describe("useApi — devtools: onRequestStart / onRequestEnd", () => {
         exec2();
         await flushPromises();
         expect(devtoolsBridge.onRequestStart).not.toHaveBeenCalled();
+    });
+});
+
+describe("useApi — devtools: headers capture", () => {
+    it("includes redacted request/response headers in the success result", async () => {
+        vi.mocked(mockAxios.request).mockResolvedValue({
+            data: { id: 1 },
+            status: 200,
+            headers: { "content-type": "application/json", "x-request-id": "abc" },
+            config: {
+                headers: { Accept: "application/json", Authorization: "Bearer eyJabc.def.ghi.jkl" },
+            } as never,
+            statusText: "OK",
+        });
+        const [{ execute }] = withSetup(() => useApi("/users"));
+        execute();
+        await flushPromises();
+
+        const result = vi.mocked(devtoolsBridge.onRequestEnd).mock.calls[0][1];
+        expect(result.status).toBe("success");
+        if (result.status !== "success") return;
+        expect(result.responseHeaders).toEqual({
+            "content-type": "application/json",
+            "x-request-id": "abc",
+        });
+        expect(result.requestHeaders?.Accept).toBe("application/json");
+        expect(result.requestHeaders?.Authorization).toContain("[redacted]");
+        expect(result.requestHeaders?.Authorization).not.toContain("def.ghi");
+    });
+
+    it("includes headers from the axios error in the error result", async () => {
+        vi.mocked(mockAxios.request).mockRejectedValue(
+            Object.assign(new Error("Server error"), {
+                isAxiosError: true,
+                config: { headers: { Accept: "application/json" } },
+                response: { status: 500, data: {}, headers: { "content-type": "text/plain" } },
+            }),
+        );
+        const [{ execute }] = withSetup(() =>
+            useApi("/users", { skipErrorNotification: true }),
+        );
+        execute();
+        await flushPromises();
+
+        const result = vi.mocked(devtoolsBridge.onRequestEnd).mock.calls[0][1];
+        expect(result.status).toBe("error");
+        if (result.status !== "error") return;
+        expect(result.requestHeaders).toEqual({ Accept: "application/json" });
+        expect(result.responseHeaders).toEqual({ "content-type": "text/plain" });
+    });
+
+    it("omits header fields when devtools is not expected", async () => {
+        vi.mocked(isDevtoolsExpected).mockReturnValue(false);
+        vi.mocked(mockAxios.request).mockResolvedValue({
+            data: { id: 1 },
+            status: 200,
+            headers: { "content-type": "application/json" },
+            config: { headers: { Accept: "application/json" } } as never,
+            statusText: "OK",
+        });
+        const [{ execute }] = withSetup(() => useApi("/users"));
+        execute();
+        await flushPromises();
+
+        const result = vi.mocked(devtoolsBridge.onRequestEnd).mock.calls[0][1];
+        expect(result.status).toBe("success");
+        if (result.status !== "success") return;
+        expect(result.requestHeaders).toBeUndefined();
+        expect(result.responseHeaders).toBeUndefined();
+
+        vi.mocked(isDevtoolsExpected).mockReturnValue(true);
+    });
+});
+
+describe("useApi — devtools: _devtoolsRequestId threading", () => {
+    it("passes the onRequestStart record id into the axios config", async () => {
+        const [{ execute }] = withSetup(() => useApi("/users"));
+        execute();
+        await flushPromises();
+
+        const record = vi.mocked(devtoolsBridge.onRequestStart).mock.calls[0][0];
+        const axiosConfig = vi.mocked(mockAxios.request).mock.calls[0][0] as Record<string, unknown>;
+        expect(axiosConfig._devtoolsRequestId).toBe(record.id);
     });
 });
 

@@ -1,9 +1,10 @@
-import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError, AxiosRequestConfig } from "axios";
+import { isAxiosError, type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError, type AxiosRequestConfig } from "axios";
 import type { AuthMode } from "../types";
 import { trackAuthEvent, AuthEventType } from "./monitor";
 import { tokenManager, TOKEN_TYPE } from "./tokenManager";
 import { devtoolsBridge, nextRequestId, isDevtoolsExpected, redactTokenFields } from "../devtools";
 import { parseApiError } from "../utils/errorParser";
+import { normalizeHeaders } from "../utils/headerUtils";
 
 export const AUTH_HEADER = "Authorization";
 export { TOKEN_TYPE };
@@ -48,6 +49,17 @@ export interface InterceptorOptions {
 interface ExtendedInternalAxiosRequestConfig extends InternalAxiosRequestConfig {
     authMode?: AuthMode;
     _retry?: boolean;
+    /** Devtools record id of the originating request; set by useApi so the 401→refresh retry can be flagged. */
+    _devtoolsRequestId?: string;
+}
+
+// Marks the originating request's devtools record as "401 → token refreshed &
+// retried". Guarded twice: devtools may be off, and an older devtools package
+// may not implement the (optional) bridge method.
+function flagAuthRetry(request: ExtendedInternalAxiosRequestConfig): void {
+    if (request._devtoolsRequestId && isDevtoolsExpected()) {
+        devtoolsBridge.onRequestAuthRetry(request._devtoolsRequestId);
+    }
 }
 
 interface FailedRequestQueue {
@@ -140,6 +152,7 @@ export function setupInterceptors(
                     failedQueue.push({
                         resolve: (token: string) => {
                             originalRequest.headers.set(AUTH_HEADER, `${TOKEN_TYPE} ${token}`);
+                            flagAuthRetry(originalRequest);
                             resolve(axiosInstance(originalRequest));
                         },
                         reject: (err) => reject(err),
@@ -199,6 +212,8 @@ export function setupInterceptors(
                         statusCode: response.status,
                         response: redactTokenFields(response.data),
                         duration: Date.now() - devtoolsStartedAt,
+                        requestHeaders: normalizeHeaders(response.config?.headers),
+                        responseHeaders: normalizeHeaders(response.headers),
                     });
                 }
 
@@ -231,6 +246,7 @@ export function setupInterceptors(
                 processQueue(null, accessToken);
 
                 originalRequest.headers.set(AUTH_HEADER, `${TOKEN_TYPE} ${accessToken}`);
+                flagAuthRetry(originalRequest);
                 return axiosInstance(originalRequest);
             }
             catch (refreshError) {
@@ -245,6 +261,12 @@ export function setupInterceptors(
                         error: { ...apiError, details: redactTokenFields(apiError.details) },
                         statusCode: apiError.status || null,
                         duration: Date.now() - devtoolsStartedAt,
+                        ...(isAxiosError(refreshError)
+                            ? {
+                                  requestHeaders: normalizeHeaders(refreshError.config?.headers),
+                                  responseHeaders: normalizeHeaders(refreshError.response?.headers),
+                              }
+                            : {}),
                     });
                 }
 

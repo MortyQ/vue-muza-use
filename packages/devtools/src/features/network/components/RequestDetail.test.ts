@@ -64,3 +64,44 @@ describe("RequestDetail", () => {
         expect(wrapper.exists()).toBe(true);
     });
 });
+
+describe("RequestDetail — headers tab", () => {
+    it("renders Request Headers and Response Headers sections", () => {
+        const wrapper = mount(RequestDetail, {
+            props: { request: mockRequest },
+            global: { stubs },
+        });
+        expect(wrapper.text()).toContain("Request Headers");
+        expect(wrapper.text()).toContain("Response Headers");
+    });
+
+    it("renders request header rows when present", () => {
+        const wrapper = mount(RequestDetail, {
+            props: { request: mockRequest },
+            global: { stubs },
+        });
+        const section = wrapper.find('[data-test="request-headers"]');
+        expect(section.text()).toContain("content-type");
+        expect(section.text()).toContain("application/json");
+        expect(section.text()).not.toContain("No request headers captured.");
+    });
+
+    it("renders response header rows when present", () => {
+        const wrapper = mount(RequestDetail, {
+            props: { request: { ...mockRequest, responseHeaders: { "x-request-id": "abc" } } },
+            global: { stubs },
+        });
+        const section = wrapper.find('[data-test="response-headers"]');
+        expect(section.text()).toContain("x-request-id");
+        expect(section.text()).toContain("abc");
+    });
+
+    it("shows per-section empty states when headers are absent", () => {
+        const wrapper = mount(RequestDetail, {
+            props: { request: { ...mockRequest, requestHeaders: {} } },
+            global: { stubs },
+        });
+        expect(wrapper.find('[data-test="request-headers"]').text()).toContain("No request headers captured.");
+        expect(wrapper.find('[data-test="response-headers"]').text()).toContain("No response headers captured.");
+    });
+});

@@ -8,6 +8,7 @@ import type {
     RequestStartRecord,
     RequestEndResult,
 } from "../types/index";
+import { normalizePayload } from "../utils/normalizePayload";
 
 interface StoreState {
     instances: Map<string, DevtoolsInstance>;
@@ -100,7 +101,7 @@ export function updateInstanceState(id: string, partial: Partial<DevtoolsInstanc
 export function addRequest(
     partial: RequestStartRecord,
 ): void {
-    const { value: truncatedPayload, truncated: payloadTruncated } = truncateValue(partial.payload, state.config.maxPayloadSize);
+    const { value: truncatedPayload, truncated: payloadTruncated } = truncateValue(normalizePayload(partial.payload), state.config.maxPayloadSize);
     const { value: truncatedQueryParams, truncated: queryParamsTruncated } = truncateValue(partial.queryParams, state.config.maxPayloadSize);
     const record: RequestRecord = {
         ...partial,
@@ -139,7 +140,7 @@ export function updateRequest(id: string, result: RequestEndResult): void {
 
     if (result.status === "success") {
         const { value: truncatedResponse, truncated } = truncateValue(
-            result.response,
+            normalizePayload(result.response),
             state.config.maxPayloadSize,
         );
         state.requests[idx] = {
@@ -149,6 +150,8 @@ export function updateRequest(id: string, result: RequestEndResult): void {
             response: truncatedResponse,
             duration: result.duration,
             cachedAt: result.cachedAt,
+            requestHeaders: result.requestHeaders ?? record.requestHeaders,
+            responseHeaders: result.responseHeaders,
             truncated: record.truncated || truncated,
         };
     } else if (result.status === "error") {
@@ -163,11 +166,26 @@ export function updateRequest(id: string, result: RequestEndResult): void {
             error: result.error,
             response: truncatedBody,
             duration: result.duration,
+            requestHeaders: result.requestHeaders ?? record.requestHeaders,
+            responseHeaders: result.responseHeaders,
             truncated: record.truncated || truncated,
         };
     } else {
         state.requests[idx] = { ...record, status: "aborted", duration: result.duration };
     }
+}
+
+/**
+ * Mark a request as "hit a 401 and was transparently retried after a token
+ * refresh". Fired by the use-api interceptor via the onRequestAuthRetry bridge
+ * event while the record is still pending; the flag survives the later
+ * updateRequest because that merge spreads the existing record.
+ * Silently ignores unknown request ids.
+ */
+export function flagRequestAuthRetry(id: string): void {
+    const idx = state.requests.findIndex((r) => r.id === id);
+    if (idx === -1) return;
+    state.requests[idx] = { ...state.requests[idx], authRetried: true };
 }
 
 /**

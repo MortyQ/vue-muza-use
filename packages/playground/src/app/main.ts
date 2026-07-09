@@ -28,7 +28,7 @@ app.use(createApi({
         cacheDefaults: {
             swr: true,
             staleTime: "5m",
-            freshFor: "10s",
+            freshFor: "1m",
         },
     },
 }));
