@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { Icon } from "@iconify/vue";
 import type { RequestRecord, DevtoolsInstanceOptions } from "../../../shared/types/index";
+import Badge from "../../../shared/components/Badge.vue";
 import FeatureBadges from "../../../shared/components/FeatureBadges.vue";
 
 defineProps<{ request: RequestRecord; instanceOptions?: DevtoolsInstanceOptions }>();
@@ -21,6 +22,13 @@ function statusClass(code: number | null): string {
         <span class="status-chip" :class="statusClass(request.statusCode)">
             {{ request.statusCode ?? "···" }}
         </span>
+        <Badge
+            v-if="request.authRetried"
+            label="401 → refreshed"
+            variant="warning"
+            data-test="auth-retried"
+            title="Original request received 401; the token was refreshed and the request retried transparently"
+        />
         <span class="req-method">{{ request.method }}</span>
         <span class="req-url" :title="request.url">{{ request.url }}</span>
         <FeatureBadges v-if="instanceOptions" :options="instanceOptions" />

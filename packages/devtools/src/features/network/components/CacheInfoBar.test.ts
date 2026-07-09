@@ -30,9 +30,19 @@ describe("CacheInfoBar — key row", () => {
         expect(w.find('[data-test="copy-prefix"]').exists()).toBe(true);
     });
 
-    it("hides the prefix button for manual keys", () => {
+    it("renders the prefix text before the full key for auto keys", () => {
+        const w = mount(CacheInfoBar, { props: { request: makeRequest(), cache } });
+        const prefixEl = w.find('[data-test="prefix-text"]');
+        expect(prefixEl.exists()).toBe(true);
+        expect(prefixEl.text()).toBe("auto:GET:/lists");
+        const html = w.html();
+        expect(html.indexOf('data-test="prefix-text"')).toBeLessThan(html.indexOf('data-test="key-text"'));
+    });
+
+    it("hides the prefix text and button for manual keys", () => {
         const w = mount(CacheInfoBar, { props: { request: makeRequest({ cacheKey: "my-manual-id" }), cache } });
         expect(w.find('[data-test="copy-prefix"]').exists()).toBe(false);
+        expect(w.find('[data-test="prefix-text"]').exists()).toBe(false);
     });
 
     it("toggles the expanded class on key click", async () => {
@@ -57,11 +67,24 @@ describe("CacheInfoBar — key row", () => {
 });
 
 describe("CacheInfoBar — config row", () => {
-    it("renders humanized staleTime and freshFor and swr marker", () => {
+    it("renders one chip per setting with humanized durations", () => {
         const w = mount(CacheInfoBar, { props: { request: makeRequest(), cache } });
-        expect(w.text()).toContain("staleTime 5m");
-        expect(w.text()).toContain("freshFor 10s");
-        expect(w.text()).toContain("swr");
+        const chips = w.findAll('[data-test="config-chip"]');
+        expect(chips).toHaveLength(3);
+        expect(chips[0].text()).toContain("staleTime");
+        expect(chips[0].text()).toContain("5m");
+        expect(chips[1].text()).toContain("freshFor");
+        expect(chips[1].text()).toContain("10s");
+        expect(chips[2].text()).toBe("swr");
+    });
+
+    it("omits the swr chip when swr is disabled", () => {
+        const w = mount(CacheInfoBar, {
+            props: { request: makeRequest(), cache: { staleTime: 300_000, swr: false, freshFor: 0 } },
+        });
+        const chips = w.findAll('[data-test="config-chip"]');
+        expect(chips).toHaveLength(2);
+        expect(w.text()).not.toContain("swr");
     });
 });
 

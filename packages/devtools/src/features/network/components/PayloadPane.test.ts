@@ -15,20 +15,22 @@ beforeEach(() => {
 });
 
 describe("PayloadPane — query params section", () => {
-    it("shows 'No params' when queryParams is null", async () => {
+    it("hides the section and shows 'No payload' when queryParams is null", async () => {
         const wrapper = mount(PayloadPane, {
             props: { queryParams: null, payload: null, truncated: false },
         });
         await flushPromises();
-        expect(wrapper.text()).toContain("No params");
+        expect(wrapper.text()).not.toContain("Query Params");
+        expect(wrapper.text()).toContain("No payload");
     });
 
-    it("shows 'No params' when queryParams is empty object", async () => {
+    it("hides the section and shows 'No payload' when queryParams is empty object", async () => {
         const wrapper = mount(PayloadPane, {
             props: { queryParams: {}, payload: null, truncated: false },
         });
         await flushPromises();
-        expect(wrapper.text()).toContain("No params");
+        expect(wrapper.text()).not.toContain("Query Params");
+        expect(wrapper.text()).toContain("No payload");
     });
 
     it("renders query params when present", async () => {
@@ -50,12 +52,13 @@ describe("PayloadPane — query params section", () => {
 });
 
 describe("PayloadPane — body section", () => {
-    it("shows 'No body' when payload is null", async () => {
+    it("hides the section and shows 'No payload' when payload is null", async () => {
         const wrapper = mount(PayloadPane, {
             props: { queryParams: null, payload: null, truncated: false },
         });
         await flushPromises();
-        expect(wrapper.text()).toContain("No body");
+        expect(wrapper.text()).not.toContain("Body");
+        expect(wrapper.text()).toContain("No payload");
     });
 
     it("renders body when payload is present", async () => {

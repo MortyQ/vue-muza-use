@@ -5,4 +5,5 @@ export const createBridge = () => ({
     onStateUpdate: () => {},
     onRequestStart: () => {},
     onRequestEnd: () => {},
+    onRequestAuthRetry: () => {},
 });

@@ -61,6 +61,12 @@ const COUNTDOWN_TOOLTIP =
     <div class="cache-info">
         <div v-if="request.cacheKey" class="cache-info__row">
             <span class="cache-info__label">key</span>
+            <template v-if="isAutoKey">
+                <span class="cache-info__prefix-label">prefix</span>
+                <span class="cache-info__prefix" data-test="prefix-text">{{ prefix }}</span>
+                <CopyButton :value="prefix" data-test="copy-prefix" />
+                <span class="cache-info__sep">·</span>
+            </template>
             <span
                 class="cache-info__key"
                 :class="{ expanded }"
@@ -68,20 +74,16 @@ const COUNTDOWN_TOOLTIP =
                 @click="expanded = !expanded"
             >{{ request.cacheKey }}</span>
             <CopyButton :value="request.cacheKey" data-test="copy-key" />
-            <template v-if="isAutoKey">
-                <span class="cache-info__sep">·</span>
-                <span class="cache-info__prefix-label">prefix</span>
-                <CopyButton :value="prefix" data-test="copy-prefix" />
-            </template>
         </div>
         <div class="cache-info__row">
             <span class="cache-info__label">config</span>
-            <span class="cache-info__config">
-                staleTime {{ formatDuration(cache.staleTime) }}
-                <span class="cache-info__sep">·</span>
-                freshFor {{ formatDuration(cache.freshFor) }}
-                <template v-if="cache.swr"><span class="cache-info__sep">·</span>swr</template>
+            <span class="config-chip" data-test="config-chip">
+                <span class="config-chip__key">staleTime</span>{{ formatDuration(cache.staleTime) }}
             </span>
+            <span class="config-chip" data-test="config-chip">
+                <span class="config-chip__key">freshFor</span>{{ formatDuration(cache.freshFor) }}
+            </span>
+            <span v-if="cache.swr" class="config-chip config-chip--swr" data-test="config-chip">swr</span>
             <span
                 v-if="freshness"
                 class="cache-info__countdown"
@@ -122,6 +124,16 @@ const COUNTDOWN_TOOLTIP =
     font-family: "SF Mono", "Fira Code", Consolas, monospace;
     color: oklch(68% 0.18 200);
     cursor: pointer;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cache-info__prefix {
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    color: var(--dt-foreground-secondary);
+    flex-shrink: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -137,7 +149,27 @@ const COUNTDOWN_TOOLTIP =
 .cache-info__key.expanded::-webkit-scrollbar-thumb { background: var(--dt-border-strong); border-radius: 2px; }
 .cache-info__prefix-label { color: var(--dt-foreground-muted); }
 .cache-info__sep { color: var(--dt-foreground-subtle); }
-.cache-info__config { color: var(--dt-foreground-secondary); white-space: nowrap; }
+/* Static chips on a frequently-seen row — intentionally no transitions. */
+.config-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px;
+    background: var(--dt-surface-raised);
+    border: 1px solid var(--dt-border-subtle);
+    border-radius: 4px;
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    font-size: 10px;
+    color: var(--dt-foreground-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.config-chip__key { color: var(--dt-foreground-muted); }
+.config-chip--swr {
+    background: oklch(22% 0.07 200);
+    color: oklch(62% 0.16 200);
+    border-color: oklch(32% 0.10 200);
+}
 .cache-info__countdown { margin-left: auto; white-space: nowrap; flex-shrink: 0; }
 .cache-info__countdown--fresh   { color: oklch(72% 0.17 160); }
 .cache-info__countdown--swr     { color: oklch(72% 0.17 65); }

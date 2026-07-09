@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RequestRecord, DevtoolsInstanceOptions } from "../../../shared/types/index";
 import StatusBadge from "./StatusBadge.vue";
+import Badge from "../../../shared/components/Badge.vue";
 import FeatureBadges from "../../../shared/components/FeatureBadges.vue";
 
 defineProps<{
@@ -40,6 +41,12 @@ function formatTime(ts: number): string {
             <!-- Bottom: status + duration + time -->
             <div class="row-meta">
                 <StatusBadge :status="request.status" :status-code="request.statusCode" />
+                <Badge
+                    v-if="request.authRetried"
+                    label="401 → refreshed"
+                    variant="warning"
+                    data-test="auth-retried"
+                />
                 <span class="meta-duration">{{ formatDuration(request.duration) }}</span>
                 <span class="meta-time">{{ formatTime(request.startedAt) }}</span>
             </div>

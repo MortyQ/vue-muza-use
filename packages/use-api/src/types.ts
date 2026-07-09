@@ -573,8 +573,33 @@ export interface DevtoolsRequestRecord {
  * the cache; absent when caching was off for the request.
  */
 export type RequestEndResult =
-    | { status: "success"; statusCode: number; response: unknown; duration: number; cachedAt?: number }
-    | { status: "error"; error: ApiError; statusCode: number | null; duration: number }
+    | {
+          status: "success";
+          statusCode: number;
+          response: unknown;
+          duration: number;
+          cachedAt?: number;
+          /**
+           * Final request headers as sent on the wire (post-interceptor),
+           * sensitive values redacted. Optional — older emitters omit it.
+           */
+          requestHeaders?: Record<string, string>;
+          /** Response headers, sensitive values redacted. Optional — older emitters omit it. */
+          responseHeaders?: Record<string, string>;
+      }
+    | {
+          status: "error";
+          error: ApiError;
+          statusCode: number | null;
+          duration: number;
+          /**
+           * Final request headers as sent on the wire (post-interceptor),
+           * sensitive values redacted. Optional — older emitters omit it.
+           */
+          requestHeaders?: Record<string, string>;
+          /** Response headers, sensitive values redacted. Optional — older emitters omit it. */
+          responseHeaders?: Record<string, string>;
+      }
     | { status: "aborted"; duration: number };
 
 /** Event callbacks implemented by the devtools panel, called by useApi instrumentation. */
@@ -589,6 +614,13 @@ export interface DevtoolsBridge {
     onRequestStart: (record: DevtoolsRequestRecord) => void;
     /** Fired when an HTTP request completes (success, error, or abort). */
     onRequestEnd: (id: string, result: RequestEndResult) => void;
+    /**
+     * Fired when a request hit a 401 and is transparently retried after a
+     * successful token refresh. OPTIONAL — older `@ametie/vue-muza-devtools`
+     * versions do not implement it; callers must guard with `?.`.
+     * (Intentional divergence from the devtools-side mirror, where it is required.)
+     */
+    onRequestAuthRetry?: (id: string) => void;
 }
 
 /**

@@ -44,18 +44,37 @@ const activeTab = ref<TabId>("split");
                 :error="request.error"
             />
 
+            <!-- Headers are captured at request completion (post-interceptor),
+                 so pending records show both empty states until the request ends. -->
             <div v-show="activeTab === 'headers'" class="headers-view">
-                <div
-                    v-for="(val, key) in request.requestHeaders"
-                    :key="key"
-                    class="header-row"
-                >
-                    <span class="header-key">{{ key }}</span>
-                    <span class="header-val">{{ val }}</span>
+                <div class="section-label"><span>Request Headers</span></div>
+                <div class="headers-section" data-test="request-headers">
+                    <div
+                        v-for="(val, key) in request.requestHeaders"
+                        :key="key"
+                        class="header-row"
+                    >
+                        <span class="header-key">{{ key }}</span>
+                        <span class="header-val">{{ val }}</span>
+                    </div>
+                    <p v-if="!Object.keys(request.requestHeaders ?? {}).length" class="empty-msg">
+                        No request headers captured.
+                    </p>
                 </div>
-                <p v-if="!Object.keys(request.requestHeaders ?? {}).length" class="empty-msg">
-                    No request headers captured.
-                </p>
+                <div class="section-label"><span>Response Headers</span></div>
+                <div class="headers-section" data-test="response-headers">
+                    <div
+                        v-for="(val, key) in request.responseHeaders"
+                        :key="key"
+                        class="header-row"
+                    >
+                        <span class="header-key">{{ key }}</span>
+                        <span class="header-val">{{ val }}</span>
+                    </div>
+                    <p v-if="!Object.keys(request.responseHeaders ?? {}).length" class="empty-msg">
+                        No response headers captured.
+                    </p>
+                </div>
             </div>
         </div>
     </div>
@@ -77,10 +96,25 @@ const activeTab = ref<TabId>("split");
 }
 .headers-view {
     flex: 1;
-    padding: 12px;
     overflow-y: auto;
     font-family: "SF Mono", "Fira Code", Consolas, monospace;
     font-size: 12px;
+}
+.headers-section {
+    padding: 6px 12px;
+}
+.section-label {
+    display: flex;
+    align-items: center;
+    padding: 4px 12px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dt-foreground-subtle);
+    background: var(--dt-surface);
+    border-bottom: 1px solid var(--dt-border-subtle);
+    flex-shrink: 0;
 }
 .headers-view::-webkit-scrollbar { width: 4px; }
 .headers-view::-webkit-scrollbar-thumb { background: var(--dt-border-strong); border-radius: 2px; }

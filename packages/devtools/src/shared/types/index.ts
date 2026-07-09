@@ -90,25 +90,50 @@ export interface RequestRecord {
     cacheKey?: string | null;
     /** Unix ms timestamp when the response was written to the cache; absent/undefined if caching was off. Mirrors use-api. */
     cachedAt?: number;
+    /** True when this request hit a 401 and was transparently retried after a token refresh. Set via the onRequestAuthRetry bridge event. */
+    authRetried?: boolean;
+    /** Response headers captured at completion; sensitive values redacted upstream. Mirrors use-api. */
+    responseHeaders?: Record<string, string>;
 }
 
 /**
  * The shape accepted when a request STARTS. Duration, response, error, truncated,
- * instanceOptions, and cachedAt are added on completion — never at start.
+ * instanceOptions, cachedAt, authRetried, and responseHeaders are added on
+ * completion — never at start.
  */
 export type RequestStartRecord = Omit<
     RequestRecord,
-    "duration" | "response" | "error" | "truncated" | "instanceOptions" | "cachedAt"
+    "duration" | "response" | "error" | "truncated" | "instanceOptions" | "cachedAt" | "authRetried" | "responseHeaders"
 >;
 
 /**
  * Result of a completed HTTP request.
  *
  * Discriminated union on `status` — only relevant fields are present per branch.
+ * Mirrors RequestEndResult in @ametie/vue-muza-use — keep in sync.
  */
 export type RequestEndResult =
-    | { status: "success"; statusCode: number; response: unknown; duration: number; cachedAt?: number }
-    | { status: "error"; error: ApiError; statusCode: number | null; duration: number }
+    | {
+          status: "success";
+          statusCode: number;
+          response: unknown;
+          duration: number;
+          cachedAt?: number;
+          /** Final request headers (post-interceptor), sensitive values redacted. Optional — older use-api versions omit it. */
+          requestHeaders?: Record<string, string>;
+          /** Response headers, sensitive values redacted. Optional — older use-api versions omit it. */
+          responseHeaders?: Record<string, string>;
+      }
+    | {
+          status: "error";
+          error: ApiError;
+          statusCode: number | null;
+          duration: number;
+          /** Final request headers (post-interceptor), sensitive values redacted. Optional — older use-api versions omit it. */
+          requestHeaders?: Record<string, string>;
+          /** Response headers, sensitive values redacted. Optional — older use-api versions omit it. */
+          responseHeaders?: Record<string, string>;
+      }
     | { status: "aborted"; duration: number };
 
 // Instance domain types
@@ -244,6 +269,13 @@ export interface DevtoolsBridge {
     onRequestStart: (record: RequestStartRecord) => void;
     /** Called when a request completes (success, error, or abort). */
     onRequestEnd: (id: string, result: RequestEndResult) => void;
+    /**
+     * Called when a request hit a 401 and is transparently retried after a
+     * successful token refresh. Required here — this package always implements
+     * it. The use-api mirror declares it optional for backward compatibility
+     * with older devtools versions (intentional divergence).
+     */
+    onRequestAuthRetry: (id: string) => void;
 }
 
 // Plugin configuration
