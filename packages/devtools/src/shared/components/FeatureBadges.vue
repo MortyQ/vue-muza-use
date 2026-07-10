@@ -14,24 +14,33 @@ interface Badge {
     variant: BadgeVariant;
 }
 
+const MAX_SUB_LENGTH = 12;
+
+const truncateSub = (sub: string): string =>
+    sub.length > MAX_SUB_LENGTH ? `${sub.slice(0, MAX_SUB_LENGTH)}…` : sub;
+
 const badges = computed<Badge[]>(() => {
     const b: Badge[] = [];
-    const { cache, poll, retry, batch, debounce, immediate, lazy } = props.options;
+    const { cache, poll, retry, batch, debounce, lazy } = props.options;
 
     // `cache` is the resolved config (cacheDefaults already merged in) — `id`
     // present only for a manual key, "auto" otherwise; `swr` reflects the true
     // effective value even when it comes from cacheDefaults, not this instance.
+    // SWR implies caching, so a single merged chip (swr·auto / swr·<id>)
+    // replaces the cache + swr pair.
     if (cache) {
-        b.push({ key: "cache", label: "cache", sub: cache.id ?? "auto", variant: "cache" });
+        const sub = truncateSub(cache.id ?? "auto");
         if (cache.swr) {
-            b.push({ key: "swr", label: "swr", variant: "swr" });
+            b.push({ key: "swr", label: "swr", sub, variant: "swr" });
+        } else {
+            b.push({ key: "cache", label: "cache", sub, variant: "cache" });
         }
     }
     if (poll)     b.push({ key: "polling",  label: "polling",  variant: "polling"  });
     if (retry)    b.push({ key: "retry",    label: "retry",    variant: "retry"    });
     if (batch)    b.push({ key: "batch",    label: "batch",    variant: "batch"    });
     if (debounce) b.push({ key: "debounce", label: "debounce", variant: "debounce" });
-    if (!immediate || lazy) b.push({ key: "lazy", label: "lazy", variant: "lazy" });
+    if (lazy) b.push({ key: "lazy", label: "lazy", variant: "lazy" });
 
     return b;
 });

@@ -30,15 +30,14 @@ function formatTime(ts: number): string {
         <div class="accent-bar" :class="`accent-bar--${request.status}`" />
 
         <div class="row-body">
-            <!-- Top: method + url + feature badges -->
+            <!-- Top: method + url (full width, truncated from the start on overflow) -->
             <div class="row-top">
                 <span class="method-badge" :class="`method-${request.method.toLowerCase()}`">
                     {{ request.method }}
                 </span>
-                <span class="row-url">{{ request.url }}</span>
-                <FeatureBadges v-if="instanceOptions" :options="instanceOptions" />
+                <span class="row-url" :title="request.url"><bdi>{{ request.url }}</bdi></span>
             </div>
-            <!-- Bottom: status + duration + time -->
+            <!-- Bottom: status + duration + feature badges + time -->
             <div class="row-meta">
                 <StatusBadge :status="request.status" :status-code="request.statusCode" />
                 <Badge
@@ -47,6 +46,9 @@ function formatTime(ts: number): string {
                     variant="warning"
                     data-test="auth-retried"
                 />
+                <div v-if="instanceOptions" class="row-badges">
+                    <FeatureBadges :options="instanceOptions" />
+                </div>
                 <span class="meta-duration">{{ formatDuration(request.duration) }}</span>
                 <span class="meta-time">{{ formatTime(request.startedAt) }}</span>
             </div>
@@ -99,6 +101,10 @@ function formatTime(ts: number): string {
     text-overflow: ellipsis;
     flex: 1;
     min-width: 0;
+    /* RTL + LTR-isolated <bdi> content: the ellipsis lands on the LEFT, so a
+       long URL keeps its endpoint tail visible while the head is elided. */
+    direction: rtl;
+    text-align: left;
 }
 .row-meta {
     display: flex;
@@ -106,8 +112,14 @@ function formatTime(ts: number): string {
     gap: 10px;
     font-size: 11px;
 }
-.meta-duration { color: var(--dt-foreground-muted); }
-.meta-time { color: var(--dt-foreground-subtle); margin-left: auto; }
+.meta-duration { color: var(--dt-foreground-muted); flex-shrink: 0; margin-left: auto; }
+.meta-time { color: var(--dt-foreground-subtle); flex-shrink: 0; }
+/* Badges clip inside this wrapper instead of pushing the timestamp out. */
+.row-badges {
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+}
 
 /* Method badges */
 .method-badge {
