@@ -190,7 +190,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         /**
          * Cache hit behavior (cache.swr: false — default):
          * - mutate() called with cached data
-         * - loading stays false
+         * - loading set to false (clears the initialLoading/immediate preset)
          * - onBefore / onSuccess / onFinish NOT called
          * - axios request NOT made
          *
@@ -268,6 +268,10 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             const cached = readCacheEntry<T>(key);
             if (cached !== null) {
                 state.mutate(applySelect(cached.data));
+                // Clear loading preset by initialLoading/immediate — data is already
+                // served; neither the early return below nor the SWR revalidation
+                // path (finally skips setLoading when isRevalidating) would reset it
+                state.setLoading(false);
                 // Fresh SWR hits (age < freshFor) behave exactly like non-SWR hits:
                 // no background request, revalidating stays false
                 if (!cacheOpts.swr || cached.ageMs < cacheOpts.freshFor) {
