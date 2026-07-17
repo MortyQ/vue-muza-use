@@ -8,6 +8,43 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.7.0] — 2026-07-17
+
+### Added
+
+#### `@ametie/vue-muza-use`
+
+- **`coalesce` — same-flush auto-triggers collapse into a single request (default: `true`)** — when several reactive deps change within one flush (the classic case: a filter change plus a `watch` that resets `page`/`sort`), `useApi` previously fired one request per trigger: earlier ones were aborted client-side but still reached the server, wrote transient auto cache keys, and with `ignoreUpdates` the outcome depended on watcher registration order. The auto-track watcher now defers a single `execute()` to `nextTick`, so exactly one request is sent with the **final** getter values — regardless of watcher declaration order or how many watchers cascade. Applies to auto-tracking, the `immediate` initial request, and dynamic `poll` config changes. Opt out per request with `coalesce: false`, or app-wide via `createApi({ globalOptions: { coalesce: false } })` (per-request value wins). See `docs/coalesce.md` for the full story and examples.
+- **Dev-only double-trigger warning** — with `coalesce: false`, if two or more auto-triggers fire within one tick in development, a `console.warn` explains the reset-watch pattern and points at `coalesce`. Fires once per instance; no production overhead.
+
+### Changed
+
+#### `@ametie/vue-muza-use`
+
+- **Auto-triggered requests now start on `nextTick` instead of synchronously inside the watcher flush.** App behavior, visible loading states, and painted frames are unchanged (the deferral resolves before the browser paints). Three observable consequences, all bug fixes in practice: one logical update = one request instead of N−1 aborted duplicates; a manual `execute()` called right after a dep mutation now wins instead of being aborted by the catching-up auto-trigger (its per-call config is no longer lost); unmounting before the flush sends nothing at all (previously: sent + aborted). **Migration:** unit tests that assert `loading` or a request spy *synchronously* after a dep mutation need an `await nextTick()` / `await flushPromises()` first — nothing else changes.
+
+---
+
+## [1.6.3] — 2026-07-16
+
+### Fixed
+
+#### `@ametie/vue-muza-use`
+
+- **Stuck `loading: true` on cache hits with `immediate: true` (or `initialLoading: true`)** — `immediate: true` presets `loading = true` at state creation, but the cache-hit path in `executeRequest` returned early without ever clearing it: on a warm cache (component remount, or another component already cached the same auto key) the data appeared instantly, no request was made — and the spinner never went away. The same stuck preset survived SWR hits too: fresh entries (`freshFor`) return early the same way, and stale entries skip the `finally` loading reset because the revalidation flag is set. `loading` is now cleared as soon as a cache hit serves data — covering plain hits, fresh SWR hits, and stale SWR revalidation.
+
+---
+
+## [1.6.2] — 2026-07-10
+
+### Improved
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **Request list layout** — reworked `RequestRow` and `FeatureBadges` so long URLs, badges, and status indicators no longer crowd each other in the request list.
+
+---
+
 ## [1.6.1] — 2026-07-09
 
 ### Fixed
