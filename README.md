@@ -467,6 +467,49 @@ page.value = 1
 
 ---
 
+### Trigger coalescing
+
+When one logical update mutates several reactive deps in the same flush — the
+classic case is a filter change plus a `watch` that resets `page`/`sort` — all
+auto-triggers collapse into **one** request sent with the final values:
+
+```ts
+const page = ref(1);
+const sort = ref<SortItem[]>(defaultSort);
+
+const { data, loading } = fetchTable({
+  data: () => ({ ...filters.value, page: page.value, sort: sort.value }),
+  immediate: true,
+});
+
+// Safe: this no longer causes a second (aborted) request —
+// one request goes out with page: 1 and the default sort.
+watch(filters, () => {
+  sort.value = defaultSort;
+  page.value = 1;
+});
+```
+
+Works regardless of watcher declaration order. Manual `execute()` calls are
+never coalesced and supersede a pending auto-trigger in the same tick.
+
+Opt out per request with `coalesce: false`, or app-wide:
+
+```ts
+createApi({ axios, globalOptions: { coalesce: false } });
+```
+
+#### Migrating to 1.7
+
+`coalesce` is **on by default**. Auto-triggered requests now start on `nextTick`
+after the mutation instead of synchronously, so:
+
+- Unit tests that assert `loading` or a spied request **synchronously** after a
+  dep mutation need an `await nextTick()` / `await flushPromises()` first.
+- App behavior, visible loading states, and painted frames are unchanged.
+
+---
+
 ### ignoreUpdates — Update Without Re-fetching
 
 **TL;DR: Update a reactive dep without triggering auto-tracking.**
@@ -2065,6 +2108,7 @@ Three type parameters — all optional with defaults:
 | `immediate` | `boolean` | `false` | When `true`, executes the request automatically when the composable is created |
 | `lazy` | `boolean` | `false` | Disable auto-tracking — reactive changes to `url`, `params`, and `data` will NOT trigger a re-fetch |
 | `debounce` | `number` | `0` | Milliseconds to debounce auto-tracked re-fetches |
+| `coalesce` | `boolean` | `true` | Batch same-flush auto-triggers into a single request with the final values. Set `false` to restore the pre-1.7 per-trigger behavior (or globally via `globalOptions.coalesce`) |
 
 **Caching:**
 

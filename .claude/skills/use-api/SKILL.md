@@ -8,7 +8,7 @@
 | **description** | Feature-scoped API layer pattern built on `@ametie/vue-muza-use`. Generates and refactors typed composable wrappers for HTTP requests in Vue 3 apps. |
 | **version** | 1.6 |
 | **applies_to** | `**/api/use*.ts`, `**/*.vue`, `**/*.ts` (when dealing with HTTP requests) |
-| **verified_against** | `@ametie/vue-muza-use` 1.6.0 (auto cache keys + cacheDefaults) |
+| **verified_against** | `@ametie/vue-muza-use` 1.7.0 (coalesced auto-triggers) |
 
 ## Auto-Activation Triggers
 
@@ -91,9 +91,12 @@ is a TypeScript error. This replaced an older `watch: [...]` API; if you see
   `lazy: true`. Without it, a reactive `data: () => form.value` getter fires
   the mutation on every form edit (auto-tracking is `lazy: false` by default
   for every method, not just GET).
+- **Coalescing (1.7+):** multiple dep changes in one flush (filter change +
+  a watch resetting `page`/`sort`) send ONE request with the final values —
+  reset-watches are safe by default. Opt out with `coalesce: false`.
 - **Escape hatch:** `ignoreUpdates(() => { ... })` (from the composable's
-  return) mutates reactive deps without triggering a request (synchronous
-  changes only).
+  return) mutates reactive deps without triggering a request at all
+  (synchronous changes only).
 
 ```ts
 // ✅ read — auto-tracked
