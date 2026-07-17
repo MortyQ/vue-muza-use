@@ -165,6 +165,8 @@ describe("useApi — loading on cache hit", () => {
             const { result, wrapper } = mountApi({ ...baseOpts, cache: true });
             expect(result.loading.value).toBe(true);
 
+            await flushPromises();
+
             resolveRequest({ data: { kpi: 42 }, status: 200, headers: {}, config: {} });
             await flushPromises();
 

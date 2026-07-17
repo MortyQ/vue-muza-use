@@ -185,6 +185,22 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      */
     lazy?: boolean;
     /**
+     * Coalesce auto-tracked triggers. When several reactive deps change within
+     * one flush (e.g. a filter change plus a watcher that resets page/sort),
+     * a single request is sent after the flush with the final getter values —
+     * instead of one request per trigger, where earlier ones are aborted but
+     * still hit the server.
+     *
+     * Applies to auto-tracking, the `immediate` initial request, and dynamic
+     * `poll` config changes. Manual `execute()` calls are never coalesced and
+     * supersede any pending auto-triggered send in the same tick.
+     *
+     * Default: `true`. Set `false` to restore the pre-1.7 per-trigger behavior.
+     * Can be set globally via `createApi({ globalOptions: { coalesce: false } })`;
+     * the per-request value takes precedence.
+     */
+    coalesce?: boolean;
+    /**
      * Re-fetch when the browser tab regains focus (`visibilitychange` event).
      *
      * - `true` — use default throttle of 60 000ms (prevents rapid refetches on quick tab switches)
@@ -374,6 +390,12 @@ export interface ApiPluginOptions {
          * would silently cache. Any `id` here is ignored.
          */
         cacheDefaults?: Partial<CacheOptions>;
+        /**
+         * Apply `coalesce` to all `useApi` instances.
+         * Per-request value (including `false`) takes precedence.
+         * When unset, the default is `true`.
+         */
+        coalesce?: boolean;
     };
 }
 

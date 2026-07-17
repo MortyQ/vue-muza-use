@@ -170,6 +170,7 @@ describe('useApi', () => {
 
         filter.value = 'changed'
         await nextTick()
+        await nextTick()
 
         expect(mockAxios.request).toHaveBeenCalledTimes(2)
     })
@@ -884,6 +885,7 @@ describe('ignoreUpdates', () => {
 
         filter.value = 'changed'
         await nextTick()
+        await nextTick()
 
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })
@@ -915,6 +917,7 @@ describe('ignoreUpdates', () => {
 
         // Normal change after ignoreUpdates — should trigger execute
         filter.value = 'normal'
+        await nextTick()
         await nextTick()
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })
@@ -963,6 +966,7 @@ describe('ignoreUpdates', () => {
         }).toThrow('updater error')
 
         filter.value = 'after-throw'
+        await nextTick()
         await nextTick()
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })

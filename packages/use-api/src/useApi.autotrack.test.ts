@@ -23,7 +23,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { defineComponent, ref, nextTick } from 'vue'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import type { AxiosInstance } from 'axios'
 import { useApi } from './useApi'
 import { createApi } from './plugin'
@@ -87,7 +87,7 @@ describe('useApi — auto-tracking via params', () => {
         vi.clearAllMocks()
         successOnce()
         search.value = 'b'
-        await nextTick()
+        await flushPromises()
 
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })
@@ -102,7 +102,7 @@ describe('useApi — auto-tracking via params', () => {
         successOnce()
         a.value = 10
         b.value = 20
-        await nextTick()
+        await flushPromises()
 
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })
@@ -130,7 +130,7 @@ describe('useApi — auto-tracking via url', () => {
         vi.clearAllMocks()
         successOnce()
         id.value = 2
-        await nextTick()
+        await flushPromises()
 
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })
@@ -149,7 +149,7 @@ describe('useApi — auto-tracking via data', () => {
         vi.clearAllMocks()
         successOnce()
         payload.value = { name: 'Bob' }
-        await nextTick()
+        await flushPromises()
 
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })
@@ -208,7 +208,7 @@ describe('useApi — immediate + auto-tracking', () => {
 
         successOnce()
         search.value = 'b'
-        await nextTick()
+        await flushPromises()
         expect(mockAxios.request).toHaveBeenCalledTimes(2)
     })
 
@@ -220,7 +220,7 @@ describe('useApi — immediate + auto-tracking', () => {
 
         successOnce()
         search.value = 'b'
-        await nextTick()
+        await flushPromises()
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })
 })
@@ -282,7 +282,7 @@ describe('useApi — ignoreUpdates (auto-tracking)', () => {
 
         successOnce()
         search.value = 'c'
-        await nextTick()
+        await flushPromises()
 
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })
@@ -298,7 +298,7 @@ describe('useApi — ignoreUpdates (auto-tracking)', () => {
         vi.clearAllMocks()
         successOnce()
         search.value = 'c'
-        await nextTick()
+        await flushPromises()
 
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })

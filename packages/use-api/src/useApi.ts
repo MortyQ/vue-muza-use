@@ -1,7 +1,7 @@
 import { debounceFn, DebounceCancelledError } from "./utils/debounce";
 import { parseUrlQueryParams } from "./utils/urlUtils";
 import { type AxiosRequestConfig, type AxiosResponse, isAxiosError } from "axios";
-import { ref, computed, effectScope, getCurrentInstance, getCurrentScope, onScopeDispose, toValue, watch, useId, type MaybeRefOrGetter } from "vue";
+import { ref, computed, effectScope, getCurrentInstance, getCurrentScope, nextTick, onScopeDispose, toValue, watch, useId, type MaybeRefOrGetter } from "vue";
 
 import type {
     UseApiOptions,
@@ -122,6 +122,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         useGlobalAbort = globalOptions?.useGlobalAbort ?? true,
         initialLoading,
         poll = 0,
+        coalesce = globalOptions?.coalesce ?? true,
         // Explicitly excluded from axiosConfig — these are useApi-only options
         // and must not be forwarded to axios.request()
         cache: _cache,
@@ -187,6 +188,9 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     };
 
     const executeRequest = async (config?: ExecuteConfig<D>): Promise<TSelected | null> => {
+        // Any actual execution (manual, poll tick, refetch trigger, or the
+        // scheduled coalesced send itself) supersedes a pending auto-trigger.
+        autoTriggerPending = false;
         /**
          * Cache hit behavior (cache.swr: false — default):
          * - mutate() called with cached data
@@ -524,6 +528,48 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         })
         : executeRequest;
 
+    // -------------------------------------------------------------------------
+    // Auto-trigger coalescing — same-flush triggers collapse into one request
+    // sent on nextTick with the final getter values (see `coalesce` option).
+    // -------------------------------------------------------------------------
+    let autoTriggerPending = false;
+    let disposed = false;
+
+    // Dev-only detector for the double-request pattern when coalescing is off
+    let autoTriggersThisTick = 0;
+    let warnedDoubleTrigger = false;
+    const isDev = typeof process !== "undefined" && process.env?.NODE_ENV === "development";
+
+    const scheduleAutoTrigger = (): void => {
+        if (!coalesce) {
+            if (isDev && !warnedDoubleTrigger) {
+                autoTriggersThisTick++;
+                if (autoTriggersThisTick === 1) {
+                    nextTick(() => { autoTriggersThisTick = 0; });
+                } else {
+                    warnedDoubleTrigger = true;
+                    console.warn(
+                        `[vue-muza-use] ${autoTriggersThisTick} auto-triggered requests to "${toValue(url)}" within one tick — ` +
+                        "likely a watcher resetting deps this request reads (e.g. page/sort reset on filter change). " +
+                        "Earlier requests are aborted but still reach the server. " +
+                        "Remove `coalesce: false` to send a single request with the final values.",
+                    );
+                }
+            }
+            execute();
+            return;
+        }
+        if (autoTriggerPending) return;
+        autoTriggerPending = true;
+        nextTick(() => {
+            // Cleared flag = superseded by a manual execute()/poll tick meanwhile
+            if (!autoTriggerPending) return;
+            autoTriggerPending = false;
+            if (disposed) return;
+            execute();
+        });
+    };
+
     const abort = (msg?: string) => {
         if (pollTimer) clearTimeout(pollTimer);
         abortController.value?.abort(msg);
@@ -561,7 +607,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
 
             watch(
                 [urlComputed, paramsComputed, dataComputed],
-                () => execute(),
+                () => scheduleAutoTrigger(),
                 { flush: 'pre', deep: true },
             )
         })
@@ -574,6 +620,19 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             onScopeDispose(() => trackingScope!.stop())
         }
     }
+
+    // A manual execute() must win over auto-triggers from deps mutated earlier
+    // in the same tick: the pending flag handles an already-scheduled send, and
+    // restarting the tracking scope (same mechanism as ignoreUpdates) turns the
+    // watcher job already queued for this flush into a no-op.
+    const publicExecute: typeof executeRequest = (config?) => {
+        autoTriggerPending = false;
+        if (!disposed && !lazy && trackingScope) {
+            trackingScope.stop();
+            startAutoTracking();
+        }
+        return execute(config);
+    };
 
     const ignoreUpdates = (updater: () => void): void => {
         trackingScope?.pause()
@@ -592,6 +651,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
 
     if (getCurrentScope()) {
         onScopeDispose(() => {
+            disposed = true;
             abort("Scope disposed");
             devtoolsBridge.onInstanceDestroyed(instanceId);
         });
@@ -600,7 +660,10 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     // Initial check for polling if immediate is false but pollInterval is set?
     // Usually polling requires one execution to start the loop in this logic.
     // If immediate=true, it starts.
-    if (immediate) execute();
+    // Best-effort coalescing for the initial send: when no flush is pending at
+    // setup time, nextTick may resolve before a same-tick dep mutation's flush,
+    // yielding one extra (aborted) request — graceful degradation, payloads stay correct.
+    if (immediate) scheduleAutoTrigger();
 
     // Visibility Handling for Polling — only when polling is configured.
     // `poll` may be a ref/getter (always truthy) — that's fine: the handler
@@ -635,7 +698,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                  }
                  // If we are idle (not loading), start immediately to apply new settings
                  if (!state.loading.value) {
-                     execute();
+                     scheduleAutoTrigger();
                  }
              } else {
                  // If disabled, clear any pending timer
@@ -647,5 +710,5 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
          }, { deep: true });
     }
 
-    return { ...state, revalidating, cacheKey, execute, abort, reset, ignoreUpdates };
+    return { ...state, revalidating, cacheKey, execute: publicExecute, abort, reset, ignoreUpdates };
 }

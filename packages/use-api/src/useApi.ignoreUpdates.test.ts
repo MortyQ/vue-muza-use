@@ -15,7 +15,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { defineComponent, ref, nextTick } from 'vue'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import type { AxiosInstance } from 'axios'
 import { useApi } from './useApi'
 import { useAbortController } from './composables/useAbortController'
@@ -75,7 +75,7 @@ describe('useApi — ignoreUpdates', () => {
         vi.clearAllMocks()
         successOnce()
         filter.value = 'c'
-        await nextTick()
+        await flushPromises()
 
         expect(mockAxios.request).toHaveBeenCalledOnce()
     })
@@ -98,7 +98,7 @@ describe('useApi — ignoreUpdates', () => {
 
         successOnce()
         filter.value = 'c'
-        await nextTick()
+        await flushPromises()
 
         expect(mockAxios.request).toHaveBeenCalledOnce()
     })
@@ -153,7 +153,7 @@ describe('useApi — ignoreUpdates', () => {
         vi.clearAllMocks()
         successOnce()
         filter.value = 'after-throw'
-        await nextTick()
+        await flushPromises()
 
         expect(mockAxios.request).toHaveBeenCalledTimes(1)
     })
@@ -164,7 +164,7 @@ describe('useApi — ignoreUpdates', () => {
 // ---------------------------------------------------------------------------
 
 describe('useApi — useGlobalAbort', () => {
-    it('global abort() cancels a request with useGlobalAbort: true (default)', () => {
+    it('global abort() cancels a request with useGlobalAbort: true (default)', async () => {
         const { abort, getSignal } = useAbortController()
         const globalSignal = getSignal()
 
@@ -183,6 +183,8 @@ describe('useApi — useGlobalAbort', () => {
             }),
             { global: { plugins: [createApi({ axios: mockAxios })] } },
         )
+
+        await flushPromises()
 
         expect(capturedSignal).toBeDefined()
         expect(capturedSignal!.aborted).toBe(false)
