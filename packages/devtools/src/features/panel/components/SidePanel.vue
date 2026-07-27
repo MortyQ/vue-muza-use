@@ -1,5 +1,6 @@
-<!-- Right-side devtools panel with free-floating drag and 4-edge resize. -->
+<!-- Right-side devtools panel with free-floating drag and 4-edge resize, or pinned/docked (reserves layout space, width-only resize). -->
 <script setup lang="ts">
+import { onMounted, onScopeDispose, watch } from "vue";
 import { useFloatingPanel } from "../composables/useFloatingPanel";
 import { useTabManager } from "../composables/useTabManager";
 import { useNetworkLayout } from "../../network/composables/useNetworkLayout";
@@ -8,10 +9,39 @@ import TabBar from "./TabBar.vue";
 const {
     geometry, isGeometryReady, isOpen, panelMode,
     startDrag, startResizeTop, startResizeBottom, startResizeLeft, startResizeRight,
+    startResizeTopLeft, startResizeTopRight, startResizeBottomLeft, startResizeBottomRight,
     switchMode, toggle, close, resetGeometry,
+    pinned, togglePinned, pinToEdge,
 } = useFloatingPanel();
 const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager();
 const { toggleSettings } = useNetworkLayout();
+
+// Pinned panel is docked flush to the right edge and doesn't move — dragging is disabled.
+function guardedStartDrag(e: MouseEvent): void {
+    if (pinned.value) return;
+    startDrag(e);
+}
+
+function handleTogglePinned(): void {
+    togglePinned();
+    if (pinned.value) pinToEdge();
+}
+
+function onWindowResize(): void {
+    if (pinned.value) pinToEdge();
+}
+onMounted(() => window.addEventListener("resize", onWindowResize));
+onScopeDispose(() => window.removeEventListener("resize", onWindowResize));
+
+// While pinned, reserve layout space in the host page instead of floating over it.
+watch(
+    [pinned, isOpen, isGeometryReady, () => geometry.value.width],
+    ([isPinned, open, ready, width]) => {
+        document.documentElement.style.marginRight = isPinned && open && ready ? `${width}px` : "";
+    },
+    { immediate: true },
+);
+onScopeDispose(() => { document.documentElement.style.marginRight = ""; });
 </script>
 
 <template>
@@ -33,6 +63,7 @@ const { toggleSettings } = useNetworkLayout();
             v-if="isOpen"
             data-vmd-panel
             class="side-panel"
+            :class="{ 'side-panel--pinned': pinned }"
             :style="{
                 left: `${geometry.x}px`,
                 top: `${geometry.y}px`,
@@ -42,10 +73,18 @@ const { toggleSettings } = useNetworkLayout();
             }"
         >
             <!-- Resize handles -->
-            <div class="resize-handle resize-left"   @mousedown.prevent="startResizeLeft" />
-            <div class="resize-handle resize-right"  @mousedown.prevent="startResizeRight" />
-            <div class="resize-handle resize-top"    @mousedown.prevent="startResizeTop" />
-            <div class="resize-handle resize-bottom" @mousedown.prevent="startResizeBottom" />
+            <div class="resize-handle resize-left" @mousedown.prevent="startResizeLeft" />
+            <template v-if="!pinned">
+                <div class="resize-handle resize-right"  @mousedown.prevent="startResizeRight" />
+                <div class="resize-handle resize-top"    @mousedown.prevent="startResizeTop" />
+                <div class="resize-handle resize-bottom" @mousedown.prevent="startResizeBottom" />
+
+                <!-- Corner resize handles -->
+                <div class="resize-corner resize-corner-tl" @mousedown.prevent="startResizeTopLeft" />
+                <div class="resize-corner resize-corner-tr" @mousedown.prevent="startResizeTopRight" />
+                <div class="resize-corner resize-corner-bl" @mousedown.prevent="startResizeBottomLeft" />
+                <div class="resize-corner resize-corner-br" @mousedown.prevent="startResizeBottomRight" />
+            </template>
 
             <div class="panel-body">
                 <TabBar
@@ -53,11 +92,13 @@ const { toggleSettings } = useNetworkLayout();
                     :active-tab-id="activeTabId ?? null"
                     :select-tab="setActiveTab"
                     :panel-mode="panelMode"
-                    :start-drag="startDrag"
+                    :start-drag="guardedStartDrag"
+                    :pinned="pinned"
                     @close="close"
                     @update:panel-mode="switchMode"
                     @settings="toggleSettings"
                     @reset-geometry="resetGeometry"
+                    @toggle-pinned="handleTogglePinned"
                 />
                 <div class="panel-content">
                     <component :is="activeTab?.component" v-if="activeTab" />
@@ -143,9 +184,7 @@ const { toggleSettings } = useNetworkLayout();
     position: absolute;
     background: transparent;
     z-index: 1;
-    transition: background 150ms ease-out;
 }
-.resize-handle:hover { background: var(--dt-primary); }
 
 .resize-left {
     left: 0;
@@ -174,6 +213,22 @@ const { toggleSettings } = useNetworkLayout();
     right: 12px;
     height: 4px;
     cursor: row-resize;
+}
+
+.resize-corner {
+    position: absolute;
+    z-index: 2;
+    width: 14px;
+    height: 14px;
+}
+.resize-corner-tl { top: 0; left: 0; cursor: nwse-resize; }
+.resize-corner-tr { top: 0; right: 0; cursor: nesw-resize; }
+.resize-corner-bl { bottom: 0; left: 0; cursor: nesw-resize; }
+.resize-corner-br { bottom: 0; right: 0; cursor: nwse-resize; }
+
+.side-panel--pinned .resize-left {
+    top: 0;
+    bottom: 0;
 }
 
 .panel-body {

@@ -28,6 +28,8 @@ import {
     saveSplitPayloadWidth,
     loadPanelGeometry,
     savePanelGeometry,
+    loadPinned,
+    savePinned,
 } from "./devtoolsStorage";
 
 beforeEach(() => {
@@ -94,6 +96,27 @@ describe("loadPanelMode / savePanelMode", () => {
     it("savePanelMode calls set with correct key and value", async () => {
         await savePanelMode("side");
         expect(set).toHaveBeenCalledWith("vmd:panel-mode", "side");
+    });
+});
+
+describe("loadPinned / savePinned", () => {
+    it("loadPinned calls get with correct key and returns stored value", async () => {
+        vi.mocked(get).mockResolvedValue(true);
+        const result = await loadPinned();
+        expect(get).toHaveBeenCalledWith("vmd:panel-pinned");
+        expect(result).toBe(true);
+    });
+
+    it("loadPinned returns false as default when get resolves undefined", async () => {
+        vi.mocked(get).mockResolvedValue(undefined);
+        const result = await loadPinned();
+        expect(get).toHaveBeenCalledWith("vmd:panel-pinned");
+        expect(result).toBe(false);
+    });
+
+    it("savePinned calls set with correct key and value", async () => {
+        await savePinned(true);
+        expect(set).toHaveBeenCalledWith("vmd:panel-pinned", true);
     });
 });
 

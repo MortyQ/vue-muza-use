@@ -8,6 +8,7 @@ import TabBar from "./TabBar.vue";
 const {
     geometry, isGeometryReady, isOpen, panelMode,
     startDrag, startResizeTop, startResizeBottom, startResizeLeft, startResizeRight,
+    startResizeTopLeft, startResizeTopRight, startResizeBottomLeft, startResizeBottomRight,
     switchMode, toggle, close, resetGeometry,
 } = useFloatingPanel();
 const { registeredTabs, activeTabId, activeTab, setActiveTab } = useTabManager();
@@ -46,6 +47,12 @@ const { toggleSettings } = useNetworkLayout();
             <div class="resize-handle resize-bottom" @mousedown.prevent="startResizeBottom" />
             <div class="resize-handle resize-left"   @mousedown.prevent="startResizeLeft" />
             <div class="resize-handle resize-right"  @mousedown.prevent="startResizeRight" />
+
+            <!-- Corner resize handles -->
+            <div class="resize-corner resize-corner-tl" @mousedown.prevent="startResizeTopLeft" />
+            <div class="resize-corner resize-corner-tr" @mousedown.prevent="startResizeTopRight" />
+            <div class="resize-corner resize-corner-bl" @mousedown.prevent="startResizeBottomLeft" />
+            <div class="resize-corner resize-corner-br" @mousedown.prevent="startResizeBottomRight" />
 
             <TabBar
                 :tabs="registeredTabs"
@@ -141,9 +148,7 @@ const { toggleSettings } = useNetworkLayout();
     position: absolute;
     background: transparent;
     z-index: 1;
-    transition: background 150ms ease-out;
 }
-.resize-handle:hover { background: var(--dt-primary); }
 
 .resize-top {
     top: 0;
@@ -173,6 +178,17 @@ const { toggleSettings } = useNetworkLayout();
     width: 4px;
     cursor: col-resize;
 }
+
+.resize-corner {
+    position: absolute;
+    z-index: 2;
+    width: 14px;
+    height: 14px;
+}
+.resize-corner-tl { top: 0; left: 0; cursor: nwse-resize; }
+.resize-corner-tr { top: 0; right: 0; cursor: nesw-resize; }
+.resize-corner-bl { bottom: 0; left: 0; cursor: nesw-resize; }
+.resize-corner-br { bottom: 0; right: 0; cursor: nwse-resize; }
 
 .panel-content {
     flex: 1;

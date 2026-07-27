@@ -1,7 +1,7 @@
 import { ref, onMounted, onScopeDispose } from "vue";
 import type { Ref } from "vue";
 import type { PanelMode } from "../../../shared/types/index";
-import { loadPanelMode, savePanelMode } from "../../../shared/storage/devtoolsStorage";
+import { loadPanelMode, savePanelMode, loadPinned, savePinned } from "../../../shared/storage/devtoolsStorage";
 import { usePanelGeometry } from "./usePanelGeometry";
 import type { UsePanelGeometryReturn } from "./usePanelGeometry";
 
@@ -19,11 +19,16 @@ export interface UseFloatingPanelReturn extends UsePanelGeometryReturn {
     toggle: () => void;
     /** Hide the panel. */
     close: () => void;
+    /** Whether the side panel is pinned (docked, reserving layout space) instead of floating. Only meaningful in "side" mode. */
+    pinned: Ref<boolean>;
+    /** Toggle pinned state and persist. */
+    togglePinned: () => void;
 }
 
 // Module-level singletons so state persists across mode switches
 const _isOpen = ref(false);
 const _panelMode = ref<PanelMode>("side");
+const _pinned = ref(false);
 let _panelModeLoaded = false;
 
 /**
@@ -43,8 +48,9 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
 
     onMounted(async () => {
         if (_panelModeLoaded) return;
-        const savedMode = await loadPanelMode();
+        const [savedMode, savedPinned] = await Promise.all([loadPanelMode(), loadPinned()]);
         _panelMode.value = savedMode;
+        _pinned.value = savedPinned;
         _panelModeLoaded = true;
     });
 
@@ -54,6 +60,11 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
     function switchMode(mode: PanelMode): void {
         _panelMode.value = mode;
         savePanelMode(mode);
+    }
+
+    function togglePinned(): void {
+        _pinned.value = !_pinned.value;
+        savePinned(_pinned.value);
     }
 
     const geometry = usePanelGeometry(panelMode);
@@ -66,6 +77,8 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
         toggle,
         close,
         switchMode,
+        pinned: _pinned,
+        togglePinned,
         ...geometry,
     };
 }
@@ -74,5 +87,6 @@ export function useFloatingPanel(): UseFloatingPanelReturn {
 export function _resetPanelModeForTesting(): void {
     _isOpen.value = false;
     _panelMode.value = "side";
+    _pinned.value = false;
     _panelModeLoaded = false;
 }

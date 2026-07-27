@@ -15,6 +15,7 @@ const KEYS = {
     listWidth: "vmd:list-width",
     payloadFormat: "vmd:payload-format",
     responseFormat: "vmd:response-format",
+    pinned: "vmd:panel-pinned",
 } as const;
 
 /**
@@ -169,6 +170,21 @@ export async function loadListWidth(): Promise<number | undefined> {
  */
 export async function saveListWidth(width: number): Promise<void> {
     return set(KEYS.listWidth, width);
+}
+
+/**
+ * Loads the saved pinned state (side panel docked, reserving layout space) from
+ * IndexedDB. Returns false if not previously saved.
+ */
+export async function loadPinned(): Promise<boolean> {
+    return (await get<boolean>(KEYS.pinned)) ?? false;
+}
+
+/**
+ * Saves the pinned state to IndexedDB.
+ */
+export async function savePinned(value: boolean): Promise<void> {
+    return set(KEYS.pinned, value);
 }
 
 /**

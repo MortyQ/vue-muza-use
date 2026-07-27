@@ -385,6 +385,192 @@ describe("startResizeRight", () => {
     });
 });
 
+describe("startResizeTopLeft", () => {
+    it("dragging toward top-left grows width and height, moves x and y", async () => {
+        const mode = ref<"side" | "bottom">("side");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("side", { x: 500, y: 300, width: 380, height: 400 });
+
+        result.startResizeTopLeft({ clientX: 500, clientY: 300 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 450, clientY: 260 }));
+        await nextTick();
+
+        // dx = -50 → width 430, x = 880 - 430 = 450; dy = -40 → height 440, y = 700 - 440 = 260
+        expect(result.geometry.value).toEqual({ x: 450, y: 260, width: 430, height: 440 });
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("clamps width and height to their minimums", async () => {
+        const mode = ref<"side" | "bottom">("side");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("side", { x: 500, y: 300, width: 380, height: 400 });
+
+        result.startResizeTopLeft({ clientX: 500, clientY: 300 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 9999, clientY: 9999 }));
+        await nextTick();
+
+        expect(result.geometry.value.width).toBe(280);
+        expect(result.geometry.value.height).toBe(200);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("saves geometry on mouseup", async () => {
+        const mode = ref<"side" | "bottom">("side");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("side", { x: 500, y: 300, width: 380, height: 400 });
+
+        result.startResizeTopLeft({ clientX: 500, clientY: 300 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 450, clientY: 260 }));
+        window.dispatchEvent(new MouseEvent("mouseup"));
+
+        expect(savePanelGeometry).toHaveBeenCalledWith(
+            "side",
+            expect.objectContaining({ x: 450, y: 260, width: 430, height: 440 }),
+        );
+        unmount();
+    });
+});
+
+describe("startResizeTopRight", () => {
+    it("dragging toward top-right grows width and height, moves y only", async () => {
+        const mode = ref<"side" | "bottom">("side");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("side", { x: 500, y: 300, width: 380, height: 400 });
+
+        result.startResizeTopRight({ clientX: 880, clientY: 300 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 930, clientY: 260 }));
+        await nextTick();
+
+        // dx = 50 → width 430, x unchanged; dy = -40 → height 440, y = 700 - 440 = 260
+        expect(result.geometry.value).toEqual({ x: 500, y: 260, width: 430, height: 440 });
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("clamps width and height to their minimums", async () => {
+        const mode = ref<"side" | "bottom">("side");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("side", { x: 500, y: 300, width: 380, height: 400 });
+
+        result.startResizeTopRight({ clientX: 880, clientY: 300 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: -9999, clientY: 9999 }));
+        await nextTick();
+
+        expect(result.geometry.value.width).toBe(280);
+        expect(result.geometry.value.height).toBe(200);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+});
+
+describe("startResizeBottomLeft", () => {
+    it("dragging toward bottom-left grows width and height, moves x only", async () => {
+        const mode = ref<"side" | "bottom">("side");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("side", { x: 500, y: 300, width: 380, height: 400 });
+
+        result.startResizeBottomLeft({ clientX: 500, clientY: 700 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 450, clientY: 750 }));
+        await nextTick();
+
+        // dx = -50 → width 430, x = 880 - 430 = 450; dy = 50 → height 450, y unchanged
+        expect(result.geometry.value).toEqual({ x: 450, y: 300, width: 430, height: 450 });
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("clamps width and height to their minimums", async () => {
+        const mode = ref<"side" | "bottom">("side");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("side", { x: 500, y: 300, width: 380, height: 400 });
+
+        result.startResizeBottomLeft({ clientX: 500, clientY: 700 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 9999, clientY: -9999 }));
+        await nextTick();
+
+        expect(result.geometry.value.width).toBe(280);
+        expect(result.geometry.value.height).toBe(200);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+});
+
+describe("startResizeBottomRight", () => {
+    it("dragging toward bottom-right grows width and height, x/y unchanged", async () => {
+        const mode = ref<"side" | "bottom">("bottom");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("bottom", { x: 12, y: 400, width: 800, height: 360 });
+
+        result.startResizeBottomRight({ clientX: 812, clientY: 760 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 862, clientY: 800 }));
+        await nextTick();
+
+        // dx = 50 → width 850; dy = 40 → height 400
+        expect(result.geometry.value).toEqual({ x: 12, y: 400, width: 850, height: 400 });
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("clamps width and height to viewport bounds", async () => {
+        const mode = ref<"side" | "bottom">("bottom");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("bottom", { x: 12, y: 400, width: 800, height: 360 });
+
+        result.startResizeBottomRight({ clientX: 812, clientY: 760 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 9999, clientY: 9999 }));
+        await nextTick();
+
+        // maxW = 1280 - 12 = 1268, maxH = 800 - 400 = 400
+        expect(result.geometry.value.width).toBe(1268);
+        expect(result.geometry.value.height).toBe(400);
+        window.dispatchEvent(new MouseEvent("mouseup"));
+        unmount();
+    });
+
+    it("saves geometry on mouseup", async () => {
+        const mode = ref<"side" | "bottom">("bottom");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("bottom", { x: 12, y: 400, width: 800, height: 360 });
+
+        result.startResizeBottomRight({ clientX: 812, clientY: 760 } as MouseEvent);
+        window.dispatchEvent(Object.assign(new MouseEvent("mousemove"), { clientX: 862, clientY: 800 }));
+        window.dispatchEvent(new MouseEvent("mouseup"));
+
+        expect(savePanelGeometry).toHaveBeenCalledWith(
+            "bottom",
+            expect.objectContaining({ width: 850, height: 400 }),
+        );
+        unmount();
+    });
+});
+
+describe("pinToEdge", () => {
+    it("snaps to the right edge, full height, keeping width", async () => {
+        const mode = ref<"side" | "bottom">("side");
+        const { result, unmount } = withSetup(() => usePanelGeometry(mode));
+        await nextTick(); await nextTick();
+        _setGeometryForTesting("side", { x: 200, y: 150, width: 380, height: 500 });
+
+        result.pinToEdge();
+
+        expect(result.geometry.value).toEqual({ x: 900, y: 0, width: 380, height: 800 });
+        expect(savePanelGeometry).toHaveBeenCalledWith("side", { x: 900, y: 0, width: 380, height: 800 });
+        unmount();
+    });
+});
+
 describe("resetGeometry", () => {
     it("resets side geometry to computed default and saves", async () => {
         const mode = ref<"side" | "bottom">("side");

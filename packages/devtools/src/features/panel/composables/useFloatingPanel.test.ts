@@ -4,6 +4,8 @@ import { createApp, nextTick } from "vue";
 vi.mock("../../../shared/storage/devtoolsStorage", () => ({
     loadPanelMode: vi.fn().mockResolvedValue("side"),
     savePanelMode: vi.fn().mockResolvedValue(undefined),
+    loadPinned: vi.fn().mockResolvedValue(false),
+    savePinned: vi.fn().mockResolvedValue(undefined),
     loadPanelGeometry: vi.fn().mockResolvedValue(undefined),
     savePanelGeometry: vi.fn().mockResolvedValue(undefined),
 }));
@@ -13,7 +15,7 @@ vi.mock("./usePanelGeometry", async (importOriginal) => {
     return actual; // use real implementation — geometry is already tested in usePanelGeometry.test.ts
 });
 
-import { loadPanelMode, savePanelMode } from "../../../shared/storage/devtoolsStorage";
+import { loadPanelMode, savePanelMode, loadPinned, savePinned } from "../../../shared/storage/devtoolsStorage";
 import { _resetGeometryForTesting } from "./usePanelGeometry";
 import { useFloatingPanel, _resetPanelModeForTesting } from "./useFloatingPanel";
 
@@ -51,6 +53,13 @@ describe("initial state", () => {
         expect(typeof result.startResizeLeft).toBe("function");
         expect(typeof result.startResizeRight).toBe("function");
         expect(typeof result.resetGeometry).toBe("function");
+        expect(typeof result.pinToEdge).toBe("function");
+        unmount();
+    });
+
+    it("starts with pinned false", () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        expect(result.pinned.value).toBe(false);
         unmount();
     });
 });
@@ -63,6 +72,36 @@ describe("storage hydration", () => {
         await nextTick();
         expect(result.panelMode.value).toBe("bottom");
         unmount();
+    });
+
+    it("loads saved pinned state on mount", async () => {
+        vi.mocked(loadPinned).mockResolvedValue(true);
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        await nextTick();
+        await nextTick();
+        expect(result.pinned.value).toBe(true);
+        unmount();
+    });
+});
+
+describe("pinned", () => {
+    it("togglePinned flips pinned and saves to storage", () => {
+        const { result, unmount } = withSetup(() => useFloatingPanel());
+        result.togglePinned();
+        expect(result.pinned.value).toBe(true);
+        expect(savePinned).toHaveBeenCalledWith(true);
+        result.togglePinned();
+        expect(result.pinned.value).toBe(false);
+        expect(savePinned).toHaveBeenCalledWith(false);
+        unmount();
+    });
+
+    it("pinned is shared across multiple composable calls", () => {
+        const { result: r1, unmount: u1 } = withSetup(() => useFloatingPanel());
+        const { result: r2, unmount: u2 } = withSetup(() => useFloatingPanel());
+        r1.togglePinned();
+        expect(r2.pinned.value).toBe(true);
+        u1(); u2();
     });
 });
 

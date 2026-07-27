@@ -55,8 +55,18 @@ export interface UsePanelGeometryReturn {
     startResizeLeft: (e: MouseEvent) => void;
     /** Attach to right resize handle mousedown — resizes width rightward. */
     startResizeRight: (e: MouseEvent) => void;
+    /** Attach to top-left corner handle mousedown — resizes width and height together, anchored bottom-right. */
+    startResizeTopLeft: (e: MouseEvent) => void;
+    /** Attach to top-right corner handle mousedown — resizes width and height together, anchored bottom-left. */
+    startResizeTopRight: (e: MouseEvent) => void;
+    /** Attach to bottom-left corner handle mousedown — resizes width and height together, anchored top-right. */
+    startResizeBottomLeft: (e: MouseEvent) => void;
+    /** Attach to bottom-right corner handle mousedown — resizes width and height together, anchored top-left. */
+    startResizeBottomRight: (e: MouseEvent) => void;
     /** Resets the active mode's geometry to default and saves to IndexedDB. */
     resetGeometry: () => void;
+    /** Snaps the active mode's geometry flush to the right edge, full viewport height, keeping the current width. For pinned/docked side panel layout. */
+    pinToEdge: () => void;
 }
 
 /**
@@ -253,6 +263,168 @@ export function usePanelGeometry(panelMode: Ref<PanelMode>): UsePanelGeometryRet
         window.addEventListener("mouseup", onUp);
     }
 
+    function startResizeTopLeft(e: MouseEvent): void {
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const ref = geomRef();
+        const rightEdge = ref.value.x + ref.value.width;
+        const bottomEdge = ref.value.y + ref.value.height;
+        const startW = ref.value.width;
+        const startH = ref.value.height;
+        const mw = minW();
+        const mh = minH();
+        const raf = { id: 0 };
+
+        const onMove = (ev: MouseEvent): void => {
+            cancelAnimationFrame(raf.id);
+            raf.id = requestAnimationFrame(() => {
+                const dx = ev.clientX - startX;
+                const dy = ev.clientY - startY;
+                const newW = Math.max(mw, Math.min(rightEdge, startW - dx));
+                const newH = Math.max(mh, Math.min(bottomEdge, startH - dy));
+                ref.value = { x: rightEdge - newW, y: bottomEdge - newH, width: newW, height: newH };
+            });
+        };
+
+        const onUp = (): void => {
+            cancelAnimationFrame(raf.id);
+            _activeCleanup = null;
+            savePanelGeometry(panelMode.value, ref.value);
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+
+        _activeCleanup = makeCleanup(raf, onMove, onUp);
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+    }
+
+    function startResizeTopRight(e: MouseEvent): void {
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const ref = geomRef();
+        const bottomEdge = ref.value.y + ref.value.height;
+        const startW = ref.value.width;
+        const startH = ref.value.height;
+        const startGeoX = ref.value.x;
+        const mw = minW();
+        const mh = minH();
+        const raf = { id: 0 };
+
+        const onMove = (ev: MouseEvent): void => {
+            cancelAnimationFrame(raf.id);
+            raf.id = requestAnimationFrame(() => {
+                const dx = ev.clientX - startX;
+                const dy = ev.clientY - startY;
+                const maxW = window.innerWidth - startGeoX;
+                const newW = Math.max(mw, Math.min(maxW, startW + dx));
+                const newH = Math.max(mh, Math.min(bottomEdge, startH - dy));
+                ref.value = { ...ref.value, y: bottomEdge - newH, width: newW, height: newH };
+            });
+        };
+
+        const onUp = (): void => {
+            cancelAnimationFrame(raf.id);
+            _activeCleanup = null;
+            savePanelGeometry(panelMode.value, ref.value);
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+
+        _activeCleanup = makeCleanup(raf, onMove, onUp);
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+    }
+
+    function startResizeBottomLeft(e: MouseEvent): void {
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const ref = geomRef();
+        const rightEdge = ref.value.x + ref.value.width;
+        const startW = ref.value.width;
+        const startH = ref.value.height;
+        const startGeoY = ref.value.y;
+        const mw = minW();
+        const mh = minH();
+        const raf = { id: 0 };
+
+        const onMove = (ev: MouseEvent): void => {
+            cancelAnimationFrame(raf.id);
+            raf.id = requestAnimationFrame(() => {
+                const dx = ev.clientX - startX;
+                const dy = ev.clientY - startY;
+                const maxH = window.innerHeight - startGeoY;
+                const newW = Math.max(mw, Math.min(rightEdge, startW - dx));
+                const newH = Math.max(mh, Math.min(maxH, startH + dy));
+                ref.value = { ...ref.value, x: rightEdge - newW, width: newW, height: newH };
+            });
+        };
+
+        const onUp = (): void => {
+            cancelAnimationFrame(raf.id);
+            _activeCleanup = null;
+            savePanelGeometry(panelMode.value, ref.value);
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+
+        _activeCleanup = makeCleanup(raf, onMove, onUp);
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+    }
+
+    function startResizeBottomRight(e: MouseEvent): void {
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const ref = geomRef();
+        const startW = ref.value.width;
+        const startH = ref.value.height;
+        const startGeoX = ref.value.x;
+        const startGeoY = ref.value.y;
+        const mw = minW();
+        const mh = minH();
+        const raf = { id: 0 };
+
+        const onMove = (ev: MouseEvent): void => {
+            cancelAnimationFrame(raf.id);
+            raf.id = requestAnimationFrame(() => {
+                const dx = ev.clientX - startX;
+                const dy = ev.clientY - startY;
+                const maxW = window.innerWidth - startGeoX;
+                const maxH = window.innerHeight - startGeoY;
+                ref.value = {
+                    ...ref.value,
+                    width: Math.max(mw, Math.min(maxW, startW + dx)),
+                    height: Math.max(mh, Math.min(maxH, startH + dy)),
+                };
+            });
+        };
+
+        const onUp = (): void => {
+            cancelAnimationFrame(raf.id);
+            _activeCleanup = null;
+            savePanelGeometry(panelMode.value, ref.value);
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+
+        _activeCleanup = makeCleanup(raf, onMove, onUp);
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+    }
+
+    function pinToEdge(): void {
+        const ref = geomRef();
+        const newGeo: PanelGeometry = {
+            x: window.innerWidth - ref.value.width,
+            y: 0,
+            width: ref.value.width,
+            height: window.innerHeight,
+        };
+        ref.value = newGeo;
+        savePanelGeometry(panelMode.value, newGeo);
+    }
+
     function resetGeometry(): void {
         if (panelMode.value === "side") {
             _sideGeometry.value = defaultSideGeometry();
@@ -273,7 +445,12 @@ export function usePanelGeometry(panelMode: Ref<PanelMode>): UsePanelGeometryRet
         startResizeBottom,
         startResizeLeft,
         startResizeRight,
+        startResizeTopLeft,
+        startResizeTopRight,
+        startResizeBottomLeft,
+        startResizeBottomRight,
         resetGeometry,
+        pinToEdge,
     };
 }
 

@@ -13,10 +13,17 @@ vi.mock("../composables/useFloatingPanel", () => ({
         startResizeBottom: vi.fn(),
         startResizeLeft: vi.fn(),
         startResizeRight: vi.fn(),
+        startResizeTopLeft: vi.fn(),
+        startResizeTopRight: vi.fn(),
+        startResizeBottomLeft: vi.fn(),
+        startResizeBottomRight: vi.fn(),
         toggle: vi.fn(),
         close: vi.fn(),
         switchMode: vi.fn(),
         resetGeometry: vi.fn(),
+        pinned: ref(false),
+        togglePinned: vi.fn(),
+        pinToEdge: vi.fn(),
     })),
 }));
 
@@ -69,10 +76,17 @@ describe("FloatingPanel", () => {
             startResizeBottom: vi.fn(),
             startResizeLeft: vi.fn(),
             startResizeRight: vi.fn(),
+            startResizeTopLeft: vi.fn(),
+            startResizeTopRight: vi.fn(),
+            startResizeBottomLeft: vi.fn(),
+            startResizeBottomRight: vi.fn(),
             toggle: vi.fn(),
             close: vi.fn(),
             switchMode: vi.fn(),
             resetGeometry: vi.fn(),
+            pinned: ref(false),
+            togglePinned: vi.fn(),
+            pinToEdge: vi.fn(),
         });
         const wrapper = mount(FloatingPanel);
         expect(wrapper.find("[data-vmd-panel]").exists()).toBe(false);
@@ -90,10 +104,17 @@ describe("FloatingPanel", () => {
             startResizeBottom: vi.fn(),
             startResizeLeft: vi.fn(),
             startResizeRight: vi.fn(),
+            startResizeTopLeft: vi.fn(),
+            startResizeTopRight: vi.fn(),
+            startResizeBottomLeft: vi.fn(),
+            startResizeBottomRight: vi.fn(),
             toggle: vi.fn(),
             close: vi.fn(),
             switchMode: vi.fn(),
             resetGeometry: vi.fn(),
+            pinned: ref(false),
+            togglePinned: vi.fn(),
+            pinToEdge: vi.fn(),
         });
         const wrapper = mount(FloatingPanel);
         expect(wrapper.find("[data-vmd-launcher]").exists()).toBe(true);

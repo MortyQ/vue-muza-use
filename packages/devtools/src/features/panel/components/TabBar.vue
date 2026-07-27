@@ -9,6 +9,8 @@ defineProps<{
     selectTab: (id: string) => void;
     panelMode: PanelMode;
     startDrag: (e: MouseEvent) => void;
+    /** Whether the side panel is pinned (docked, reserving layout space). Pin toggle only shows in "side" mode. */
+    pinned?: boolean;
 }>();
 
 defineEmits<{
@@ -16,6 +18,7 @@ defineEmits<{
     "update:panelMode": [PanelMode];
     settings: [];
     "resetGeometry": [];
+    togglePinned: [];
 }>();
 </script>
 
@@ -28,7 +31,7 @@ defineEmits<{
             <span class="logo-text">vue-muza</span>
         </div>
 
-        <div class="tab-list">
+        <div class="tab-list" @mousedown.prevent="startDrag">
             <button
                 v-for="tab in tabs"
                 :key="tab.id"
@@ -76,6 +79,15 @@ defineEmits<{
                     <rect x="1" y="1" width="7" height="12" rx="1.5" fill="currentColor" opacity="0.35"/>
                     <rect x="9.5" y="1" width="3.5" height="12" rx="1.5" fill="currentColor"/>
                 </svg>
+            </button>
+            <button
+                v-if="panelMode === 'side'"
+                class="mode-btn"
+                :class="{ 'mode-btn--active': pinned }"
+                :title="pinned ? 'Unpin panel' : 'Pin panel (reserves space)'"
+                @click="$emit('togglePinned')"
+            >
+                <Icon :icon="pinned ? 'lucide:pin-off' : 'lucide:pin'" width="14" height="14" />
             </button>
         </div>
 
@@ -140,7 +152,9 @@ defineEmits<{
     gap: 2px;
     overflow-x: auto;
     scrollbar-width: none;
+    cursor: grab;
 }
+.tab-list:active { cursor: grabbing; }
 .tab-list::-webkit-scrollbar { display: none; }
 
 .tab-btn {
