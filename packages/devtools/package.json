@@ -1,6 +1,6 @@
 {
   "name": "@ametie/vue-muza-devtools",
-  "version": "0.0.0",
+  "version": "1.7.1",
   "private": true,
   "description": "Developer tools panel for @ametie/vue-muza-use",
   "type": "module",
