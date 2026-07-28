@@ -8,6 +8,26 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.7.1] — 2026-07-28
+
+No changes to `@ametie/vue-muza-use` itself — this release exists to keep `@ametie/vue-muza-devtools`'s version number in lockstep with the main package (its `package.json` is synced automatically after every release; it remains a private, unpublished package).
+
+### Added
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- **Corner resize handles** — the floating and docked side panels can now be resized diagonally from all four corners, in addition to the existing edge handles.
+- **Drag from anywhere in the tab strip** — previously only the logo pill doubled as a drag handle; the whole tab bar (excluding the tabs themselves) now does too.
+- **Pinned/docked side-panel mode** — toggle via the new pin button next to the bottom/side switcher (side mode only). Pinned reserves layout space in the host page (via a margin on the document root) instead of floating over it, snaps to full viewport height, and only allows width resize from the left edge — dragging is disabled while pinned. Preference persists across reloads.
+
+### Changed
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- Removed the purple hover highlight on edge resize handles for a plainer look, matching the new corner handles.
+
+---
+
 ## [1.7.0] — 2026-07-17
 
 ### Added
