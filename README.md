@@ -109,6 +109,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - [Utilities & Standalone Composables](#-utilities--standalone-composables)
 - [API Reference](#-api-reference)
 - [Common Patterns](#-common-patterns)
+- [Gotchas](#-gotchas)
 - [Troubleshooting](#-troubleshooting)
 
 > 💡 **New to the library?** Start with [Quick Start](#-quick-start), then explore [Basic Usage](#-basic-usage). Skip authentication until you need it!
@@ -2764,6 +2765,92 @@ Start polling every 2 seconds and stop automatically when the job reaches a term
   </div>
 </template>
 ```
+
+---
+
+## ⚠️ Gotchas
+
+Behaviors that are correct by design but surprise people coming from other data-fetching
+libraries. Each one is verified against the current implementation.
+
+### There is no `enabled` option — a falsy URL does NOT skip the request
+
+`useApi` has no "don't run yet" flag, and the two intuitive workarounds both produce a
+visible error instead of a skipped request:
+
+- **A falsy URL throws.** The request path raises `Error('Request URL is missing')`, which
+  lands in `error.value` — and in a toast, since `skipErrorNotification` defaults to `false`.
+  The auto-trigger watcher has no falsy-URL guard.
+- **A placeholder id sends a real request** — `/posts/0` hits the network and 404s.
+
+Use `lazy: true` plus a watcher that calls `execute()` only once the dependency is ready:
+
+```typescript
+// ✅ Correct — nothing is sent until id is non-null
+const { data, execute } = useApiGet<Post>(() => `/posts/${toValue(id) ?? 0}`, {
+  lazy: true,
+})
+
+watch(() => toValue(id), (value) => {
+  if (value === null) return
+  void execute()
+}, { immediate: true })
+
+// ❌ Wrong — sets error.value to 'Request URL is missing' whenever id is null
+const { data } = useApiGet<Post>(() => (id.value ? `/posts/${id.value}` : undefined))
+```
+
+### Lifecycle callbacks do NOT fire on a cache hit
+
+On a cache hit the library calls `mutate()` with the cached value and deliberately skips
+`onBefore`, `onSuccess`, and `onFinish` — no Axios request is made, so there is no response
+to hand them. State seeded inside `onSuccess` would silently never be set on a cached read.
+
+```typescript
+// ❌ Wrong — never runs when the entry is served from cache
+useApiGet<Post[]>('/posts', {
+  cache: { id: 'posts' },
+  onSuccess: ({ data }) => { count.value = data.length },
+})
+
+// ✅ Correct — derive from the data ref, which is set on both paths
+const { data } = useApiGet<Post[]>('/posts', { cache: { id: 'posts' } })
+const count = computed(() => data.value?.length ?? 0)
+```
+
+`onSuccess` remains the right place to react to actual responses: it fires on every
+uncached request, every polling tick, and every SWR revalidation.
+
+### Stopping a poll — use a separate ref, never `data`
+
+`poll` accepts a `MaybeRefOrGetter`, but there is no enable/disable flag. An interval that
+resolves to `0` clears the internal timer; any value above `0` restarts it with the new
+interval.
+
+The flag driving the getter must be a **separate ref**. The `poll` getter is passed into the
+same call that produces `data`, so closing over `data` inside it is a temporal dead zone.
+
+```typescript
+const ACTIVE = new Set(['pending', 'running'])
+const isPolling = ref(true)
+
+// ✅ Correct — a separate ref gates the interval
+const { data } = useApiGet<Job>(() => `/jobs/${jobId.value}`, {
+  immediate: true,
+  poll: () => (isPolling.value ? 5000 : 0),
+  onSuccess: ({ data }) => {
+    isPolling.value = ACTIVE.has(data.status)
+  },
+})
+
+// ❌ Wrong — `data` is not initialized yet where the getter is defined
+const { data } = useApiGet<Job>(url, {
+  poll: () => (ACTIVE.has(data.value?.status) ? 5000 : 0),
+})
+```
+
+Because the poll flag is only flipped inside `onSuccess`, this pattern does not work for a
+**cached** request — see the cache-hit gotcha above.
 
 ---
 
