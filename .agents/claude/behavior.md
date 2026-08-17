@@ -19,6 +19,11 @@
 - **Types first** — any new option or return value must be defined in `types.ts` before being implemented.
 - **Tests alongside features** — every new option, composable, or feature module requires tests.
   Shipping without tests is not acceptable.
+- **Existing suite before new tests** — after any source change, run the full existing suite
+  (`pnpm --filter @ametie/vue-muza-use exec vitest run`) and confirm it is green *before* writing
+  new tests. Then write the new tests, re-run the full suite, and `pnpm build`. Never rewrite an
+  existing assertion to fit new code unless the change is intentionally breaking — say so, with
+  the semver impact. See Rule 0 in `testing.instructions.md`.
 - **`index.ts` is barrel-only** — no logic, no constants, only re-exports.
 - **JSDoc on every public export** — no exception. Include `@example` when behavior is non-obvious.
 - **No `any`** — use `unknown` + type guard or proper generics.

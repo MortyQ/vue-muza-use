@@ -4,6 +4,31 @@ Every new feature, option, or composable must ship with tests. No exceptions.
 
 ---
 
+## Rule 0 — Existing Suite First, New Tests Second
+
+After **any** source change, run the full existing suite **before** writing a single new test:
+
+```bash
+pnpm --filter @ametie/vue-muza-use exec vitest run
+```
+
+Order is mandatory, not a preference:
+
+1. **Change the source.**
+2. **Run the existing suite.** It must be green. A failure here is a regression in behavior
+   consumers already depend on — fix it before going any further. Never adjust an existing
+   assertion to accommodate the new code unless the change is intentionally breaking, and say
+   so explicitly with the semver impact.
+3. **Only then write the new tests** for the new behavior (see the five categories below).
+4. **Run the full suite again** — new tests plus old ones in one pass.
+5. **`pnpm build`** — the public `.d.ts` must reflect any type change.
+
+Why: new tests written first are written against code that has not been proven to leave the
+rest of the library intact. Green-new-tests over a red suite reads as success and is not.
+Report the actual numbers from step 4 (files / passed / todo), never a summary from memory.
+
+---
+
 ## Stack
 
 - **Vitest** — test runner + assertions

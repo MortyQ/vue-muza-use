@@ -14,8 +14,10 @@ packages/use-api/src/
     useApiState.ts               ← reactive state (data, loading, error, statusCode, response)
     useAbortController.ts        ← global AbortController instance for request cancellation
     useRefetchTriggers.ts        ← refetchOnFocus / refetchOnReconnect browser event wiring
+    usePolling.ts                ← poll timer, tab-visibility handling, interval changes
   features/
-    cacheManager.ts              ← in-memory TTL cache with SWR support
+    cacheManager.ts              ← in-memory TTL cache with SWR + option/key resolution
+    retryPolicy.ts               ← retry attempt count + which statuses qualify
     tokenManager.ts              ← JWT token lifecycle (get/set/clear/expiry check)
     interceptors.ts              ← Axios request/response interceptors for token refresh
     createInstance.ts            ← Axios factory with auth defaults
@@ -23,8 +25,10 @@ packages/use-api/src/
   utils/
     debounce.ts                  ← cancellable debounce with DebounceCancelledError
     errorParser.ts               ← normalize Axios errors → ApiError shape
+    time.ts                      ← duration string parsing + cancellable sleep
     urlUtils.ts                  ← parse query params from URL strings (devtools display)
   devtools.ts                    ← devtools bridge proxy — no-op when devtools disabled
+  devtools.instrumentation.ts    ← instance registration + per-request trace building
   useApi.ts                      ← core composable — orchestrates all layers above
   useApiBatch.ts                 ← parallel batch request composable
   useApi.helpers.ts              ← useApiGet, useApiPost, useApiPut, useApiPatch, useApiDelete
