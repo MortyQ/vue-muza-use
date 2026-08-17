@@ -4,100 +4,29 @@ import { type AxiosRequestConfig, type AxiosResponse, isAxiosError } from "axios
 import { ref, computed, effectScope, getCurrentInstance, getCurrentScope, nextTick, onScopeDispose, toValue, watch, useId, type MaybeRefOrGetter } from "vue";
 
 import type {
+    ApiError,
     UseApiOptions,
     UseApiReturn,
-    ApiRequestConfig,
     ExecuteConfig,
-    CacheOptions,
 } from "./types";
 import { useApiConfig } from "./plugin";
 import { parseApiError } from "./utils/errorParser";
 import { useApiState } from "./composables/useApiState";
 import { useAbortController } from "./composables/useAbortController";
-import { readCacheEntry, writeCache, invalidateCache as cacheInvalidate, DEFAULT_STALE_TIME } from "./features/cacheManager";
-import { parseDuration } from "./utils/time";
-import { stableStringify } from "./utils/stableStringify";
-import { normalizeHeaders } from "./utils/headerUtils";
+import {
+    readCacheEntry,
+    writeCache,
+    invalidateCache as cacheInvalidate,
+    normalizeCacheOptions,
+    resolveCacheKey,
+} from "./features/cacheManager";
+import { DEFAULT_RETRY_STATUS_CODES, resolveMaxRetries, shouldRetry } from "./features/retryPolicy";
+import { cancellableSleep } from "./utils/time";
+import { contentTypeForBody } from "./utils/headerUtils";
 import { useRefetchTriggers } from "./composables/useRefetchTriggers";
-import { devtoolsBridge, nextRequestId, isDevtoolsExpected } from "./devtools";
-import type { RequestEndResult } from "./types";
-
-const DEFAULT_RETRY_STATUS_CODES = [408, 429, 500, 502, 503, 504];
-
-type NormalizedCache = { id?: string; staleTime: number; swr: boolean; freshFor: number };
-
-/** Coerce a `cache` value into a partial CacheOptions (`true` → {}, `"id"` → { id }). */
-function toCacheObject(cache: string | boolean | CacheOptions | undefined): CacheOptions {
-    if (cache === true || cache === undefined || cache === false) return {};
-    if (typeof cache === "string") return { id: cache };
-    return cache;
-}
-
-/**
- * Merge the cache configuration into a resolved shape (duration strings → ms).
- *
- * Caching is active only when the request itself asks for it — a truthy
- * `optionCache` (composable-level) or `callCache` (per-call). `cacheDefaults`
- * never activates caching; it only fills fields. Per-call `cache: false`
- * disables caching for that call.
- *
- * Fields merge per-field with precedence: `cacheDefaults` < composable < per-call.
- * `id` is taken from composable/per-call only (`cacheDefaults.id` is ignored);
- * when absent the key is derived automatically by `resolveCacheKey`.
- */
-function normalizeCacheOptions(
-    optionCache: string | boolean | CacheOptions | undefined,
-    callCache: string | boolean | CacheOptions | undefined,
-    cacheDefaults: Partial<CacheOptions> | undefined,
-): NormalizedCache | null {
-    if (callCache === false) return null; // explicit per-call opt-out
-    if (!optionCache && !callCache) return null; // activation gate — defaults alone never cache
-
-    const base = toCacheObject(optionCache);
-    const over = toCacheObject(callCache);
-    const pick = <K extends keyof CacheOptions>(key: K): CacheOptions[K] =>
-        over[key] ?? base[key] ?? cacheDefaults?.[key];
-
-    const staleTime = pick("staleTime");
-    const freshFor = pick("freshFor");
-
-    return {
-        id: over.id ?? base.id,
-        staleTime: staleTime !== undefined ? parseDuration(staleTime) : DEFAULT_STALE_TIME,
-        swr: pick("swr") ?? false,
-        freshFor: freshFor !== undefined ? parseDuration(freshFor) : 0,
-    };
-}
-
-/**
- * Resolve the concrete cache key for a request. Returns the manual `id` when set,
- * otherwise an auto key derived from method + url + params + data so that each
- * distinct params/body combination gets its own cache entry. The `auto:METHOD:url`
- * prefix supports bulk invalidation via `invalidateCache({ prefix })`.
- */
-function resolveCacheKey(
-    normalized: NormalizedCache,
-    method: string,
-    url: string,
-    params: unknown,
-    data: unknown,
-): string {
-    if (normalized.id !== undefined) return normalized.id;
-    return `auto:${method.toUpperCase()}:${url}:${stableStringify(params)}:${stableStringify(data)}`;
-}
-
-/**
- * Cancellable sleep — resolves `true` if aborted before delay elapsed, `false` otherwise.
- */
-function cancellableSleep(ms: number, signal: AbortSignal): Promise<boolean> {
-    return new Promise<boolean>((resolve) => {
-        if (signal.aborted) { resolve(true); return; }
-        const timer = setTimeout(() => { cleanup(); resolve(false); }, ms);
-        const onAbort = () => { clearTimeout(timer); cleanup(); resolve(true); };
-        const cleanup = () => signal.removeEventListener("abort", onAbort);
-        signal.addEventListener("abort", onAbort, { once: true });
-    });
-}
+import { usePolling } from "./composables/usePolling";
+import { devtoolsBridge, nextRequestId } from "./devtools";
+import { createRequestTrace, instrumentInstance } from "./devtools.instrumentation";
 
 export function useApi<T = unknown, D = unknown, TSelected = T>(
     url: MaybeRefOrGetter<string | undefined>,
@@ -137,55 +66,29 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     const applySelect = (raw: T): TSelected =>
         select ? select(raw) : (raw as unknown as TSelected);
 
+    const toApiError = (err: unknown): ApiError => (errorParser ? errorParser(err) : parseApiError(err));
+
     const startLoading = initialLoading ?? immediate;
     const state = useApiState<TSelected>(initialData as TSelected | null, { initialLoading: startLoading });
     const revalidating = ref(false);
     const cacheKey = ref<string | null>(null);
 
-    // Devtools: track this instance
+    // Devtools: register this instance and mirror its state
     const instanceId = getCurrentInstance() != null ? useId() : nextRequestId();
-    devtoolsBridge.onInstanceCreated(instanceId, toValue(url), {
-        authMode: options.authMode ?? "default",
-        // Resolved snapshot (cacheDefaults merged in), not the raw `options.cache` —
-        // otherwise `cache: true` shows as a bare, meaningless value in devtools and
-        // swr/freshFor inherited from cacheDefaults would be invisible.
-        cache: normalizeCacheOptions(options.cache, undefined, globalOptions?.cacheDefaults),
-        retry: options.retry ?? false,
-        poll: (() => { const v = toValue(options.poll); return typeof v === "number" ? v : 0; })(),
-        immediate: options.immediate ?? false,
-        lazy: options.lazy ?? false,
-    });
-    if (getCurrentScope() && isDevtoolsExpected()) {
-        watch(
-            () => ({
-                loading: state.loading.value,
-                error: state.error.value,
-                statusCode: state.statusCode.value,
-                data: state.data.value,
-            }),
-            (s) => devtoolsBridge.onStateUpdate(instanceId, s),
-            { deep: true },
-        );
-    }
+    instrumentInstance(instanceId, toValue(url), options, globalOptions?.cacheDefaults, state);
 
     const abortController = ref<AbortController | null>(null);
     const globalAbort = useGlobalAbort ? useAbortController() : null;
-    let pollTimer: ReturnType<typeof setTimeout> | null = null;
     // notifyFetched is reassigned after reset() is defined — see useRefetchTriggers wiring below
     let notifyFetched: () => void = () => {};
 
-    // Helper to resolve poll config
-    const getPollConfig = () => {
-        const val = toValue(poll);
-        if (typeof val === "number") return { interval: val, whenHidden: false };
-        if (val && typeof val === "object") {
-            return {
-                interval: toValue(val.interval),
-                whenHidden: toValue(val.whenHidden) ?? false
-            };
-        }
-        return { interval: 0, whenHidden: false };
-    };
+    // Polling timer, visibility handling and interval changes — see usePolling.
+    // Both callbacks are late-bound: execute/scheduleAutoTrigger are defined below.
+    const polling = usePolling(poll, {
+        loading: state.loading,
+        run: () => { void execute(); },
+        runCoalesced: () => scheduleAutoTrigger(),
+    });
 
     const executeRequest = async (config?: ExecuteConfig<D>): Promise<TSelected | null> => {
         // Any actual execution (manual, poll tick, refetch trigger, or the
@@ -223,10 +126,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         const effectiveSkipErrorNotification = config?.skipErrorNotification ?? skipErrorNotification;
         const effectiveRetryDelay = config?.retryDelay ?? retryDelay;
         const effectiveRetryStatusCodes = config?.retryStatusCodes ?? retryStatusCodes;
-        const effectiveMaxRetries = (() => {
-            const r = config?.retry ?? retry;
-            return r === false ? 0 : r === true ? 3 : (r as number);
-        })();
+        const effectiveMaxRetries = resolveMaxRetries(config?.retry ?? retry);
 
         // Per-call config must get the same filtering as setup-time options:
         // useApi-only keys must never reach axios.request(). authMode/data/params
@@ -261,6 +161,13 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         const rawParams = config?.params !== undefined ? config.params : axiosConfig.params;
         const resolvedParams = toValue(rawParams);
 
+        // A FormData / URLSearchParams body must not inherit the client's
+        // application/json default — that default silently rewrites the body.
+        // Per-call headers replace composable-level ones wholesale, matching the
+        // spread order in the request below.
+        const requestHeaders = configAxios.headers ?? axiosConfig.headers;
+        const bodyContentType = contentTypeForBody(resolvedData, requestHeaders);
+
         // Concrete cache key: manual id (no url needed) or auto key (needs url).
         const key =
             cacheOpts && (cacheOpts.id !== undefined || requestUrl)
@@ -288,11 +195,31 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         }
 
         // Clear previous poll timer to avoid overlaps if manual execute happened
-        if (pollTimer) clearTimeout(pollTimer);
+        polling.stop();
 
         if (abortController.value) abortController.value.abort("Cancelled by new request");
         const controller = new AbortController();
         abortController.value = controller;
+
+        /** An abort/cancel rather than a real failure — the caller bails out silently. */
+        const isCancellation = (err: unknown): boolean =>
+            controller.signal.aborted || (isAxiosError(err) && err.code === "ERR_CANCELED");
+
+        /**
+         * Terminal failure path, shared by the request loop and the setup-level catch:
+         * notify → set state → run callbacks. Devtools reporting differs between the
+         * two (post-flight headers vs none), so the caller records the trace first.
+         */
+        const surfaceError = (apiError: ApiError, err: unknown): null => {
+            if (!effectiveSkipErrorNotification && globalErrorHandler) {
+                globalErrorHandler(apiError, err);
+            }
+            state.setError(apiError);
+            state.setStatusCode(apiError.status);
+            onError?.(apiError);
+            config?.onError?.(apiError);
+            return null;
+        };
 
         // Chain external signal → internal controller so batch abort reaches Axios
         if (config?.signal) {
@@ -332,32 +259,21 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         let wasCancelled = false;
         let retryCount = 0;
 
+        const trace = createRequestTrace(instanceId);
         let devtoolsRequestId: string | null = null;
-        let devtoolsRequestStartedAt = 0;
-        let devtoolsRequestEndResult: RequestEndResult | null = null;
 
         try {
             if (!requestUrl) {
                 throw new Error("Request URL is missing");
             }
 
-            // Parse query params from the URL string as fallback when params weren't passed as an option
-            const devtoolsQueryParams: unknown = resolvedParams ?? parseUrlQueryParams(requestUrl);
-
             // Devtools: record the outgoing request
-            devtoolsRequestId = nextRequestId();
-            devtoolsRequestStartedAt = Date.now();
-            devtoolsBridge.onRequestStart({
-                id: devtoolsRequestId,
-                instanceId,
+            devtoolsRequestId = trace.start({
                 url: requestUrl,
                 method,
-                startedAt: devtoolsRequestStartedAt,
-                status: "pending",
-                statusCode: null,
-                requestHeaders: {},
                 payload: resolvedData ?? null,
-                queryParams: devtoolsQueryParams,
+                // Parse query params from the URL string as fallback when params weren't passed as an option
+                queryParams: resolvedParams ?? parseUrlQueryParams(requestUrl),
                 cacheKey: key,
             });
 
@@ -369,6 +285,9 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                         method,
                         ...axiosConfig,
                         ...configAxios,
+                        ...(bodyContentType
+                            ? { headers: { ...requestHeaders, "Content-Type": bodyContentType } }
+                            : {}),
                         data: resolvedData,
                         params: resolvedParams,
                         signal: controller.signal,
@@ -400,37 +319,19 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                     onSuccess?.(response);
                     config?.onSuccess?.(response);
                     notifyFetched(); // reset focus-throttle clock — only on success, not on error
-                    devtoolsRequestEndResult = {
-                        status: "success",
-                        statusCode: response.status,
-                        response: response.data,
-                        duration: Date.now() - devtoolsRequestStartedAt,
-                        ...(cacheWrittenAt !== undefined ? { cachedAt: cacheWrittenAt } : {}),
-                        // Headers exist only post-flight (interceptors mutate config.headers),
-                        // so they're captured at end — not in onRequestStart
-                        ...(isDevtoolsExpected()
-                            ? {
-                                  requestHeaders: normalizeHeaders(response.config?.headers),
-                                  responseHeaders: normalizeHeaders(response.headers),
-                              }
-                            : {}),
-                    };
+                    trace.success(response, cacheWrittenAt);
                     return selected;
 
                 } catch (err: unknown) {
                     // Abort / cancel — bail out silently
-                    if (controller.signal.aborted || (isAxiosError(err) && err.code === "ERR_CANCELED")) {
+                    if (isCancellation(err)) {
                         wasCancelled = true;
                         return null;
                     }
 
-                    const apiError = errorParser ? errorParser(err) : parseApiError(err);
+                    const apiError = toApiError(err);
 
-                    const canRetry =
-                        retryCount < effectiveMaxRetries &&
-                        (effectiveRetryStatusCodes.length === 0 || effectiveRetryStatusCodes.includes(apiError.status));
-
-                    if (canRetry) {
+                    if (shouldRetry(retryCount, effectiveMaxRetries, effectiveRetryStatusCodes, apiError.status)) {
                         retryCount++;
                         const aborted = await cancellableSleep(effectiveRetryDelay, controller.signal);
                         if (aborted) {
@@ -443,56 +344,21 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                     }
 
                     // All retries exhausted (or retry disabled) — surface the error
-                    devtoolsRequestEndResult = {
-                        status: "error",
-                        error: apiError,
-                        statusCode: apiError.status ?? null,
-                        duration: Date.now() - devtoolsRequestStartedAt,
-                        ...(isDevtoolsExpected() && isAxiosError(err)
-                            ? {
-                                  requestHeaders: normalizeHeaders(err.config?.headers),
-                                  responseHeaders: normalizeHeaders(err.response?.headers),
-                              }
-                            : {}),
-                    };
-                    if (!effectiveSkipErrorNotification && globalErrorHandler) {
-                        globalErrorHandler(apiError, err);
-                    }
-                    state.setError(apiError);
-                    state.setStatusCode(apiError.status);
-                    onError?.(apiError);
-                    config?.onError?.(apiError);
-                    return null;
+                    trace.failure(apiError, err);
+                    return surfaceError(apiError, err);
                 }
             }
         } catch (err: unknown) {
             // Handles "Request URL is missing" and unexpected setup errors (not retried)
-            if (controller.signal.aborted || (isAxiosError(err) && err.code === "ERR_CANCELED")) {
+            if (isCancellation(err)) {
                 wasCancelled = true;
                 return null;
             }
-            const apiError = errorParser ? errorParser(err) : parseApiError(err);
-            devtoolsRequestEndResult = {
-                status: "error",
-                error: apiError,
-                statusCode: null,
-                duration: Date.now() - devtoolsRequestStartedAt,
-            };
-            if (!effectiveSkipErrorNotification && globalErrorHandler) {
-                globalErrorHandler(apiError, err);
-            }
-            state.setError(apiError);
-            state.setStatusCode(apiError.status);
-            onError?.(apiError);
-            config?.onError?.(apiError);
-            return null;
+            const apiError = toApiError(err);
+            trace.setupFailure(apiError);
+            return surfaceError(apiError, err);
         } finally {
-            if (devtoolsRequestId !== null) {
-                devtoolsBridge.onRequestEnd(
-                    devtoolsRequestId,
-                    devtoolsRequestEndResult ?? { status: "aborted", duration: Date.now() - devtoolsRequestStartedAt },
-                );
-            }
+            trace.end();
             if (globalAbortHandler && subscribedSignal) subscribedSignal.removeEventListener("abort", globalAbortHandler);
             revalidating.value = false;
             if (!wasCancelled) {
@@ -500,20 +366,9 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
                 onFinish?.();
                 config?.onFinish?.();
 
-                // Polling Logic — starts only after the final result (success or all retries exhausted)
-                const { interval, whenHidden } = getPollConfig();
-                if (interval > 0) {
-                    const shouldPoll = whenHidden || (typeof document !== "undefined" && !document.hidden);
-                    if (shouldPoll) {
-                        pollTimer = setTimeout(() => {
-                            pollTimer = null;
-                            const { whenHidden: currentWhenHidden } = getPollConfig();
-                            if (currentWhenHidden || (typeof document === "undefined" || !document.hidden)) {
-                                execute();
-                            }
-                        }, interval);
-                    }
-                }
+                // Polling — the next tick is scheduled only after the final result
+                // (success or all retries exhausted)
+                polling.scheduleNext();
             }
         }
     };
@@ -571,7 +426,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     };
 
     const abort = (msg?: string) => {
-        if (pollTimer) clearTimeout(pollTimer);
+        polling.stop();
         abortController.value?.abort(msg);
         abortController.value = null;
     };
@@ -664,51 +519,6 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     // setup time, nextTick may resolve before a same-tick dep mutation's flush,
     // yielding one extra (aborted) request — graceful degradation, payloads stay correct.
     if (immediate) scheduleAutoTrigger();
-
-    // Visibility Handling for Polling — only when polling is configured.
-    // `poll` may be a ref/getter (always truthy) — that's fine: the handler
-    // itself re-reads getPollConfig() and no-ops when the interval is 0.
-    if (poll && typeof document !== "undefined") {
-        const handleVisibility = () => {
-            if (document.hidden) return;
-            // On tab focus, if polling is enabled and no timer is running, resume/catch-up
-            const { interval } = getPollConfig();
-            if (interval > 0 && !pollTimer && !state.loading.value) {
-                 execute();
-            }
-        };
-        // We use a simple listener. In a real app, might want to use useEventListener from vueuse if available, but native is fine.
-        document.addEventListener("visibilitychange", handleVisibility);
-
-        if (getCurrentScope()) {
-            onScopeDispose(() => document.removeEventListener("visibilitychange", handleVisibility));
-        }
-    }
-
-    // Watch for dynamic poll changes
-    if (poll) {
-         watch(() => toValue(poll), () => {
-             const { interval } = getPollConfig();
-
-             if (interval > 0) {
-                 // If timer is running, we want to restart with new interval
-                 if (pollTimer) {
-                     clearTimeout(pollTimer);
-                     pollTimer = null;
-                 }
-                 // If we are idle (not loading), start immediately to apply new settings
-                 if (!state.loading.value) {
-                     scheduleAutoTrigger();
-                 }
-             } else {
-                 // If disabled, clear any pending timer
-                 if (pollTimer) {
-                     clearTimeout(pollTimer);
-                     pollTimer = null;
-                 }
-             }
-         }, { deep: true });
-    }
 
     return { ...state, revalidating, cacheKey, execute: publicExecute, abort, reset, ignoreUpdates };
 }

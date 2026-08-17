@@ -32,3 +32,24 @@ export function parseDuration(input: DurationInput): number {
     }
     return Number(match[1]) * UNIT_MS[match[2] as keyof typeof UNIT_MS];
 }
+
+/**
+ * Cancellable sleep — resolves `true` if aborted before the delay elapsed,
+ * `false` if the delay completed. Never rejects, so callers branch on the
+ * result instead of catching.
+ *
+ * @example
+ * ```ts
+ * const aborted = await cancellableSleep(1000, controller.signal);
+ * if (aborted) return null;
+ * ```
+ */
+export function cancellableSleep(ms: number, signal: AbortSignal): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+        if (signal.aborted) { resolve(true); return; }
+        const timer = setTimeout(() => { cleanup(); resolve(false); }, ms);
+        const onAbort = () => { clearTimeout(timer); cleanup(); resolve(true); };
+        const cleanup = () => signal.removeEventListener("abort", onAbort);
+        signal.addEventListener("abort", onAbort, { once: true });
+    });
+}
