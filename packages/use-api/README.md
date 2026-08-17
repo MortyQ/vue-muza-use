@@ -686,12 +686,15 @@ invalidateCache(['products', 'categories'])
 // e.g. all cached pages/filters of the products list after a create/update
 invalidateCache({ prefix: 'auto:GET:/products' })
 
+// Several prefixes in one pass — one sweep over the cache instead of three calls
+invalidateCache({ prefix: ['auto:GET:/products', 'auto:GET:/categories'] })
+
 // Wipe everything — call on logout to prevent data leaks between users
 clearAllCache()
 ```
 
 > [!NOTE]
-> An empty prefix (`{ prefix: '' }`) is a no-op — it will **not** wipe the whole cache. Use `clearAllCache()` for that.
+> Empty prefixes are ignored — `{ prefix: '' }`, `{ prefix: [] }` and `{ prefix: ['', ''] }` are all no-ops and will **not** wipe the whole cache. Use `clearAllCache()` for that.
 
 #### cache + auto-tracking
 
@@ -735,7 +738,7 @@ const { data } = useApi('/reports', {
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `cache` | `string \| boolean \| CacheOptions` | `undefined` | Enable caching. `true`/`{}` = auto-key + defaults; string = manual key shorthand |
-| `invalidateCache` | `string \| string[] \| { prefix }` | `undefined` | Cache key(s) or a key prefix to delete on 2xx success |
+| `invalidateCache` | `string \| string[] \| { prefix: string \| string[] }` | `undefined` | Cache key(s) or a key prefix to delete on 2xx success |
 
 **`CacheOptions`**
 
@@ -2245,7 +2248,7 @@ Three type parameters — all optional with defaults:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `cache` | `string \| boolean \| CacheOptions` | `undefined` | Cache the response in memory. `true`/`{}` auto-keys from method+url+params+data; string/`{ id }` uses a manual key. `swr: true` enables stale-while-revalidate; `freshFor` skips revalidation while the entry is young. Durations accept `'5m'`/`'1h'` strings. Global defaults via `globalOptions.cacheDefaults`. See [Response Caching](#response-caching) |
-| `invalidateCache` | `string \| string[] \| { prefix }` | `undefined` | Cache key(s) or a key prefix to delete on 2xx success. Never fires on error |
+| `invalidateCache` | `string \| string[] \| { prefix: string \| string[] }` | `undefined` | Cache key(s) or a key prefix to delete on 2xx success. Never fires on error |
 
 **Refetch Triggers:**
 
@@ -2594,7 +2597,7 @@ import { invalidateCache, clearAllCache } from '@ametie/vue-muza-use'
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `invalidateCache` | `(id: string \| string[]) => void` | Delete one or more cache entries by key |
+| `invalidateCache` | `(input: string \| string[] \| { prefix: string \| string[] }) => void` | Delete cache entries by exact key(s), or by key prefix(es) |
 | `clearAllCache` | `() => void` | Wipe the entire cache — use on logout |
 
 **Example — bust cache after a WebSocket push:**

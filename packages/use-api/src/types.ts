@@ -84,9 +84,15 @@ export interface CacheOptions {
  * - `{ prefix }` — delete every key starting with `prefix`. Handy for busting
  *   all auto-keyed variations of an endpoint at once, e.g.
  *   `{ prefix: "auto:GET:/products" }` clears every cached page/filter combo.
- *   An empty `prefix` is a no-op (it will not wipe the whole cache).
+ *   Pass an array to bust several endpoints in one call. Empty prefixes are
+ *   ignored, so they can never accidentally wipe the whole cache.
+ *
+ * @example
+ * ```ts
+ * invalidateCache({ prefix: ["auto:GET:/products", "auto:GET:/categories"] });
+ * ```
  */
-export type InvalidateInput = string | string[] | { prefix: string };
+export type InvalidateInput = string | string[] | { prefix: string | string[] };
 
 export interface ApiState<T = unknown> {
     data: T | null

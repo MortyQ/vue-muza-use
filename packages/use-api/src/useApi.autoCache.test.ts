@@ -258,6 +258,88 @@ describe("useApi — invalidation of auto keys", () => {
         await api.execute({ params: { page: 2 } });
         expect(requestMock).toHaveBeenCalledTimes(4); // both pages refetched
     });
+
+    it("prefix array busts several endpoints in one call", async () => {
+        const products = mountApi("/products", { cache: true, lazy: true }).api;
+        const categories = mountApi("/categories", { cache: true, lazy: true }).api;
+        const orders = mountApi("/orders", { cache: true, lazy: true }).api;
+
+        resolveWith("prod");
+        await products.execute();
+        resolveWith("cat");
+        await categories.execute();
+        resolveWith("ord");
+        await orders.execute();
+        expect(requestMock).toHaveBeenCalledTimes(3);
+        requestMock.mockClear();
+
+        invalidateCache({ prefix: ["auto:GET:/products", "auto:GET:/categories"] });
+
+        resolveWith("prod-fresh");
+        await products.execute();
+        resolveWith("cat-fresh");
+        await categories.execute();
+        await orders.execute(); // untouched prefix — still a cache hit
+
+        expect(requestMock).toHaveBeenCalledTimes(2);
+        expect(products.data.value).toBe("prod-fresh");
+        expect(categories.data.value).toBe("cat-fresh");
+        expect(orders.data.value).toBe("ord");
+    });
+
+    it("empty prefixes in the array are ignored and never wipe the cache", async () => {
+        const { api } = mountApi("/products", { cache: true, lazy: true });
+        resolveWith("p1");
+        await api.execute();
+        requestMock.mockClear();
+
+        invalidateCache({ prefix: ["", "auto:GET:/nothing-matches"] });
+
+        await api.execute();
+        expect(requestMock).not.toHaveBeenCalled(); // still cached
+        expect(api.data.value).toBe("p1");
+    });
+
+    it("an all-empty prefix array is a no-op", async () => {
+        const { api } = mountApi("/products", { cache: true, lazy: true });
+        resolveWith("p1");
+        await api.execute();
+        requestMock.mockClear();
+
+        invalidateCache({ prefix: [] });
+        invalidateCache({ prefix: ["", ""] });
+
+        await api.execute();
+        expect(requestMock).not.toHaveBeenCalled();
+        expect(api.data.value).toBe("p1");
+    });
+
+    it("prefix array works through the invalidateCache option on a mutation", async () => {
+        const products = mountApi("/products", { cache: true, lazy: true }).api;
+        const categories = mountApi("/categories", { cache: true, lazy: true }).api;
+
+        resolveWith("prod");
+        await products.execute();
+        resolveWith("cat");
+        await categories.execute();
+        requestMock.mockClear();
+
+        const { api: poster } = mountApi("/products", {
+            method: "POST",
+            lazy: true,
+            invalidateCache: { prefix: ["auto:GET:/products", "auto:GET:/categories"] },
+        });
+        resolveWith("created");
+        await poster.execute();
+
+        resolveWith("prod-fresh");
+        await products.execute();
+        resolveWith("cat-fresh");
+        await categories.execute();
+
+        expect(products.data.value).toBe("prod-fresh");
+        expect(categories.data.value).toBe("cat-fresh");
+    });
 });
 
 describe("useApi — cleanup", () => {
