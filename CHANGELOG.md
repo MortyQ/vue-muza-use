@@ -8,6 +8,32 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.8.0] — 2026-08-17
+
+### Fixed
+
+#### `@ametie/vue-muza-use`
+
+- **`FormData` and `URLSearchParams` bodies no longer inherit the client's JSON default** — `createApiClient` sets `Content-Type: application/json` on the Axios instance. For a `FormData` body that default was not merely wrong but destructive: Axios's `transformRequest` sees a JSON content type and replaces the form with `JSON.stringify(formDataToJSON(data))`, so a file upload reached the server as `{"file":{"type":"","lastModified":1786984353917,"name":"blob"}}` — with HTTP 200 and no error anywhere. The request looked successful and the file was gone. A `URLSearchParams` body survived but went out url-encoded while labelled `application/json`. The content type is now derived from the body itself (`multipart/form-data` / `application/x-www-form-urlencoded`) whenever the caller has not set one. **An explicit `Content-Type` always wins**, including `application/json` on a form — that is Axios's deliberate form-to-JSON conversion feature — so existing uploads that set the header by hand keep working unchanged. JSON bodies are untouched. A raw `Blob`/`File` passed as `data` is still serialized by Axios regardless of this fix (`transformRequest` treats it as a plain object payload); wrap it in `FormData` or set an explicit content type.
+
+### Added
+
+#### `@ametie/vue-muza-use`
+
+- **`invalidateCache` accepts several prefixes in one call** — `InvalidateInput` widens to `{ prefix: string | string[] }`, so `invalidateCache({ prefix: ["auto:GET:/products", "auto:GET:/categories"] })` replaces a chain of single-prefix calls. It is also cheaper: one pass over the cache store instead of one per prefix. Empty prefixes are dropped per element, so `{ prefix: ["", "auto:GET:/x"] }` busts only the second and can never wipe the whole cache; `{ prefix: [] }` is a no-op. Purely additive — `string` and `string[]` inputs behave exactly as before.
+
+### Changed
+
+#### `@ametie/vue-muza-use`
+
+- **Internal restructuring of `useApi.ts` (714 → 513 lines), no API change.** Cache option/key resolution (`normalizeCacheOptions`, `resolveCacheKey`) moved to `features/cacheManager.ts`, next to the prefix invalidation that depends on the key format; retry attempt/status policy to the new `features/retryPolicy.ts`; `cancellableSleep` to `utils/time.ts`; devtools instance registration and per-request record building to the new `devtools.instrumentation.ts`; the polling timer, tab-visibility handling and interval changes to the new `composables/usePolling.ts`; and the duplicated failure path in `executeRequest` collapsed into one helper. Behaviour is identical — the entire pre-existing suite passes unchanged. Only relevant if you read stack traces or vendor the source.
+
+#### DevTools Panel (`@ametie/vue-muza-devtools`)
+
+- No changes — the version is bumped only to stay in lockstep with the main package.
+
+---
+
 ## [1.7.1] — 2026-07-28
 
 No changes to `@ametie/vue-muza-use` itself — this release exists to keep `@ametie/vue-muza-devtools`'s version number in lockstep with the main package (its `package.json` is synced automatically after every release; it remains a private, unpublished package).
