@@ -8,6 +8,17 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.8.1] — 2026-08-18
+
+### Fixed
+
+#### `@ametie/vue-muza-use`
+
+- **`useApiBatch` now declares the `useApi` options it has always forwarded.** `UseApiBatchOptions` extended only `ApiRequestConfig`, so `cache`, `select` and `invalidateCache` failed to compile (TS2353) even though the runtime already spread them into every internal `useApi` — `cache: true` in a batch was a type error for a feature that worked. The whitelist is now explicit: `cache` (auto-keyed per request, so a batch of 3 URLs produces 3 independent entries and an overlapping re-run serves the overlap from cache), `invalidateCache`, `select` (applied per item — `data`, `successfulData` and the `onItem*` callbacks all receive the transformed value), plus `refetchOnFocus` / `refetchOnReconnect`, which are new: they re-execute the **whole** batch from a single batch-level listener. Forwarding them per request could never have worked — each internal `useApi` scope is stopped as soon as its request settles, taking its listeners with it. Unlike `useApi`, the two refetch triggers are **not** inherited from `globalOptions`; a batch re-runs every request it holds, so it opts in explicitly. `useApiBatch` gains an optional second generic, `useApiBatch<T, TRaw>`, where `T` is each item's type after `select` and `TRaw` the raw response — existing single-generic calls are unaffected.
+- **Deliberate omissions from that whitelist**, to keep a compiling option from being a trap: a manual `cache.id` (every request in the batch would share one entry, so items 2..N would read the first item's data — batch caching is always auto-keyed), `cache.swr` / `freshFor` (`useApiBatch` awaits each request before publishing results, so there is no stale-then-fresh moment for SWR to fill), and `coalesce` (a no-op inside a batch — the internal instances are created with `lazy: true` and driven manually, while coalescing hangs off auto-tracking).
+
+---
+
 ## [1.8.0] — 2026-08-17
 
 ### Fixed

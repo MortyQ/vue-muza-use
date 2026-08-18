@@ -765,7 +765,8 @@ The following are intentionally **not** supported in v1:
 - 🚫 No reactive cache entries — the cache is a plain `Map`, not Vue refs
 - 🚫 No `localStorage` / `sessionStorage` persistence
 - 🚫 No background TTL timers — expiry is checked lazily on read
-- 🚫 No cache for `useApiBatch` — batch requests manage their own state
+- 🚫 No manual cache `id` / `swr` for `useApiBatch` — batch caching is auto-keyed per request
+  (see [`useApiBatch` options](#useapibatchturls-options))
 - 🚫 No automatic refetch on cache invalidation — call `execute()` manually after invalidating
 - 🚫 No request deduplication — concurrent calls for the same key each fire their own request
 
@@ -2484,7 +2485,10 @@ Execute multiple API requests in parallel with full reactive state.
 | Argument | Type | Description |
 |----------|------|-------------|
 | `urls` | `MaybeRefOrGetter<BatchInput[]>` | Array of URLs (strings) or `BatchRequestConfig` objects, or a ref/getter of that array |
-| `options` | `UseApiBatchOptions<T>` | Configuration object |
+| `options` | `UseApiBatchOptions<T, unknown, TRaw>` | Configuration object |
+
+**Generics:** `useApiBatch<T, TRaw>` — `T` is each item's data type *after* `select`, `TRaw` the
+raw response type before it. Without `select` you only ever need `useApiBatch<T>`.
 
 `BatchInput` type:
 ```typescript
@@ -2505,7 +2509,27 @@ type BatchInput = string | BatchRequestConfig
 | `onItemSuccess` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch succeeds |
 | `onItemError` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch fails |
 | `onProgress` | `(progress: BatchProgress) => void` | `undefined` | Called after each request completes with updated progress |
+| `cache` | `boolean \| { staleTime?: DurationInput }` | `undefined` | Cache each request in the batch independently under an auto-derived key (`method + url + params + data`). Manual `id` and `swr` are not accepted — see below |
+| `invalidateCache` | `InvalidateInput` | `undefined` | Invalidate cache entries after each request in the batch that returns 2xx |
+| `select` | `(data: TRaw) => T` | `undefined` | Transform each item's raw response. Applied per item — `data`, `successfulData` and `onItem*` all receive the transformed value |
+| `refetchOnFocus` | `boolean \| { throttle?: number }` | `undefined` | Re-execute the **whole batch** when the tab regains focus. Default throttle 60 000ms. Not inherited from `globalOptions` |
+| `refetchOnReconnect` | `boolean` | `undefined` | Re-execute the whole batch when the browser regains connectivity. Not inherited from `globalOptions` |
 | `onFinish` | `(results: BatchResultItem<T>[]) => void` | `undefined` | Called once when all requests have completed (even on `settled: false` rejection) |
+
+> [!NOTE]
+> `cache` in a batch is always **auto-keyed**, so a batch of 3 URLs produces 3 independent
+> entries and an overlapping re-run serves the overlap from cache. A manual `id` would make
+> every request in the batch share one entry, and `swr` has nothing to do here — `useApiBatch`
+> awaits each request before publishing results, so there is no stale-then-fresh moment.
+>
+> ```typescript
+> const ids = ref([1, 2, 3])
+> const { successfulData } = useApiBatch<User, { data: User }>(
+>   () => ids.value.map(id => `/users/${id}`),
+>   { cache: { staleTime: '5m' }, select: (res) => res.data },
+> )
+> // ids -> [2, 3, 4]: only /users/4 hits the network
+> ```
 
 **UseApiBatchReturn:**
 

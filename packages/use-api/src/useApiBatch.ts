@@ -1,6 +1,7 @@
 import { ref, computed, effectScope, getCurrentScope, onScopeDispose, toValue, watch, type Ref, type MaybeRefOrGetter } from "vue";
 import type { AxiosResponse } from "axios";
 import { useApi } from "./useApi";
+import { useRefetchTriggers } from "./composables/useRefetchTriggers";
 import type {
     UseApiBatchOptions,
     UseApiBatchReturn,
@@ -56,11 +57,20 @@ function normalizeRequest(item: string | BatchRequestConfig): BatchRequestConfig
  * const { successfulData } = useApiBatch(
  *   () => pages.value.map(page => ({ url: '/users', params: { page } }))
  * )
+ *
+ * // Per-request caching (auto-keyed) + per-item response transform
+ * const { successfulData } = useApiBatch<User, { data: User }>(
+ *   ['/users/1', '/users/2'],
+ *   { cache: { staleTime: '5m' }, select: (res) => res.data },
+ * )
  * ```
+ *
+ * @typeParam T - Type of each item's data after `select` (defaults to the raw response)
+ * @typeParam TRaw - Raw response type before `select`
  */
-export function useApiBatch<T = unknown>(
+export function useApiBatch<T = unknown, TRaw = unknown>(
     requests: MaybeRefOrGetter<Array<string | BatchRequestConfig>>,
-    options: UseApiBatchOptions<T> = {},
+    options: UseApiBatchOptions<T, unknown, TRaw> = {},
 ): UseApiBatchReturn<T> {
     const {
         settled = true,
@@ -70,6 +80,11 @@ export function useApiBatch<T = unknown>(
         lazy = false,
         poll = 0,
         watch: watchSource,
+        // Batch-level browser triggers — pulled out of `apiOptions` so the
+        // per-request useApi instances (whose scopes are stopped as soon as the
+        // request settles) never register listeners of their own.
+        refetchOnFocus,
+        refetchOnReconnect,
         onItemSuccess,
         onItemError,
         onFinish,
@@ -104,6 +119,9 @@ export function useApiBatch<T = unknown>(
     const abortControllers = ref<AbortController[]>([]);
     let isAborted = false;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    // Reassigned once useRefetchTriggers is wired below (it needs `execute`,
+    // which in turn reports back here to reset the focus throttle clock).
+    let notifyFetched: () => void = () => {};
 
     const getPollConfig = (): { interval: number; whenHidden: boolean } => {
         const val = toValue(poll);
@@ -136,7 +154,7 @@ export function useApiBatch<T = unknown>(
         // onScopeDispose, poll timers, and event listeners are properly cleaned up
         // even when executeRequest() runs outside a Vue component's setup context.
         const scope = effectScope();
-        const api = scope.run(() => useApi<T>(config.url, {
+        const api = scope.run(() => useApi<TRaw, unknown, T>(config.url, {
             ...apiOptions,
             method: config.method,
             data: config.data,
@@ -341,6 +359,7 @@ export function useApiBatch<T = unknown>(
             abortControllers.value = [];
             onFinish?.(finalResults);
             if (!isAborted) {
+                notifyFetched();
                 const { interval, whenHidden } = getPollConfig();
                 if (interval > 0) {
                     const hidden = typeof document !== 'undefined' && document.hidden;
@@ -378,6 +397,18 @@ export function useApiBatch<T = unknown>(
             failed: 0,
         };
     };
+
+    // Browser triggers — batch-level: one listener re-runs the whole batch.
+    // Not inherited from globalOptions (see UseApiBatchOptions.refetchOnFocus).
+    const { notifyFetched: reportFetched } = useRefetchTriggers({
+        refetchOnFocus,
+        refetchOnReconnect,
+        loading,
+        // In non-settled mode execute() rejects — the error is already exposed
+        // via `error`/`errors`, so swallow it here to avoid an unhandled rejection.
+        onTrigger: () => { void execute().catch(() => {}); },
+    });
+    notifyFetched = reportFetched;
 
     // Cleanup on scope dispose
     if (getCurrentScope()) {

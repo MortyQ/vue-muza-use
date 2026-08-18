@@ -472,9 +472,25 @@ export interface BatchProgress {
 }
 
 /**
- * Options for useApiBatch
+ * Cache fields accepted by `useApiBatch` — a deliberate subset of {@link CacheOptions}.
+ *
+ * - `id` is excluded: every request in a batch would share one entry, so items
+ *   2..N would read the first item's data. Batch caching is always auto-keyed
+ *   (`method + url + params + data`), which gives each request its own entry.
+ * - `swr` / `freshFor` are excluded: `useApiBatch` awaits each request before
+ *   publishing results, so there is no moment at which a stale value could be
+ *   shown while a background refresh runs — SWR would add nothing.
  */
-export interface UseApiBatchOptions<T = unknown, D = unknown> extends Omit<ApiRequestConfig<D>, "url"> {
+export type BatchCacheOptions = Pick<CacheOptions, "staleTime">;
+
+/**
+ * Options for useApiBatch
+ *
+ * @typeParam T - Type of each request's data after `select` (defaults to the raw response)
+ * @typeParam D - Request body type
+ * @typeParam TRaw - Raw response type before `select`
+ */
+export interface UseApiBatchOptions<T = unknown, D = unknown, TRaw = unknown> extends Omit<ApiRequestConfig<D>, "url"> {
     /**
      * If true (default), failed requests don't stop the batch.
      * If false, first error will reject the entire batch.
@@ -515,6 +531,68 @@ export interface UseApiBatchOptions<T = unknown, D = unknown> extends Omit<ApiRe
      * useApiBatch(() => ids.value.map(id => `/items/${id}`))
      */
     watch?: WatchSource | WatchSource[];
+    /**
+     * Cache each request in the batch **independently**, under an auto-derived
+     * key (`method + url + params + data`) — so a batch of 3 URLs produces 3
+     * cache entries, and a re-run that overlaps a previous batch serves the
+     * overlapping items from cache without hitting the network.
+     *
+     * - `cache: true` — auto-key + defaults (plus any `globalOptions.cacheDefaults`).
+     * - `cache: { staleTime: '5m' }` — auto-key with a custom TTL.
+     *
+     * Manual `id` and `swr` are intentionally not accepted here — see {@link BatchCacheOptions}.
+     *
+     * @example
+     * ```ts
+     * const ids = ref([1, 2, 3])
+     * const { successfulData } = useApiBatch(
+     *   () => ids.value.map(id => `/users/${id}`),
+     *   { cache: { staleTime: '5m' } },
+     * )
+     * // ids -> [2, 3, 4]: only /users/4 hits the network
+     * ```
+     */
+    cache?: boolean | BatchCacheOptions;
+    /**
+     * Invalidate cache entries after each request in the batch that returns 2xx.
+     * Accepts exact key(s) or `{ prefix }` (see {@link InvalidateInput}).
+     * Useful for a batch of mutations that should bust related GET caches.
+     */
+    invalidateCache?: InvalidateInput;
+    /**
+     * Transform each request's raw response before it lands in the batch result.
+     * Applied per item — `data`, `successfulData`, and the `onItem*` callbacks all
+     * receive the transformed value.
+     *
+     * @example
+     * ```ts
+     * const { successfulData } = useApiBatch<User, { data: User }>(
+     *   ['/users/1', '/users/2'],
+     *   { select: (res) => res.data },
+     * )
+     * // successfulData: Ref<User[]>
+     * ```
+     */
+    select?: (data: TRaw) => T;
+    /**
+     * Re-execute the **whole batch** when the browser tab regains focus
+     * (`visibilitychange`).
+     *
+     * - `true` — default throttle of 60 000ms.
+     * - `{ throttle: number }` — custom throttle in ms; `0` always refetches.
+     *
+     * Skipped while the batch is already running (`loading: true`).
+     * Unlike `useApi`, this is **not** inherited from
+     * `globalOptions.refetchOnFocus` — a batch re-runs every request it holds,
+     * so it opts in explicitly.
+     */
+    refetchOnFocus?: boolean | { throttle?: number };
+    /**
+     * Re-execute the whole batch when the browser regains connectivity (`online`).
+     * Skipped while the batch is already running. Not inherited from
+     * `globalOptions.refetchOnReconnect` — see `refetchOnFocus`.
+     */
+    refetchOnReconnect?: boolean;
     /** Callback when a single request succeeds */
     onItemSuccess?: (item: BatchResultItem<T>, index: number) => void;
     /** Callback when a single request fails */

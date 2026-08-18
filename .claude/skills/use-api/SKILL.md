@@ -356,7 +356,7 @@ see references/advanced-options.md.
 - `references/caching.md` — age tiers, SWR semantics, `cacheDefaults` merge, multi-prefix invalidation, duration format.
 - `references/request-bodies.md` — uploads, FormData, Content-Type precedence, raw Blob caveat; read before any non-JSON body.
 - `references/data-select-mutate.md` — `UseApiOptions` generics, `select`, `mutate` typing, optimistic updates.
-- `references/batch.md` — `useApiBatch`: concurrency, progress, settled.
+- `references/batch.md` — `useApiBatch`: concurrency, progress, settled, plus the `useApi` options a batch accepts (`cache`, `select`, `invalidateCache`, `refetchOnFocus/Reconnect`) and the ones it rejects.
 - `references/security.md` — token storage modes and `clearAllCache()` on logout.
 
 ---
