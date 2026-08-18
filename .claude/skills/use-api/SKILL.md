@@ -5,7 +5,7 @@ description: Use when creating or editing an api/use*.ts wrapper, calling useApi
 
 # Skill: Vue Muza Use API Layer
 
-Verified against `@ametie/vue-muza-use` 1.8.
+Verified against `@ametie/vue-muza-use` 1.8.2.
 
 ---
 
@@ -356,7 +356,7 @@ see references/advanced-options.md.
 - `references/caching.md` — age tiers, SWR semantics, `cacheDefaults` merge, multi-prefix invalidation, duration format.
 - `references/request-bodies.md` — uploads, FormData, Content-Type precedence, raw Blob caveat; read before any non-JSON body.
 - `references/data-select-mutate.md` — `UseApiOptions` generics, `select`, `mutate` typing, optimistic updates.
-- `references/batch.md` — `useApiBatch`: concurrency, progress, settled, plus the `useApi` options a batch accepts (`cache`, `select`, `invalidateCache`, `refetchOnFocus/Reconnect`) and the ones it rejects.
+- `references/batch.md` — `useApiBatch`: concurrency, progress, settled, incremental `data` + per-item `status`/`stale`, and the `useApi` options a batch accepts (`cache` incl. `swr`, `select`, `invalidateCache`, `refetchOnFocus/Reconnect`).
 - `references/security.md` — token storage modes and `clearAllCache()` on logout.
 
 ---

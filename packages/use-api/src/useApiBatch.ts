@@ -1,7 +1,9 @@
 import { ref, computed, effectScope, getCurrentScope, onScopeDispose, toValue, watch, type Ref, type MaybeRefOrGetter } from "vue";
 import type { AxiosResponse } from "axios";
 import { useApi } from "./useApi";
+import { useApiConfig } from "./plugin";
 import { useRefetchTriggers } from "./composables/useRefetchTriggers";
+import { normalizeCacheOptions, resolveCacheKey, readCacheEntry } from "./features/cacheManager";
 import type {
     UseApiBatchOptions,
     UseApiBatchReturn,
@@ -19,6 +21,19 @@ import type {
 function normalizeRequest(item: string | BatchRequestConfig): BatchRequestConfig {
     if (typeof item === 'string') return { url: item, method: 'GET' };
     return { method: 'GET', ...item };
+}
+
+/**
+ * One unit of network work for a run of the batch.
+ * `revalidate` jobs already published cached data and are refreshing it in the
+ * background; their failure must not wipe what is on screen.
+ */
+interface BatchJob<T> {
+    config: BatchRequestConfig;
+    index: number;
+    revalidate: boolean;
+    /** Cached value already published for this index — only set when `revalidate`. */
+    cached: T | null;
 }
 
 /**
@@ -98,6 +113,7 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
     // Reactive state
     const data = ref<BatchResultItem<T>[]>([]) as Ref<BatchResultItem<T>[]>;
     const loading = ref(false);
+    const revalidating = ref(false);
     const error = ref<ApiError | null>(null);
     const errors = ref<ApiError[]>([]) as Ref<ApiError[]>;
     const progress = ref<BatchProgress>({
@@ -132,6 +148,53 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
         };
     };
 
+    // Run-scoped tallies — one run is active at a time (execute() aborts the previous one)
+    let succeededCount = 0;
+    let failedCount = 0;
+
+    const pendingItem = (config: BatchRequestConfig, index: number): BatchResultItem<T> => ({
+        url: config.url,
+        index,
+        success: false,
+        status: 'pending',
+        stale: false,
+        data: null,
+        error: null,
+        statusCode: null,
+        response: null,
+        request: config,
+    });
+
+    /**
+     * Publish an item into `data` without settling it — used for SWR cache hits,
+     * which are on screen immediately but still awaiting their background refresh.
+     * No progress tick and no callbacks: those belong to the final state.
+     */
+    const publishItem = (item: BatchResultItem<T>) => {
+        data.value[item.index] = item;
+    };
+
+    /**
+     * Publish an item as final: tally it, tick progress and fire its callback.
+     */
+    const settleItem = (item: BatchResultItem<T>, total: number) => {
+        data.value[item.index] = item;
+
+        if (item.success) {
+            succeededCount++;
+        } else {
+            failedCount++;
+            if (item.error) errors.value.push(item.error);
+        }
+        updateProgress(succeededCount, failedCount, total);
+
+        if (item.success) {
+            onItemSuccess?.(item, item.index);
+        } else if (item.error) {
+            onItemError?.(item, item.index);
+        }
+    };
+
     const updateProgress = (succeeded: number, failed: number, total: number) => {
         const completed = succeeded + failed;
         const newProgress: BatchProgress = {
@@ -145,11 +208,58 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
         onProgress?.(newProgress);
     };
 
+    const applySelect = (raw: TRaw): T =>
+        apiOptions.select ? apiOptions.select(raw) : (raw as unknown as T);
+
+    /**
+     * Resolve one request against the shared cache, mirroring the key useApi
+     * would derive for it. Returns null when caching is off for this batch or
+     * the entry is missing/expired; `stale` marks an SWR hit that still needs
+     * a background refresh.
+     */
+    const readBatchCache = (config: BatchRequestConfig): { data: T; stale: boolean } | null => {
+        if (!apiOptions.cache) return null;
+
+        const { globalOptions } = useApiConfig();
+        const normalized = normalizeCacheOptions(apiOptions.cache, undefined, globalOptions?.cacheDefaults);
+        if (!normalized) return null;
+
+        const key = resolveCacheKey(
+            normalized,
+            config.method ?? 'GET',
+            config.url,
+            toValue(config.params),
+            toValue(config.data),
+        );
+        const entry = readCacheEntry<TRaw>(key);
+        if (entry === null) return null;
+
+        return {
+            data: applySelect(entry.data),
+            stale: normalized.swr && entry.ageMs >= normalized.freshFor,
+        };
+    };
+
     const executeRequest = async (
-        config: BatchRequestConfig,
-        index: number,
+        job: BatchJob<T>,
         signal: AbortSignal
     ): Promise<BatchResultItem<T>> => {
+        const { config, index } = job;
+        const base = pendingItem(config, index);
+
+        // A failed revalidation keeps the cached value on screen — but it is still
+        // a failure: status 'error', the error surfaces in `errors` and onItemError,
+        // and the item drops out of successfulData. `stale` says the data is old.
+        const failure = (apiError: ApiError | null, code: number | null = null): BatchResultItem<T> => ({
+            ...base,
+            success: false,
+            status: 'error',
+            stale: job.revalidate,
+            data: job.revalidate ? job.cached : null,
+            error: apiError,
+            statusCode: code,
+        });
+
         // Each internal useApi instance gets its own effectScope so that
         // onScopeDispose, poll timers, and event listeners are properly cleaned up
         // even when executeRequest() runs outside a Vue component's setup context.
@@ -171,97 +281,57 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
             const result = await execute({ signal } as ApiRequestConfig<unknown>);
 
             if (signal.aborted) {
-                return {
-                    url: config.url,
-                    index,
-                    success: false,
-                    data: null,
-                    error: { message: 'Request aborted', status: 0, code: 'ABORTED' },
-                    statusCode: null,
-                    response: null,
-                    request: config,
-                };
+                return failure({ message: 'Request aborted', status: 0, code: 'ABORTED' });
             }
 
-            const item: BatchResultItem<T> = {
-                url: config.url,
-                index,
-                success: result !== null && result !== undefined,
-                data: result ?? null,
-                error: reqError.value,
+            if (result === null || result === undefined) {
+                return failure(reqError.value, statusCode.value);
+            }
+
+            return {
+                ...base,
+                success: true,
+                status: 'success',
+                stale: false,
+                data: result,
+                error: null,
                 statusCode: statusCode.value,
                 response: response.value as AxiosResponse<T> | null,
-                request: config,
             };
-
-            if (item.success) {
-                onItemSuccess?.(item, index);
-            } else if (item.error) {
-                onItemError?.(item, index);
-            }
-
-            return item;
         } catch (err) {
-            const apiError: ApiError = {
+            return failure({
                 message: err instanceof Error ? err.message : 'Unknown error',
                 status: 0,
                 code: 'BATCH_ERROR',
-            };
-
-            const item: BatchResultItem<T> = {
-                url: config.url,
-                index,
-                success: false,
-                data: null,
-                error: apiError,
-                statusCode: null,
-                response: null,
-                request: config,
-            };
-
-            onItemError?.(item, index);
-            return item;
+            });
         } finally {
             scope.stop();
         }
     };
 
     const executeWithConcurrency = async (
-        requests: BatchRequestConfig[],
+        jobs: BatchJob<T>[],
         limit: number | undefined,
         total: number
-    ): Promise<BatchResultItem<T>[]> => {
-        const results: BatchResultItem<T>[] = new Array(requests.length);
-        let succeededCount = 0;
-        let failedCount = 0;
+    ): Promise<void> => {
+        const runJob = async (job: BatchJob<T>): Promise<void> => {
+            const controller = new AbortController();
+            abortControllers.value.push(controller);
 
-        if (!limit || limit >= requests.length) {
+            const item = await executeRequest(job, controller.signal);
+            settleItem(item, total);
+
+            // In non-settled mode, abort siblings then throw. A failed background
+            // revalidation is not fatal — its item still holds usable cached data.
+            if (!settled && !item.success && item.error && !job.revalidate) {
+                abort('First request failed in non-settled mode');
+                throw item.error;
+            }
+        };
+
+        if (!limit || limit >= jobs.length) {
             // No limit - execute all in parallel
-            const promises = requests.map((config, index) => {
-                const controller = new AbortController();
-                abortControllers.value.push(controller);
-
-                return executeRequest(config, index, controller.signal).then(result => {
-                    results[index] = result;
-                    if (result.success) {
-                        succeededCount++;
-                    } else {
-                        failedCount++;
-                        if (result.error) {
-                            errors.value.push(result.error);
-                        }
-                    }
-                    updateProgress(succeededCount, failedCount, total);
-
-                    // In non-settled mode, abort siblings then throw
-                    if (!settled && !result.success && result.error) {
-                        abort('First request failed in non-settled mode');
-                        throw result.error;
-                    }
-
-                    return result;
-                });
-            });
+            const promises = jobs.map(job => runJob(job));
 
             if (settled) {
                 await Promise.allSettled(promises);
@@ -273,36 +343,13 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
             let currentIndex = 0;
 
             const executeNext = async (): Promise<void> => {
-                while (currentIndex < requests.length && !isAborted) {
-                    const index = currentIndex++;
-                    const config = requests[index];
-
-                    const controller = new AbortController();
-                    abortControllers.value.push(controller);
-
-                    const result = await executeRequest(config, index, controller.signal);
-                    results[index] = result;
-
-                    if (result.success) {
-                        succeededCount++;
-                    } else {
-                        failedCount++;
-                        if (result.error) {
-                            errors.value.push(result.error);
-                        }
-                    }
-                    updateProgress(succeededCount, failedCount, total);
-
-                    // In non-settled mode, abort remaining on first error
-                    if (!settled && !result.success && result.error) {
-                        abort('First request failed in non-settled mode');
-                        throw result.error;
-                    }
+                while (currentIndex < jobs.length && !isAborted) {
+                    await runJob(jobs[currentIndex++]);
                 }
             };
 
             // Start `limit` workers
-            const workers = Array.from({ length: Math.min(limit, requests.length) }, () => executeNext());
+            const workers = Array.from({ length: Math.min(limit, jobs.length) }, () => executeNext());
 
             if (settled) {
                 await Promise.allSettled(workers);
@@ -310,13 +357,11 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
                 await Promise.all(workers);
             }
         }
-
-        return results;
     };
 
     const execute = async (): Promise<BatchResultItem<T>[]> => {
         // Abort any in-flight execution before starting a new one
-        if (loading.value) {
+        if (loading.value || revalidating.value) {
             abort('Replaced by new execution');
         }
 
@@ -324,18 +369,53 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
 
         // Reset state
         isAborted = false;
-        loading.value = true;
         error.value = null;
         errors.value = [];
-        data.value = [];
+        succeededCount = 0;
+        failedCount = 0;
         abortControllers.value = [];
         const total = currentRequests.length;
+
+        // Seed placeholders so `data` is indexable (and of the final length) while
+        // requests are still in flight — items are published as they land.
+        data.value = currentRequests.map((config, index) => pendingItem(config, index));
         updateProgress(0, 0, total);
+
+        // Cache pass — an entry that needs no network is published right away;
+        // an SWR hit is published as stale and queued for a background refresh.
+        const jobs: BatchJob<T>[] = [];
+        for (const [index, config] of currentRequests.entries()) {
+            const hit = readBatchCache(config);
+
+            if (hit === null) {
+                jobs.push({ config, index, revalidate: false, cached: null });
+                continue;
+            }
+
+            const item: BatchResultItem<T> = {
+                ...pendingItem(config, index),
+                success: true,
+                status: 'success',
+                stale: hit.stale,
+                data: hit.data,
+            };
+
+            if (!hit.stale) {
+                settleItem(item, total);
+                continue;
+            }
+
+            publishItem(item);
+            jobs.push({ config, index, revalidate: true, cached: hit.data });
+        }
+
+        loading.value = jobs.some(job => !job.revalidate);
+        revalidating.value = jobs.some(job => job.revalidate);
 
         let finalResults: BatchResultItem<T>[] = [];
         try {
-            finalResults = await executeWithConcurrency(currentRequests, concurrency, total);
-            data.value = finalResults;
+            await executeWithConcurrency(jobs, concurrency, total);
+            finalResults = [...data.value];
 
             // Set aggregated error if all requests failed
             const allFailed = finalResults.every(r => !r.success);
@@ -356,6 +436,7 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
             throw err;
         } finally {
             loading.value = false;
+            revalidating.value = false;
             abortControllers.value = [];
             onFinish?.(finalResults);
             if (!isAborted) {
@@ -376,6 +457,7 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
 
     const abort = (message = 'Batch aborted') => {
         isAborted = true;
+        revalidating.value = false;
         if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
         for (const controller of abortControllers.value) {
             controller.abort(message);
@@ -386,6 +468,7 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
     const reset = () => {
         abort();
         loading.value = false;
+        revalidating.value = false;
         error.value = null;
         errors.value = [];
         data.value = [];
@@ -403,7 +486,8 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
     const { notifyFetched: reportFetched } = useRefetchTriggers({
         refetchOnFocus,
         refetchOnReconnect,
-        loading,
+        // A batch that is only revalidating still counts as busy for the triggers
+        loading: computed(() => loading.value || revalidating.value),
         // In non-settled mode execute() rejects — the error is already exposed
         // via `error`/`errors`, so swallow it here to avoid an unhandled rejection.
         onTrigger: () => { void execute().catch(() => {}); },
@@ -446,6 +530,7 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
         data,
         successfulData,
         loading,
+        revalidating,
         error,
         errors,
         progress,

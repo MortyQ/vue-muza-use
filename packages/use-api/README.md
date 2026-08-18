@@ -1510,8 +1510,10 @@ Every item returned in `data` has this shape:
 |-------|------|-------------|
 | `url` | `string` | The URL that was requested |
 | `index` | `number` | Position in the original array |
-| `success` | `boolean` | `true` if the request succeeded |
-| `data` | `T \| null` | Response data (`null` if failed) |
+| `success` | `boolean` | `true` if the request succeeded — equivalent to `status === "success"` |
+| `status` | `"pending" \| "success" \| "error"` | Lifecycle of this item. `pending` means no result yet |
+| `stale` | `boolean` | `true` while `data` comes from cache and a background refresh is in flight or has failed |
+| `data` | `T \| null` | Response data. `null` while `pending`, and `null` on a failure with no cached value to fall back on |
 | `error` | `ApiError \| null` | Error details (`null` if succeeded) |
 | `statusCode` | `number \| null` | HTTP status code |
 | `response` | `AxiosResponse<T> \| null` | Full Axios response — access headers here (`null` if failed) |
@@ -2509,7 +2511,7 @@ type BatchInput = string | BatchRequestConfig
 | `onItemSuccess` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch succeeds |
 | `onItemError` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch fails |
 | `onProgress` | `(progress: BatchProgress) => void` | `undefined` | Called after each request completes with updated progress |
-| `cache` | `boolean \| { staleTime?: DurationInput }` | `undefined` | Cache each request in the batch independently under an auto-derived key (`method + url + params + data`). Manual `id` and `swr` are not accepted — see below |
+| `cache` | `boolean \| { staleTime?, swr?, freshFor? }` | `undefined` | Cache each request in the batch independently under an auto-derived key (`method + url + params + data`). With `swr: true` cached items appear in `data` immediately as stale and refresh in the background. Manual `id` is not accepted — see below |
 | `invalidateCache` | `InvalidateInput` | `undefined` | Invalidate cache entries after each request in the batch that returns 2xx |
 | `select` | `(data: TRaw) => T` | `undefined` | Transform each item's raw response. Applied per item — `data`, `successfulData` and `onItem*` all receive the transformed value |
 | `refetchOnFocus` | `boolean \| { throttle?: number }` | `undefined` | Re-execute the **whole batch** when the tab regains focus. Default throttle 60 000ms. Not inherited from `globalOptions` |
@@ -2519,8 +2521,7 @@ type BatchInput = string | BatchRequestConfig
 > [!NOTE]
 > `cache` in a batch is always **auto-keyed**, so a batch of 3 URLs produces 3 independent
 > entries and an overlapping re-run serves the overlap from cache. A manual `id` would make
-> every request in the batch share one entry, and `swr` has nothing to do here — `useApiBatch`
-> awaits each request before publishing results, so there is no stale-then-fresh moment.
+> every request in the batch share one entry, which is why it is not accepted.
 >
 > ```typescript
 > const ids = ref([1, 2, 3])
@@ -2530,14 +2531,31 @@ type BatchInput = string | BatchRequestConfig
 > )
 > // ids -> [2, 3, 4]: only /users/4 hits the network
 > ```
+>
+> With `swr: true` the cached items are in `data` before the first network round trip —
+> `loading` never flips, `revalidating` does:
+>
+> ```typescript
+> const { data, loading, revalidating } = useApiBatch<User>(
+>   () => ids.value.map(id => `/users/${id}`),
+>   { cache: { swr: true, staleTime: '1d', freshFor: '5m' }, immediate: true },
+> )
+> // t=0   data = [u1(stale), u2(stale), pending]  loading: true (one miss), revalidating: true
+> // t=300 data = [u1, u2, u3]                     loading: false, revalidating: false
+> ```
+>
+> A failed revalidation does not hide the failure: the item becomes `status: 'error'` with
+> the error in `errors` and `onItemError`, while `data` keeps the cached value and `stale`
+> stays `true` — so the UI can show the old value next to the error instead of an empty row.
 
 **UseApiBatchReturn:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `data` | `Ref<BatchResultItem<T>[]>` | All results with full metadata |
+| `data` | `Ref<BatchResultItem<T>[]>` | All results with full metadata. Always of the requests' length and filled in **incrementally** — an item is published as soon as it resolves |
 | `successfulData` | `Ref<T[]>` | Only the data from successful requests |
-| `loading` | `Ref<boolean>` | `true` while any request is still in flight |
+| `loading` | `Ref<boolean>` | `true` while at least one item still has no data at all. Items served from cache never set it |
+| `revalidating` | `Ref<boolean>` | `true` while at least one SWR cache hit is being refreshed in the background. Those items already have data |
 | `error` | `Ref<ApiError \| null>` | Set only if ALL requests in the batch failed |
 | `errors` | `Ref<ApiError[]>` | All individual errors from failed requests |
 | `progress` | `Ref<BatchProgress>` | Current progress tracking object |

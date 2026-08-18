@@ -55,7 +55,7 @@ function inScope<T>(factory: () => T): T {
 beforeEach(() => {
     vi.clearAllMocks()
     clearAllCache()
-    createApi({ axios: mockAxios, globalOptions: { skipErrorNotification: true } })
+    createApi({ axios: mockAxios })
 })
 
 afterEach(() => {

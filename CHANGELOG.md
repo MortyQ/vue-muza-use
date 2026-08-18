@@ -8,6 +8,19 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.8.2] — 2026-08-18
+
+### Added
+
+#### `@ametie/vue-muza-use`
+
+- **`useApiBatch` publishes results incrementally, and supports SWR.** `data` used to be assigned once, after the last request settled — a batch of three URLs showed nothing until the slowest of them answered, and cached items sat finished but invisible. It is now seeded with `pending` placeholders (always the length of the requests array, so it can be indexed and `v-for`-ed from the start) and each item is published the moment it resolves. Every `BatchResultItem` carries `status: "pending" | "success" | "error"` and `stale: boolean` alongside the existing `success` flag, which keeps its meaning (`success === (status === "success")`).
+- **`cache: { swr: true }` in a batch** builds on that: each cached item is published before the first network round trip with `stale: true`, then refreshed in the background. The new `revalidating: Ref<boolean>` on `UseApiBatchReturn` is `true` while any refresh is in flight, and `loading` now only tracks items that have no data at all — an all-cached batch never flips it. `freshFor` suppresses the background call for young entries, exactly as in `useApi`. This replaces the 1.8.1 restriction: `swr` and `freshFor` were excluded from `BatchCacheOptions` because a batch had no stale-then-fresh moment to fill; now it does. A manual `id` remains excluded — every request in the batch would share one entry.
+- **A failed revalidation does not hide the failure.** The item becomes `status: "error"` with the error in `errors` and `onItemError`, and drops out of `successfulData` — while `data` keeps the cached value with `stale: true`, so the UI can show the old value next to the error rather than an empty row. This mirrors `useApi`, where a failed SWR refresh sets `error` and leaves the served data in place.
+- `onItemSuccess` / `onItemError` and `progress` follow an item's **final** state: the stale publish fires no callback and does not tick progress, so an SWR item counts as completed only once its refresh settles. Everything else about the batch — `settled`, `concurrency`, `poll`, abort, cleanup — is unchanged, and a failed background revalidation is never fatal in `settled: false` mode.
+
+---
+
 ## [1.8.1] — 2026-08-18
 
 ### Fixed

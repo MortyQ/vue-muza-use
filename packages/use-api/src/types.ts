@@ -441,9 +441,30 @@ export interface BatchResultItem<T = unknown> {
     url: string;
     /** Index in the original urls array */
     index: number;
-    /** Whether the request succeeded */
+    /**
+     * Whether the request succeeded. Equivalent to `status === "success"`.
+     * A failed SWR revalidation is a failure here even though `data` still
+     * holds the cached value — see `stale`.
+     */
     success: boolean;
-    /** The response data (null if failed) */
+    /**
+     * Lifecycle state of this item. `data` is filled in as soon as the item
+     * leaves `pending`, which for an SWR cache hit happens before the network
+     * answers. See {@link BatchItemStatus}.
+     */
+    status: BatchItemStatus;
+    /**
+     * `true` while `data` comes from the cache and a background revalidation is
+     * either in flight or has failed. Flips to `false` once fresh data lands.
+     * Always `false` without `cache: { swr: true }`.
+     */
+    stale: boolean;
+    /**
+     * The response data. `null` while `pending`, and `null` on a failure that
+     * had no cached value to fall back on — a failed revalidation keeps the
+     * cached data here with `status: "error"` and `stale: true`, so the UI can
+     * show the old value next to the error.
+     */
     data: T | null;
     /** Error details (null if succeeded) */
     error: ApiError | null;
@@ -459,7 +480,11 @@ export interface BatchResultItem<T = unknown> {
  * Progress information for batch operations
  */
 export interface BatchProgress {
-    /** Number of completed requests (success + failed) */
+    /**
+     * Number of completed requests (success + failed). An SWR cache hit counts
+     * only once its background revalidation settles — it is already visible in
+     * `data` before that, with `stale: true`.
+     */
     completed: number;
     /** Total number of requests */
     total: number;
@@ -472,16 +497,23 @@ export interface BatchProgress {
 }
 
 /**
- * Cache fields accepted by `useApiBatch` — a deliberate subset of {@link CacheOptions}.
+ * Cache fields accepted by `useApiBatch` — {@link CacheOptions} without `id`.
  *
- * - `id` is excluded: every request in a batch would share one entry, so items
- *   2..N would read the first item's data. Batch caching is always auto-keyed
- *   (`method + url + params + data`), which gives each request its own entry.
- * - `swr` / `freshFor` are excluded: `useApiBatch` awaits each request before
- *   publishing results, so there is no moment at which a stale value could be
- *   shown while a background refresh runs — SWR would add nothing.
+ * `id` is excluded because every request in a batch would share one entry, so
+ * items 2..N would read the first item's data. Batch caching is always
+ * auto-keyed (`method + url + params + data`), giving each request its own entry.
  */
-export type BatchCacheOptions = Pick<CacheOptions, "staleTime">;
+export type BatchCacheOptions = Pick<CacheOptions, "staleTime" | "swr" | "freshFor">;
+
+/**
+ * Lifecycle of a single item inside a batch.
+ *
+ * - `pending` — no result yet: the request is in flight (or queued behind `concurrency`).
+ * - `success` — data is available. With `cache: { swr: true }` this is reached
+ *   immediately from cache, before the network answers — check `stale`.
+ * - `error` — the request failed and no data is available.
+ */
+export type BatchItemStatus = "pending" | "success" | "error";
 
 /**
  * Options for useApiBatch
@@ -539,8 +571,11 @@ export interface UseApiBatchOptions<T = unknown, D = unknown, TRaw = unknown> ex
      *
      * - `cache: true` — auto-key + defaults (plus any `globalOptions.cacheDefaults`).
      * - `cache: { staleTime: '5m' }` — auto-key with a custom TTL.
+     * - `cache: { swr: true }` — cached items are published into `data` immediately
+     *   with `stale: true` and refreshed in the background; `revalidating` is `true`
+     *   meanwhile. `freshFor` suppresses the background call for young entries.
      *
-     * Manual `id` and `swr` are intentionally not accepted here — see {@link BatchCacheOptions}.
+     * A manual `id` is intentionally not accepted here — see {@link BatchCacheOptions}.
      *
      * @example
      * ```ts
@@ -593,9 +628,17 @@ export interface UseApiBatchOptions<T = unknown, D = unknown, TRaw = unknown> ex
      * `globalOptions.refetchOnReconnect` — see `refetchOnFocus`.
      */
     refetchOnReconnect?: boolean;
-    /** Callback when a single request succeeds */
+    /**
+     * Callback when a single request succeeds — fires once per item, when it
+     * reaches its **final** state. An SWR cache hit publishes into `data`
+     * immediately but does not fire this until revalidation confirms the data.
+     */
     onItemSuccess?: (item: BatchResultItem<T>, index: number) => void;
-    /** Callback when a single request fails */
+    /**
+     * Callback when a single request fails — fires once per item, when it
+     * reaches its final state. A failed SWR revalidation fires this with the
+     * item still carrying its cached `data` and `stale: true`.
+     */
     onItemError?: (item: BatchResultItem<T>, index: number) => void;
     /** Callback when all requests complete */
     onFinish?: (results: BatchResultItem<T>[]) => void;
@@ -607,12 +650,27 @@ export interface UseApiBatchOptions<T = unknown, D = unknown, TRaw = unknown> ex
  * Return type for useApiBatch
  */
 export interface UseApiBatchReturn<T = unknown> {
-    /** All results with their status */
+    /**
+     * All results, in the order of the requests array and always of that length.
+     * Filled in **incrementally**: an item is published as soon as it resolves
+     * (or immediately, from cache), so the array holds a mix of `pending`,
+     * `success` and `error` items while the batch runs.
+     */
     data: Ref<BatchResultItem<T>[]>;
-    /** Only successful results' data */
+    /** Only successful results' data — grows as items land. */
     successfulData: Ref<T[]>;
-    /** Whether any request is still loading */
+    /**
+     * `true` while at least one item still has no data at all. Items served
+     * from cache never set it, so an all-cached batch never flips it —
+     * a background SWR refresh shows up in `revalidating` instead.
+     */
     loading: Ref<boolean>;
+    /**
+     * `true` while at least one item is being revalidated in the background
+     * after an SWR cache hit. Those items already have data in `data`.
+     * Only ever `true` with `cache: { swr: true }`.
+     */
+    revalidating: Ref<boolean>;
     /** Aggregated error (set if all requests failed) */
     error: Ref<ApiError | null>;
     /** List of all errors from failed requests */
