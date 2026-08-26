@@ -40,7 +40,7 @@ Before proposing an implementation for a new feature:
 3. New internal composable (reactive concern) → `composables/<name>.ts`
 4. Changes to `useApi.ts` → list which options are added or changed
 5. New public export → update `index.ts`
-6. Tests → `src/__tests__/useApi.<feature>.test.ts` (default, enabled, edge cases, cleanup, integration)
+6. Tests → `tests/useApi.<feature>.test.ts` (default, enabled, edge cases, cleanup, integration)
 7. Docs → update README.md options table
 
 ---

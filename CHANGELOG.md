@@ -8,6 +8,43 @@ Format: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.8.3] — 2026-08-26
+
+### Removed
+
+#### `@ametie/vue-muza-use`
+
+- **`useApiBatch`'s `watch` option is gone.** Deprecated since the reactive-getter auto-tracking landed, and `useApi` dropped its own `watch` back in 1.0 — the batch copy was the last one left. Move the dependency inside the getter you already pass as `requests`; auto-tracking (`lazy: false`, the default) re-executes on any dep the getter reads, which is strictly more than `watch` could express:
+
+  ```ts
+  // Before
+  useApiBatch(() => ids.value.map(id => `/items/${id}`), { watch: [ids, filters] })
+
+  // After — every ref read inside the getter is tracked
+  useApiBatch(() => ids.value.map(id => ({ url: `/items/${id}`, params: filters.value })))
+  ```
+
+  If a dependency does not shape the request at all, keep `lazy: true` and drive it from your own `watch(dep, () => execute())`.
+
+### Fixed
+
+#### `@ametie/vue-muza-use`
+
+- **`useApiBatch.execute()` no longer crashes with `Cannot read properties of undefined (reading 'success')`.** It resolved with a copy of the shared reactive `data` — an array anyone could rewrite while requests were still in flight. `reset()` (typically from `onUnmounted` while the user navigates away) assigns `data.value = []` without waiting for the run, so the in-flight jobs kept writing to the new empty array at their old indices. Any index nobody re-wrote stayed a hole — reachable only via a *fresh* (non-stale) cache hit, which settles during the cache pass and never becomes a job, which is why the crash was intermittent and depended on how warm the cache was. `[...data.value]` then materialised those holes as `undefined` (`Array.prototype.every` skips holes, the spread does not) and the very next line dereferenced them. The same crash was reachable without any application code: a second `execute()` with a **shorter** request list — from the auto-tracking watcher, `poll`, `refetchOnFocus` / `refetchOnReconnect` or the legacy `watch` option — left the tail of the previous run writing past the end of the new array. Each run now owns a private, dense-by-construction result array and resolves with that, so `execute()` returns `requests.length` real items under any interleaving of abort, reset and replace.
+- **A superseded run no longer corrupts the run that replaced it.** Its `finally` block used to unconditionally clear `loading` / `revalidating` and wipe the shared abort-controller list — putting out the new run's spinner and turning its `abort()` into a no-op — and to call `onFinish` with results that were not its own. The success/failure tallies behind `progress` were per-instance, so a new run zeroed counters the old one kept incrementing. Both are now scoped to the run: once discarded, a run writes only to its own results.
+- **State no longer revives after `reset()`.** Late results from a discarded run used to push into `errors`, tick `progress` and fire `onItemSuccess` / `onItemError` — with `skipErrorNotification: false`, an error toast for a screen that had already unmounted. A discarded run now stops before any of that, and its `onFinish` does not fire.
+- **`onFinish` always receives the run's results.** When `execute()` threw before the results were assigned (`settled: false`), `finally` called `onFinish([])`.
+- **Internal executions can no longer surface as an unhandled rejection.** The poll timer, the auto-tracking watcher, the initial run for a getter, `immediate` and the legacy `watch` option all called `execute()` as a bare promise; in `settled: false` mode it rejects. They now swallow it — the error is still exposed through `error` / `errors`. Relatedly, `execute()` populates `error` for any failure it rethrows, not only in `settled: false` mode.
+
+### Added
+
+#### `@ametie/vue-muza-use`
+
+- **`BatchItemStatus` gains `"aborted"`** — a request cancelled before it answered, by `abort()`, `reset()`, a replacing `execute()` or a disposed scope. Cancelled is not failed: the item carries `error: null`, stays out of `errors`, does not fire `onItemError`, and is ignored when deciding whether *all* requests failed — so ordinary navigation no longer produces a spurious `BATCH_ALL_FAILED` in `error` plus a toast per request. A cancelled SWR revalidation keeps its cached value in `data` with `stale: true`. Jobs still queued behind a `concurrency` limit when the batch is aborted are marked `aborted` too, instead of being left `pending` and counted as failures. **Type-level breaking change:** an exhaustive `switch` over `BatchItemStatus` now needs an `aborted` branch; runtime comparisons such as `item.status === "error"` are unaffected.
+- **`abort()` and `reset()` have a documented contract.** `reset()`, a replacing `execute()` and scope disposal *discard* the run: its promise still resolves with its own snapshot, and it writes nothing afterwards. `abort()` cancels without discarding — the run remains the current one, so it still clears `loading` and calls `onFinish` with its final snapshot, unchanged from previous releases.
+
+---
+
 ## [1.8.2] — 2026-08-18
 
 ### Added

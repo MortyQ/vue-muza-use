@@ -39,18 +39,24 @@ Report the actual numbers from step 4 (files / passed / todo), never a summary f
 
 ## Test File Location and Naming
 
-Tests are co-located with their subject (`<file>.test.ts` next to the source file);
-cross-cutting integration tests live in `packages/use-api/src/__tests__/`.
-For a new feature, prefer co-location: `src/useApi.<feature>.test.ts`.
+All tests live in `packages/use-api/tests/`, **outside `src/`** — the source tree
+holds only shipped code. The layout mirrors `src/`: a test sits at the same
+relative path as its subject. For a new feature: `tests/useApi.<feature>.test.ts`.
 
-| Subject | File naming |
-|---------|-------------|
-| Core `useApi` behavior | `useApi.core.test.ts` |
-| Feature-specific behavior | `useApi.<feature>.test.ts` |
-| Internal composable | `<composable>.test.ts` (next to the composable, e.g. `composables/useAbortController.test.ts`) |
-| Feature module | `<module>.test.ts` (next to the module, e.g. `features/tokenManager.test.ts`) |
-| Helpers | `useApi.helpers.test.ts` |
-| Cross-cutting integration | `__tests__/<topic>.test.ts` |
+| Subject | Test file |
+|---------|-----------|
+| Core `useApi` behavior | `tests/useApi.core.test.ts` |
+| Feature-specific behavior | `tests/useApi.<feature>.test.ts` |
+| `useApiBatch` behavior | `tests/useApiBatch.<feature>.test.ts` |
+| Internal composable | `tests/composables/<composable>.test.ts` (mirrors `src/composables/`) |
+| Feature module | `tests/features/<module>.test.ts` (mirrors `src/features/`) |
+| Utility | `tests/utils/<util>.test.ts` (mirrors `src/utils/`) |
+| Helpers | `tests/useApi.helpers.test.ts` |
+| Cross-cutting integration | `tests/integration/<topic>.test.ts` |
+
+Import the subject through a relative path into `src` — `../src/useApi`,
+`../../src/features/cacheManager`. No path alias, on purpose: the depth makes a
+misplaced file obvious. See `packages/use-api/tests/README.md`.
 
 Create a new file for a new feature (`useApi.myNewOption.test.ts`) rather than appending to an existing file.
 
@@ -177,10 +183,10 @@ pnpm test
 pnpm --filter @ametie/vue-muza-use exec vitest run
 
 # single pass, one file
-pnpm --filter @ametie/vue-muza-use exec vitest run src/useApi.swr.test.ts
+pnpm --filter @ametie/vue-muza-use exec vitest run tests/useApi.swr.test.ts
 
 # watch a specific file
-pnpm --filter @ametie/vue-muza-use exec vitest src/useApi.swr.test.ts
+pnpm --filter @ametie/vue-muza-use exec vitest tests/useApi.swr.test.ts
 
 # coverage report
 pnpm --filter @ametie/vue-muza-use exec vitest run --coverage

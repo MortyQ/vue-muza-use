@@ -35,12 +35,13 @@ packages/use-api/src/
   index.ts                       ← public barrel export — the ONLY surface consumers see
 ```
 
-**Test layout (actual, as of 1.5.4):** most `*.test.ts` files are co-located next to
-their subject (`useApi.ts` → `useApi.test.ts`, `composables/useAbortController.ts` →
-`composables/useAbortController.test.ts`, etc.). `__tests__/` holds a handful of
-cross-cutting integration tests (`devtools.test.ts`, `useApi.devtools.test.ts`,
-`useApi.executeConfig.test.ts`, `cache.test.ts`). See `testing.instructions.md`
-for the current convention — don't assume everything lives in `__tests__/`.
+**Test layout (as of 1.8.3):** no tests inside `src/` — they live in
+`packages/use-api/tests/`, mirroring the tree above (`src/useApi.ts` →
+`tests/useApi.test.ts`, `src/composables/useAbortController.ts` →
+`tests/composables/useAbortController.test.ts`). `tests/integration/` holds the
+cross-cutting ones (`cache.test.ts`, `devtools.test.ts`, `useApi.devtools.test.ts`,
+`useApi.executeConfig.test.ts`), `tests/__mocks__/` the devtools peer stub.
+See `testing.instructions.md` and `packages/use-api/tests/README.md`.
 
 ---
 
@@ -142,7 +143,7 @@ const {
 // implement behavior using myNewOption
 ```
 
-**Step 4 — Write tests:** `src/__tests__/useApi.myNewOption.test.ts`
+**Step 4 — Write tests:** `tests/useApi.myNewOption.test.ts`
 
 **Step 5 — Update `README.md`:** add to the options reference table.
 

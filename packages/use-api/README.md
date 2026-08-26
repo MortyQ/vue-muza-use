@@ -1511,7 +1511,7 @@ Every item returned in `data` has this shape:
 | `url` | `string` | The URL that was requested |
 | `index` | `number` | Position in the original array |
 | `success` | `boolean` | `true` if the request succeeded — equivalent to `status === "success"` |
-| `status` | `"pending" \| "success" \| "error"` | Lifecycle of this item. `pending` means no result yet |
+| `status` | `"pending" \| "success" \| "error" \| "aborted"` | Lifecycle of this item. `pending` means no result yet; `aborted` means the request was cancelled before it answered (see [Cancelling a batch](#cancelling-a-batch--abort-reset-and-re-execute)) |
 | `stale` | `boolean` | `true` while `data` comes from cache and a background refresh is in flight or has failed |
 | `data` | `T \| null` | Response data. `null` while `pending`, and `null` on a failure with no cached value to fall back on |
 | `error` | `ApiError \| null` | Error details (`null` if succeeded) |
@@ -1543,6 +1543,40 @@ for (const item of data.value) {
 > `response` and `request` are new fields. If you were serializing
 > `BatchResultItem` to JSON or storing it in a database, update your
 > serialization logic to handle these new fields.
+
+#### Cancelling a Batch — `abort()`, `reset()` and Re-Execute
+
+A batch can be cancelled at any point: explicitly (`abort()` / `reset()`), by
+calling `execute()` again while one is still running, or by the owning scope
+being disposed (component unmount, store teardown).
+
+Whatever the trigger, the cancelled run resolves — it never rejects and never
+returns a partially filled array:
+
+```typescript
+const { data, execute, reset } = useApiBatch(urls)
+
+const pending = execute()
+reset()                       // e.g. from onUnmounted while requests are in flight
+
+const results = await pending // always an array of `urls.length` items
+results[0].status             // 'success' if it had already landed, otherwise 'aborted'
+```
+
+Rules:
+
+- **Cancelled ≠ failed.** Unanswered items come back as `status: "aborted"` with
+  `error: null`. They never reach `errors`, never fire `onItemError`, and never
+  trigger the aggregated `BATCH_ALL_FAILED` error — so `error.value` stays `null`
+  when you simply navigate away. A cancelled SWR revalidation keeps its cached
+  value in `data` with `stale: true`.
+- **`reset()` and a replacing `execute()` discard the run.** After that it writes
+  nothing more to `data`, `errors`, `progress` or `loading`, and its `onFinish`,
+  `onItemSuccess` and `onItemError` no longer fire — no toasts from a screen the
+  user already left, no spinner turned off under the run that replaced it.
+- **`abort()` cancels without discarding.** The run is still the current one, so
+  it clears `loading` and calls `onFinish` with its final snapshot once the
+  requests unwind. Use `reset()` when you want the state gone as well.
 
 #### Error Tolerance (Default)
 
@@ -2507,7 +2541,6 @@ type BatchInput = string | BatchRequestConfig
 | `lazy` | `boolean` | `false` | Disable auto-tracking. When `false`, a getter passed as `requests` re-executes the batch automatically when its reactive deps change. Set `true` for full manual control via `execute()` |
 | `poll` | `number \| { interval: MaybeRefOrGetter<number>, whenHidden?: MaybeRefOrGetter<boolean> }` | `0` | Polling interval in ms. After each execution, schedules the next one after `interval` ms. `0` disables polling. `whenHidden: false` (default) pauses when the tab is hidden |
 | `skipErrorNotification` | `boolean` | `true` | Suppress global error handler for individual item failures |
-| `watch` | `WatchSource \| WatchSource[]` | `undefined` | **Deprecated** — use a reactive getter with `lazy: false` instead. Will be removed in v2.0 |
 | `onItemSuccess` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch succeeds |
 | `onItemError` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch fails |
 | `onProgress` | `(progress: BatchProgress) => void` | `undefined` | Called after each request completes with updated progress |

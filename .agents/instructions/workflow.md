@@ -22,7 +22,7 @@ pnpm test
 pnpm --filter @ametie/vue-muza-use exec vitest run
 
 # Run a specific test file
-pnpm --filter @ametie/vue-muza-use exec vitest run src/useApi.swr.test.ts
+pnpm --filter @ametie/vue-muza-use exec vitest run tests/useApi.swr.test.ts
 
 # Dev mode — rebuild on source change
 pnpm --filter @ametie/vue-muza-use dev
