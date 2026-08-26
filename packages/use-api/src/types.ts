@@ -1,5 +1,5 @@
 import type { AxiosRequestConfig, AxiosResponse, AxiosInstance } from "axios";
-import type {MaybeRefOrGetter, Ref, WatchSource} from "vue";
+import type {MaybeRefOrGetter, Ref} from "vue";
 
 export interface ApiError {
     message: string;
@@ -319,6 +319,13 @@ export interface UseApiReturn<T = unknown, D = unknown> {
     cacheKey: Ref<string | null>;
     execute: (config?: ExecuteConfig<D>) => Promise<T | null>;
     abort: (message?: string) => void;
+    /**
+     * Reset `data`, `error` and `loading` back to their initial values.
+     *
+     * Safe to call while a request is in flight (e.g. from `onUnmounted`): the
+     * request is aborted, its `execute()` promise resolves with `null`, and the
+     * cancelled request writes nothing back into the state afterwards.
+     */
     reset: () => void;
     /**
      * Run `updater` without triggering auto-tracked re-execution.
@@ -483,7 +490,9 @@ export interface BatchProgress {
     /**
      * Number of completed requests (success + failed). An SWR cache hit counts
      * only once its background revalidation settles — it is already visible in
-     * `data` before that, with `stale: true`.
+     * `data` before that, with `stale: true`. Cancelled requests
+     * (`status: "aborted"`) are neither, so an aborted batch stops short of
+     * `total` instead of reporting the cancellations as failures.
      */
     completed: number;
     /** Total number of requests */
@@ -512,8 +521,13 @@ export type BatchCacheOptions = Pick<CacheOptions, "staleTime" | "swr" | "freshF
  * - `success` — data is available. With `cache: { swr: true }` this is reached
  *   immediately from cache, before the network answers — check `stale`.
  * - `error` — the request failed and no data is available.
+ * - `aborted` — the request was cancelled before it could answer, by `abort()`,
+ *   `reset()`, a replacing `execute()` or scope disposal. Not a failure: it never
+ *   reaches `errors`, never fires `onItemError` and never counts towards the
+ *   aggregated `BATCH_ALL_FAILED` error. A cancelled SWR revalidation keeps the
+ *   cached value in `data` with `stale: true`.
  */
-export type BatchItemStatus = "pending" | "success" | "error";
+export type BatchItemStatus = "pending" | "success" | "error" | "aborted";
 
 /**
  * Options for useApiBatch
@@ -550,19 +564,6 @@ export interface UseApiBatchOptions<T = unknown, D = unknown, TRaw = unknown> ex
         interval: MaybeRefOrGetter<number>;
         whenHidden?: MaybeRefOrGetter<boolean>;
     }>;
-    /**
-     * @deprecated Use a reactive getter for `requests` with `lazy: false` (default).
-     * Auto-tracking will re-execute when the getter's dependencies change.
-     * Will be removed in v2.0.
-     *
-     * @example
-     * // Before (deprecated):
-     * useApiBatch(() => ids.value.map(id => `/items/${id}`), { watch: ids })
-     *
-     * // After (preferred):
-     * useApiBatch(() => ids.value.map(id => `/items/${id}`))
-     */
-    watch?: WatchSource | WatchSource[];
     /**
      * Cache each request in the batch **independently**, under an auto-derived
      * key (`method + url + params + data`) — so a batch of 3 URLs produces 3
@@ -654,7 +655,7 @@ export interface UseApiBatchReturn<T = unknown> {
      * All results, in the order of the requests array and always of that length.
      * Filled in **incrementally**: an item is published as soon as it resolves
      * (or immediately, from cache), so the array holds a mix of `pending`,
-     * `success` and `error` items while the batch runs.
+     * `success`, `error` and `aborted` items while the batch runs.
      */
     data: Ref<BatchResultItem<T>[]>;
     /** Only successful results' data — grows as items land. */
@@ -671,17 +672,44 @@ export interface UseApiBatchReturn<T = unknown> {
      * Only ever `true` with `cache: { swr: true }`.
      */
     revalidating: Ref<boolean>;
-    /** Aggregated error (set if all requests failed) */
+    /**
+     * Aggregated error — set when every request that got an answer failed.
+     * Cancelled items (`status: "aborted"`) are not counted, so aborting or
+     * resetting a batch mid-flight never produces `BATCH_ALL_FAILED`.
+     */
     error: Ref<ApiError | null>;
     /** List of all errors from failed requests */
     errors: Ref<ApiError[]>;
     /** Progress tracking */
     progress: Ref<BatchProgress>;
-    /** Execute the batch */
+    /**
+     * Execute the batch.
+     *
+     * Calling it again cancels the run in flight. The cancelled run's promise
+     * still resolves — with its own snapshot, where everything that never
+     * answered is `status: "aborted"` — and from the moment it is replaced it
+     * writes nothing more to `data`, `errors`, `progress` or `loading`, and its
+     * `onFinish` / `onItemSuccess` / `onItemError` no longer fire.
+     */
     execute: () => Promise<BatchResultItem<T>[]>;
-    /** Abort all pending requests */
+    /**
+     * Abort all pending requests. Everything that never answered ends up as
+     * `status: "aborted"` — not counted as a failure, so `error` stays `null`
+     * and `onItemError` does not fire. The run is cancelled, not discarded: it
+     * still clears `loading` and calls `onFinish` with its final snapshot once
+     * the requests unwind. Use `reset()` to drop the run entirely.
+     */
     abort: (message?: string) => void;
-    /** Reset state to initial */
+    /**
+     * Reset state to initial — `data`, `errors` and `error` are cleared and
+     * progress goes back to zero.
+     *
+     * Safe to call while requests are in flight (e.g. from `onUnmounted`): the
+     * current run is aborted, its `execute()` promise resolves with a snapshot of
+     * the results as of the cancellation, and after that it can no longer write to
+     * `data` / `errors` / `progress`, nor fire `onFinish`, `onItemSuccess` or
+     * `onItemError`.
+     */
     reset: () => void;
 }
 

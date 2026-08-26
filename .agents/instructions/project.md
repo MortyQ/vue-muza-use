@@ -11,7 +11,8 @@ JWT token refresh, in-memory caching, polling, SWR, batching, and global abort c
 useApi/
 ├── packages/
 │   ├── use-api/          # Main library — @ametie/vue-muza-use
-│   │   ├── src/          # Source code
+│   │   ├── src/          # Source code — shipped code only, no tests
+│   │   ├── tests/        # All tests, mirroring the src/ tree (see tests/README.md)
 │   │   ├── dist/         # Built output — NEVER edit manually
 │   │   ├── package.json
 │   │   ├── tsconfig.json

@@ -13,7 +13,7 @@ Naming, file structure, and code style rules.
 | Internal composables | `use<Name>.ts` | `useApiState.ts`, `useAbortController.ts` |
 | Feature modules | `camelCase.ts` | `cacheManager.ts`, `tokenManager.ts` |
 | Utilities | `camelCase.ts` | `debounce.ts`, `errorParser.ts` |
-| Test files | `<subject>.test.ts` | `useApi.core.test.ts`, `cacheManager.test.ts` |
+| Test files | `<subject>.test.ts` under `tests/`, mirroring `src/` | `tests/useApi.core.test.ts`, `tests/features/cacheManager.test.ts` |
 
 ---
 
