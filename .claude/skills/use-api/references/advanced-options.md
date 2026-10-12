@@ -15,6 +15,7 @@ do not apply them by default.
 | `poll`                                        | `poll: 5000` (ms) for simple polling, or `poll: { interval: 5000, whenHidden: false }` to control whether polling continues while the tab is hidden.                                                                    | Status/progress screens, dashboards that need periodic refresh                                                  |
 | `authMode: "public" \| "optional"`            | `"public"` skips the Authorization header and the 401-refresh flow entirely; `"optional"` sends the token if present but doesn't force a refresh on 401. Default is `"default"` (token required, 401 triggers refresh).  | Public endpoints (login, signup) or endpoints that behave differently for anonymous vs. authenticated users      |
 | `initialData` / `initialLoading`              | Seed `data`/`loading` before the first request resolves (e.g. from SSR-adjacent hydration or a cached value). `initialLoading` defaults to `immediate`'s value.                                                          | Avoiding a loading flash when you already have data to show                                                     |
+| `client`                                      | Send through a named client registered with `createApi({ clients })` (1.9+). Auto cache keys become `auto@<client>:...`; a client's `errorParser` wins; global `onError` gets `{ client }` as a third argument.  | Any request to a second backend — set it in the feature wrapper, never per component                           |
 | `useGlobalAbort`                              | Opt this request into the global `useAbortController()` — a call to `abort()` anywhere cancels it too. Default `true`.                                                                                                   | Set `false` for requests that must survive a global filter-change abort (e.g. a background upload)              |
 
 ---
@@ -30,4 +31,4 @@ do not apply them by default.
 - Lifecycle (merge): `onBefore`, `onSuccess`, `onError`, `onFinish`
 
 **Not overridable per call** (setup-time only): `immediate`, `lazy`, `debounce`, `poll`, `refetchOnFocus`,
-`refetchOnReconnect`, `initialData`, `initialLoading`, `useGlobalAbort`.
+`refetchOnReconnect`, `initialData`, `initialLoading`, `useGlobalAbort`, `client`.

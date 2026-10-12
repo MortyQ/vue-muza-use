@@ -57,12 +57,12 @@ Test command: `pnpm --filter @ametie/vue-muza-use exec vitest run`.
 
 ## 6. Compatibility gates and docs sync — `docs(use-api): document auth sessions and named clients in the skill`
 
-- [ ] 6.1 Update `.claude/skills/use-api/SKILL.md` and the relevant `references/*.md` (`security.md` for the session, `caching.md` for client-scoped keys, `batch.md` for per-item client, `advanced-options.md` for `clients`); verify each new statement matches the implemented behaviour by pointing to the test that proves it
-- [ ] 6.2 Build the branch and diff `dist/index.d.ts` against `index.d.base.ts` from 1.2; verify the diff contains **only added lines** apart from the additive optional fields/parameters listed in the proposal (any removed or changed pre-existing signature is a blocker)
-- [ ] 6.3 Run `git diff --exit-code origin/main -- packages/use-api/src/features/interceptors.ts packages/use-api/src/features/tokenManager.ts`; verify exit code 0
-- [ ] 6.4 Run `git diff --stat origin/main -- packages/use-api/tests` and verify only new files appear (no modified existing test file)
+- [x] 6.1 Update `.claude/skills/use-api/SKILL.md` and the relevant `references/*.md` (`security.md` for the session, `caching.md` for client-scoped keys, `batch.md` for per-item client, `advanced-options.md` for `clients`); verify each new statement matches the implemented behaviour by pointing to the test that proves it
+- [x] 6.2 Build the branch and diff `dist/index.d.ts` against `index.d.base.ts` from 1.2; verify the diff contains **only added lines** apart from the additive optional fields/parameters listed in the proposal (any removed or changed pre-existing signature is a blocker)
+- [x] 6.3 Run `git diff --exit-code origin/main -- packages/use-api/src/features/interceptors.ts packages/use-api/src/features/tokenManager.ts`; verify exit code 0
+- [x] 6.4 Run `git diff --stat origin/main -- packages/use-api/tests` and verify only new files appear (no modified existing test file)
 - [ ] 6.5 Optional: add a playground page with two mock backends sharing one session; verify manually that concurrent 401s produce one refresh in the network panel
-- [ ] 6.6 Final full suite + `pnpm build`; put baseline vs final counts and the outputs of 6.2–6.4 in the PR description
+- [x] 6.6 Final full suite + `pnpm build`; put baseline vs final counts and the outputs of 6.2–6.4 in the PR description
 
 ## Workflow follow-up
 
