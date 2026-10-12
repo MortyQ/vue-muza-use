@@ -287,7 +287,7 @@ export interface ApiErrorContext { client: string }
 
 // ApiPluginOptions — additive:
 clients?: Record<string, AxiosInstance | ApiClientConfig>;
-onError?: (error: ApiError, originalError: unknown, context: ApiErrorContext) => void;
+onError?: (error: ApiError, originalError: unknown, context?: ApiErrorContext) => void;
 // UseApiOptions — additive:
 client?: ApiClientName;
 // UseApiBatchOptions and BatchRequestConfig — additive:
@@ -307,7 +307,10 @@ untyped caller cannot leak it to axios.
    synchronously on an unknown name;
 3. `toApiError` uses `resolved.errorParser ?? parseApiError`;
 4. `axios.request` → `resolved.axios.request`;
-5. `globalErrorHandler(apiError, err, { client: resolved.name })`;
+5. default client → `globalErrorHandler(apiError, err)` (unchanged); named client →
+   `globalErrorHandler(apiError, err, { client: resolved.name })`. **Decided during apply:** the
+   existing `useApi.core.test.ts` asserts the global handler is called with exactly two arguments,
+   so passing `{ client: "default" }` would be an observable change; `context` is optional in the type;
 6. `resolveCacheKey(..., resolved.name)`.
 
 `cacheManager.ts`: `resolveCacheKey` gets an optional 6th parameter `client?: string`. Undefined or
@@ -340,7 +343,7 @@ Every item below must be identical to 1.8.3; the "proof" column is what the task
 | Legacy 401 path | `git diff --exit-code origin/main -- packages/use-api/src/features/interceptors.ts packages/use-api/src/features/tokenManager.ts` (task 6.3) |
 | `createApiClient` without `authSession` | existing `tests/features/createInstance.test.ts` + new "no authSession → unchanged" test |
 | Default cache keys | existing `tests/useApi.autoCache.test.ts` asserts the literal `auto:GET:/users:{"page":1}:` |
-| `onError` callers with two params | additive third param; existing global-error-handler tests |
+| `onError` called with exactly two args for default-client requests | `tests/useApi.core.test.ts` asserts `toHaveBeenCalledWith(error, anything)` — arity-exact |
 | Public type surface | `.d.ts` diff of `dist/index.d.ts` built from `origin/main` vs branch contains only additions (task 6.2) |
 | Bundle | no new dependency; `navigator.locks` touched only behind `crossTab` |
 

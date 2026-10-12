@@ -1,6 +1,7 @@
 import { type App, type InjectionKey, inject } from "vue";
 import type { ApiPluginOptions } from "./types";
 import { initDevtools, setDevtoolsExpected } from "./devtools";
+import { assertValidClients } from "./features/clientRegistry";
 
 export const API_INJECTION_KEY: InjectionKey<ApiPluginOptions> = Symbol("use-api-config");
 
@@ -8,6 +9,8 @@ export const API_INJECTION_KEY: InjectionKey<ApiPluginOptions> = Symbol("use-api
 let globalConfig: ApiPluginOptions | null = null;
 
 export function createApi(options: ApiPluginOptions) {
+    assertValidClients(options.clients);
+
     // Store config globally for use in Pinia stores and outside component setup
     globalConfig = options;
     setDevtoolsExpected(options.devtools?.enabled === true);

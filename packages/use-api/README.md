@@ -106,6 +106,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 
 **Advanced:**
 - [Advanced Configuration](#️-advanced-configuration)
+  - [Multiple Backends (Named Clients)](#multiple-backends-named-clients)
 - [DevTools Panel](#-devtools-panel)
 - [Authentication & Token Management](#-authentication--token-management)
   - [Auth session (multiple clients, Apollo, WebSocket)](#auth-session-multiple-clients-apollo-websocket)
@@ -1500,6 +1501,7 @@ interface BatchRequestConfig {
   data?: unknown
   params?: unknown
   headers?: Record<string, string>
+  client?: string  // named client for this item — overrides the batch-level `client` (1.9+)
 }
 ```
 
@@ -1725,6 +1727,91 @@ customAxios.interceptors.request.use((config) => {
 })
 
 app.use(createApi({ axios: customAxios }))
+```
+
+---
+
+### Multiple Backends (Named Clients)
+
+**TL;DR: register extra axios instances under names and pick one per request with `client`. Each backend keeps its own `baseURL`, headers, timeout and error parser, and cache entries never mix.** *(1.9+)*
+
+```typescript
+import { createApi, createApiClient, createAuthSession } from '@ametie/vue-muza-use'
+
+const session = createAuthSession({ refresh: { url: '/auth/refresh', baseURL: INSIGHTS_URL } })
+
+app.use(createApi({
+  axios: createApiClient({ baseURL: INSIGHTS_URL, authSession: session }), // the "default" client
+  clients: {
+    tools: createApiClient({ baseURL: TOOLS_URL, authSession: session }),   // shorthand
+    mcp: { axios: mcpApi, errorParser: parseMcpError },                     // full form
+  },
+}))
+```
+
+```typescript
+// api/useBrands.ts
+export function useToolsBrands() {
+  return useApiGet<Brand[]>('/brands', { client: 'tools', immediate: true })
+}
+
+// Batch: batch-level client, overridable per item
+useApiBatch(['/brands', { url: '/me', client: 'default' }], { client: 'tools' })
+```
+
+- **Routing.** A request without `client` (or with `client: 'default'`) goes through `axios`, exactly as before. With `client: 'tools'` the request, its retries and its 401 refresh-retry go through the `tools` instance, resolved against that instance's `baseURL`. `client` is fixed per composable — it is not reactive and cannot be changed per `execute()`.
+- **Unknown names fail loudly.** `client: 'nope'` throws when the composable is created: `Unknown API client "nope". Registered: default, tools, mcp`. In a batch, an unknown item-level client fails that item only. The name `default` is reserved — `clients: { default: … }` throws in `createApi`.
+- **Auth.** Each instance brings its own auth. Give them one [auth session](#several-backends-one-session) so a token expiry triggers a single refresh.
+- **Global options** (`retry`, `cacheDefaults`, global abort, devtools) apply to every client.
+
+#### Type-checked client names
+
+Out of the box `client` accepts any string. Declare your clients once to get autocomplete and typo errors:
+
+```typescript
+// src/types/vue-muza-use.d.ts
+import '@ametie/vue-muza-use'
+
+declare module '@ametie/vue-muza-use' {
+  interface ApiClientRegistry {
+    tools: true
+    mcp: true
+  }
+}
+```
+
+```typescript
+useApiGet('/brands', { client: 'tools' })  // ✅
+useApiGet('/brands', { client: 'tool' })   // ❌ Type '"tool"' is not assignable to type … Did you mean '"tools"'?
+```
+
+#### Cache keys per client
+
+Auto cache keys of a named client carry its name, so `GET /brands` on two backends are two entries:
+
+| Request | Auto cache key |
+|---------|----------------|
+| `useApi('/brands', { cache: true })` | `auto:GET:/brands::` *(unchanged)* |
+| `useApi('/brands', { cache: true, client: 'tools' })` | `auto@tools:GET:/brands::` |
+| `useApi('/brands', { cache: { id: 'brands' }, client: 'tools' })` | `brands` *(manual ids are used verbatim)* |
+
+```typescript
+invalidateCache({ prefix: 'auto@tools:GET:/brands' }) // only the tools entries
+invalidateCache({ prefix: 'auto:GET:/brands' })       // only the default-client entries
+```
+
+#### Errors per client
+
+A client's `errorParser` wins; without one the global `errorParser` is used, then the built-in parser. The global `onError` gets a third argument naming the client — for named clients only, so existing two-argument handlers see no change:
+
+```typescript
+createApi({
+  axios: insightsApi,
+  clients: { tools: { axios: toolsApi, errorParser: parseToolsError } },
+  onError: (error, original, context) => {
+    toast.error(`[${context?.client ?? 'default'}] ${error.message}`)
+  },
+})
 ```
 
 ---
@@ -2478,6 +2565,7 @@ Three type parameters — all optional with defaults:
 | `params` | `MaybeRefOrGetter<any>` | `undefined` | URL query parameters — automatically unwrapped if a ref |
 | `headers` | `Record<string, string>` | `undefined` | Custom request headers added on top of defaults |
 | `authMode` | `'default' \| 'public' \| 'optional'` | `'default'` | Controls token injection and 401 retry behaviour |
+| `client` | `ApiClientName` (`string` unless [declared](#type-checked-client-names)) | `'default'` | Named client to send through — see [Multiple Backends](#multiple-backends-named-clients). Fixed per composable *(1.9+)* |
 
 **Reactivity & Auto-Execution:**
 
@@ -2684,8 +2772,9 @@ createApp(App).use(createApi({
 
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
-| `axios` | `AxiosInstance` | ✅ Yes | The Axios instance to use for all requests |
-| `onError` | `(error: ApiError, original: unknown) => void` | No | Global error handler called for every failed request (unless `skipErrorNotification: true`) |
+| `axios` | `AxiosInstance` | ✅ Yes | The Axios instance to use for all requests (the `default` client) |
+| `clients` | `Record<string, AxiosInstance \| { axios, errorParser? }>` | No | Extra named clients selectable with the `client` option. `default` is reserved — see [Multiple Backends](#multiple-backends-named-clients) *(1.9+)* |
+| `onError` | `(error: ApiError, original: unknown, context?: { client: string }) => void` | No | Global error handler called for every failed request (unless `skipErrorNotification: true`). `context` is passed for named-client failures only |
 | `errorParser` | `(error: unknown) => ApiError` | No | Custom function to convert raw Axios errors into `ApiError` format |
 | `globalOptions` | `object` | No | Default options applied to every `useApi()` call (see globalOptions table above) |
 
@@ -2750,6 +2839,7 @@ type BatchInput = string | BatchRequestConfig
 | `lazy` | `boolean` | `false` | Disable auto-tracking. When `false`, a getter passed as `requests` re-executes the batch automatically when its reactive deps change. Set `true` for full manual control via `execute()` |
 | `poll` | `number \| { interval: MaybeRefOrGetter<number>, whenHidden?: MaybeRefOrGetter<boolean> }` | `0` | Polling interval in ms. After each execution, schedules the next one after `interval` ms. `0` disables polling. `whenHidden: false` (default) pauses when the tab is hidden |
 | `skipErrorNotification` | `boolean` | `true` | Suppress global error handler for individual item failures |
+| `client` | `ApiClientName` | `'default'` | Named client for every item; an item's own `client` wins *(1.9+)* |
 | `onItemSuccess` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch succeeds |
 | `onItemError` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch fails |
 | `onProgress` | `(progress: BatchProgress) => void` | `undefined` | Called after each request completes with updated progress |

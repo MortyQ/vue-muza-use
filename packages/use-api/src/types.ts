@@ -261,6 +261,14 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      * Properties inside the object can also be Refs.
      */
     poll?: MaybeRefOrGetter<number | { interval: MaybeRefOrGetter<number>; whenHidden?: MaybeRefOrGetter<boolean> }>;
+    /**
+     * Named client (registered with `createApi({ clients })`) the request goes
+     * through. Default: the main `axios`. Fixed for the composable — not
+     * reactive and not overridable per `execute()`. An unknown name throws when
+     * the composable is created. Auto cache keys are scoped by client
+     * (`auto@tools:GET:/brands:...`); the default client's keys are unchanged.
+     */
+    client?: ApiClientName;
 }
 
 /**
@@ -297,6 +305,7 @@ export type ExecuteConfig<D = unknown> = Omit<
     | "refetchOnReconnect"
     | "poll"
     | "select"
+    | "client"
 >;
 
 export interface UseApiReturn<T = unknown, D = unknown> {
@@ -368,9 +377,76 @@ export interface UseApiReturn<T = unknown, D = unknown> {
     mutate: (newData: T | null | ((prev: T | null) => T | null)) => void;
 }
 
+// ============================================================================
+// Named Clients
+// ============================================================================
+
+/**
+ * Registry of named API clients, empty by default. Augment it to type-check the
+ * `client` option — without augmentation any string is accepted.
+ *
+ * @example
+ * ```ts
+ * declare module "@ametie/vue-muza-use" {
+ *     interface ApiClientRegistry {
+ *         tools: true;
+ *     }
+ * }
+ * useApiGet("/brands", { client: "tools" }); // ✅
+ * useApiGet("/brands", { client: "tool" });  // ❌ type error
+ * ```
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-interface, @typescript-eslint/no-empty-object-type
+export interface ApiClientRegistry {}
+
+/**
+ * A client name accepted by the `client` option: `"default"` or a name declared in
+ * {@link ApiClientRegistry}; any string while the registry is not augmented.
+ */
+export type ApiClientName = [keyof ApiClientRegistry] extends [never]
+    ? string
+    : "default" | Extract<keyof ApiClientRegistry, string>;
+
+/**
+ * Full form of a named client registered through `createApi({ clients })`.
+ */
+export interface ApiClientConfig {
+    /** The axios instance requests for this client go through. */
+    axios: AxiosInstance;
+    /** Error parser for this client's failures. Default: the global `errorParser`, then the built-in one. */
+    errorParser?: (error: unknown) => ApiError;
+}
+
+/**
+ * Third argument of the global `onError` — passed for named-client failures only.
+ * Default-client failures call `onError(error, originalError)` exactly as before 1.9.
+ */
+export interface ApiErrorContext {
+    /** Name of the client the failed request used. */
+    client: string;
+}
+
 export interface ApiPluginOptions {
     axios: AxiosInstance;
-    onError?: (error: ApiError, originalError: unknown) => void;
+    /**
+     * Global error handler. For a request sent through a named client the third
+     * argument names that client; default-client requests pass two arguments.
+     */
+    onError?: (error: ApiError, originalError: unknown, context?: ApiErrorContext) => void;
+    /**
+     * Extra axios instances, addressable per request with the `client` option.
+     * Each value is an axios instance or `{ axios, errorParser? }`. The name
+     * `default` is reserved for `axios` above. New in 1.9.
+     *
+     * @example
+     * ```ts
+     * createApi({
+     *     axios: insightsApi,
+     *     clients: { tools: toolsApi, mcp: { axios: mcpApi, errorParser: parseMcpError } },
+     * })
+     * ```
+     */
+    clients?: Record<string, AxiosInstance | ApiClientConfig>;
     /**
      * Custom error parser to transform backend errors into ApiError format.
      * Useful if your backend has a different error structure.
@@ -616,6 +692,8 @@ export interface BatchRequestConfig<D = unknown> {
     params?: D;
     /** Per-request headers that override global defaults for this request only */
     headers?: Record<string, string>;
+    /** Named client for this request — overrides the batch-level `client`. */
+    client?: ApiClientName;
 }
 
 /**
@@ -724,6 +802,11 @@ export interface UseApiBatchOptions<T = unknown, D = unknown, TRaw = unknown> ex
     concurrency?: number;
     /** Execute immediately on mount */
     immediate?: boolean;
+    /**
+     * Named client for every request in the batch (see `UseApiOptions.client`).
+     * A request item's own `client` takes precedence.
+     */
+    client?: ApiClientName;
     /** Skip individual error notifications */
     skipErrorNotification?: boolean;
     /**

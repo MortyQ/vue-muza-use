@@ -4,6 +4,7 @@ import { useApi } from "./useApi";
 import { useApiConfig } from "./plugin";
 import { useRefetchTriggers } from "./composables/useRefetchTriggers";
 import { normalizeCacheOptions, resolveCacheKey, readCacheEntry } from "./features/cacheManager";
+import { resolveClient } from "./features/clientRegistry";
 import type {
     UseApiBatchOptions,
     UseApiBatchReturn,
@@ -244,6 +245,9 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
      * the entry is missing/expired; `stale` marks an SWR hit that still needs
      * a background refresh.
      */
+    /** The client an item uses — its own, else the batch's (undefined = default). */
+    const clientFor = (config: BatchRequestConfig) => config.client ?? apiOptions.client;
+
     const readBatchCache = (config: BatchRequestConfig): { data: T; stale: boolean } | null => {
         if (!apiOptions.cache) return null;
 
@@ -257,6 +261,7 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
             config.url,
             toValue(config.params),
             toValue(config.data),
+            clientFor(config),
         );
         const entry = readCacheEntry<TRaw>(key);
         if (entry === null) return null;
@@ -303,9 +308,22 @@ export function useApiBatch<T = unknown, TRaw = unknown>(
         // Each internal useApi instance gets its own effectScope so that
         // onScopeDispose, poll timers, and event listeners are properly cleaned up
         // even when executeRequest() runs outside a Vue component's setup context.
+        // An unknown item-level client would make useApi throw outside the try below
+        // and leave the item looking cancelled — report it as this item's failure
+        try {
+            resolveClient(useApiConfig(), clientFor(config));
+        } catch (err) {
+            return failure({
+                message: err instanceof Error ? err.message : String(err),
+                status: 0,
+                code: 'BATCH_ERROR',
+            });
+        }
+
         const scope = effectScope();
         const api = scope.run(() => useApi<TRaw, unknown, T>(config.url, {
             ...apiOptions,
+            client: clientFor(config),
             method: config.method,
             data: config.data,
             params: config.params,

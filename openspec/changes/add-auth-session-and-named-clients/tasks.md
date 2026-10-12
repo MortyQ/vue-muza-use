@@ -44,16 +44,16 @@ Test command: `pnpm --filter @ametie/vue-muza-use exec vitest run`.
 
 ## 5. Named clients — `feat(clients): route useApi and useApiBatch requests to named axios clients`
 
-- [ ] 5.1 Add to `src/types.ts`: `ApiClientRegistry`, `ApiClientName`, `ApiClientConfig`, `ApiErrorContext`; `clients` and the 3-arg `onError` on `ApiPluginOptions`; `client` on `UseApiOptions`, `UseApiBatchOptions`, `BatchRequestConfig`; `"client"` added to the `ExecuteConfig` `Omit` list; all with JSDoc; verify tsc passes
-- [ ] 5.2 Create `src/features/clientRegistry.ts` per D6 (`DEFAULT_CLIENT`, memoised `resolveClient`, unknown-name error listing registered names, shorthand vs full form detection); add the reserved-`default` check to `createApi` in `src/plugin.ts`; verify existing suite green
-- [ ] 5.3 Add the optional `client` parameter to `resolveCacheKey` in `src/features/cacheManager.ts` (default/undefined → byte-identical key; named → `auto@<client>:` prefix; manual `id` unchanged); verify `tests/useApi.autoCache.test.ts` still passes unedited
-- [ ] 5.4 Apply the six `useApi.ts` edits listed in D6 and nothing else; strip `client` from the per-call config; verify existing suite green
-- [ ] 5.5 Apply the `useApiBatch.ts` edits from D6 (batch-level + per-item client, client-aware `readBatchCache`); verify existing batch suites green
-- [ ] 5.6 Write `tests/useApi.clients.test.ts` covering every scenario of "Default client is unchanged", "Registering named clients", "Selecting a client per request", "Cache keys are scoped by client", "Per-client error parsing and error context", "Global behaviour applies to every client" (abort, cacheDefaults, retry, devtools reporting via a stubbed devtools bridge, plus 401 retry through the named instance when it is attached to a session); verify all pass
-- [ ] 5.7 Write `tests/useApiBatch.clients.test.ts` covering "Batch requests support clients"; verify all pass
-- [ ] 5.8 Write `tests/types/clients.test-d.ts` (or `expectTypeOf` inside a `.test.ts` if `test-d` is not configured — check `vitest.config.ts` first) proving: augmented registry rejects an undeclared name, accepts `"default"` and declared names; unaugmented accepts any string; `ExecuteConfig` has no `client`; verify the type test runs in the suite
-- [ ] 5.9 README: new § "Multiple backends (named clients)" — registration, `client` option, module augmentation, cache-key format and prefix invalidation, per-client `errorParser`, `onError` context; add options to the `useApi` / `useApiBatch` / `createApi` reference tables; verify snippets type-check as in 2.8
-- [ ] 5.10 Full suite, `pnpm build`; verify counts
+- [x] 5.1 Add to `src/types.ts`: `ApiClientRegistry`, `ApiClientName`, `ApiClientConfig`, `ApiErrorContext`; `clients` and the optional third `onError` argument on `ApiPluginOptions`; `client` on `UseApiOptions`, `UseApiBatchOptions`, `BatchRequestConfig`; `"client"` added to the `ExecuteConfig` `Omit` list; all with JSDoc; verify tsc passes
+- [x] 5.2 Create `src/features/clientRegistry.ts` per D6 (`DEFAULT_CLIENT`, memoised `resolveClient`, unknown-name error listing registered names, shorthand vs full form detection); add the reserved-`default` check to `createApi` in `src/plugin.ts`; verify existing suite green
+- [x] 5.3 Add the optional `client` parameter to `resolveCacheKey` in `src/features/cacheManager.ts` (default/undefined → byte-identical key; named → `auto@<client>:` prefix; manual `id` unchanged); verify `tests/useApi.autoCache.test.ts` still passes unedited
+- [x] 5.4 Apply the six `useApi.ts` edits listed in D6 and nothing else; strip `client` from the per-call config; verify existing suite green
+- [x] 5.5 Apply the `useApiBatch.ts` edits from D6 (batch-level + per-item client, client-aware `readBatchCache`); verify existing batch suites green
+- [x] 5.6 Write `tests/useApi.clients.test.ts` covering every scenario of "Default client is unchanged", "Registering named clients", "Selecting a client per request", "Cache keys are scoped by client", "Per-client error parsing and error context", "Global behaviour applies to every client" (abort, cacheDefaults, retry, devtools reporting via a stubbed devtools bridge, plus 401 retry through the named instance when it is attached to a session); verify all pass
+- [x] 5.7 Write `tests/useApiBatch.clients.test.ts` covering "Batch requests support clients"; verify all pass
+- [x] 5.8 Write `tests/types/clients.test-d.ts` (or `expectTypeOf` inside a `.test.ts` if `test-d` is not configured — check `vitest.config.ts` first) proving: augmented registry rejects an undeclared name, accepts `"default"` and declared names; unaugmented accepts any string; `ExecuteConfig` has no `client`; verify the type test runs in the suite
+- [x] 5.9 README: new § "Multiple backends (named clients)" — registration, `client` option, module augmentation, cache-key format and prefix invalidation, per-client `errorParser`, `onError` context; add options to the `useApi` / `useApiBatch` / `createApi` reference tables; verify snippets type-check as in 2.8
+- [x] 5.10 Full suite, `pnpm build`; verify counts
 
 ## 6. Compatibility gates and docs sync — `docs(use-api): document auth sessions and named clients in the skill`
 

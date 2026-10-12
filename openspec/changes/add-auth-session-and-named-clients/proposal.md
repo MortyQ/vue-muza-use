@@ -55,7 +55,8 @@ once:
   - Client names are type-checked through an augmentable `ApiClientRegistry` interface; without
     augmentation any string is accepted.
   - Unknown client name → a descriptive error at `useApi` call time.
-- Global `onError` receives a third, additive argument `{ client }`.
+- Global `onError` receives an optional third argument `{ client }` for named-client failures.
+  Default-client failures keep calling it with exactly the two arguments of 1.8.x.
 - README and the in-repo `use-api` skill gain sections for both features, including recipes for
   Apollo (`errorLink` → `session.refresh()`, `HttpLink({ fetch: session.fetch })`) and
   `graphql-ws` (`session.on("refreshed", ...)` → reconnect). The library takes **no** dependency
@@ -67,7 +68,7 @@ Public exports added: `createAuthSession`, types `AuthSession`, `AuthSessionOpti
 `AuthSessionEvent`, `AuthSessionEventMap`, `RefreshContext`, `RefreshResult`,
 `DeclarativeRefreshOptions`, `ApiClientRegistry`, `ApiClientName`, `ApiClientConfig`,
 `ApiErrorContext`. Changed (additive fields only): `CreateApiClientOptions.authSession`,
-`ApiPluginOptions.clients`, `ApiPluginOptions.onError` (third arg), `UseApiOptions.client`,
+`ApiPluginOptions.clients`, `ApiPluginOptions.onError` (optional third arg), `UseApiOptions.client`,
 `UseApiBatchOptions.client`, `BatchRequestConfig.client`.
 
 ## Capabilities
