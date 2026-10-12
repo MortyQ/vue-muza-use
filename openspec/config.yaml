@@ -1,0 +1,43 @@
+schema: spec-driven
+githubCopilot:
+  cloudAgent: false
+
+# Project context. Code rules are NOT restated here: `.agents/instructions/**` is authoritative.
+context: |
+  pnpm monorepo for the published library @ametie/vue-muza-use (packages/use-api), its devtools
+  panel @ametie/vue-muza-devtools (packages/devtools, published separately) and an unpublished
+  playground (packages/playground).
+  The library is consumed by production apps (so-platform: insights-client, pim-client,
+  web-extension-v3). A minor or patch release must not change behaviour for existing code:
+  unchanged call sites, unchanged cache keys, unchanged token storage, unchanged interceptor
+  semantics. Anything else is a major and must be called out as one.
+  Releases are cut by semantic-release from conventional commits on main -- never bump versions
+  by hand.
+  Layering, typing, testing and workflow rules live in `.agents/instructions/**` and are
+  authoritative. Artifacts must reference them, never restate them.
+  Capability folders under `openspec/specs/` are prefixed by package: `use-api-<capability>`,
+  `devtools-<capability>`.
+  All artifacts are written in English.
+
+rules:
+  proposal:
+    - "State the semver impact on the first line: [major] / [minor] / [patch] / [none]"
+    - State which package(s) are affected
+    - Always state what is out of scope
+    - List every public export that is added, changed or deprecated; say "no public API change" if none
+  design:
+    - Name the layer each piece belongs to (types.ts / features/ / composables/ / useApi.ts / index.ts) per library-architecture.instructions.md
+    - Include a backward-compatibility section that names each existing behaviour that must stay identical and how it is proven (which existing test files)
+    - Evaluate alternatives in ADVOCATE / SKEPTIC / VERDICT format
+  specs:
+    - Every requirement that touches existing behaviour gets a scenario proving the old behaviour is unchanged
+  tasks:
+    - "Each task group is one reviewable block and one commit: <type>(<scope>): <block>"
+    - Types in types.ts come before the implementation that uses them
+    - Every group ends with the full existing suite green (Rule 0 of testing.instructions.md), then new tests, then pnpm build
+    - Docs (README options tables, JSDoc) are a task, not an afterthought
+
+operations:
+  archive:
+    guidance:
+      - Archive only after the change is merged or committed and its specs are synced

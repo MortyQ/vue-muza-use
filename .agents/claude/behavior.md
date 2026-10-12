@@ -13,6 +13,44 @@
 
 ---
 
+## OpenSpec — Spec-Driven Planning
+
+One root `openspec/` serves the monorepo; capability folders under `openspec/specs/` are
+prefixed by package (`use-api-*`, `devtools-*`). Invoke the skills yourself — the owner does
+not type `/opsx:*`.
+
+**When it applies — a new feature or a behaviour change in any package.** Before any code:
+
+1. `openspec-explore` — think the idea through (ADVOCATE / SKEPTIC / VERDICT for alternatives).
+2. `openspec-propose` — creates `openspec/changes/<change>/` with proposal, design, delta specs
+   and tasks. The proposal states the semver impact on its first line.
+3. **The owner reviews the proposal before apply starts.** Do not begin implementing on an
+   unreviewed proposal.
+4. `openspec-apply-change` — implement the tasks; each task group is one block and one commit.
+   Rule 0 of `testing.instructions.md` (existing suite green first) applies to every group.
+5. `openspec-archive-change` — when the change is done, merged or committed, and its specs are
+   synced (`openspec-sync-specs`). Never earlier.
+
+`openspec-update-change` revises an existing change's artifacts when the plan shifts.
+
+**When it does not apply — no spec:** bug fixes, small tweaks, pure refactors, dependency
+bumps, chores, docs.
+
+**`openspec/specs/` is the living source of truth.** Read the relevant capability spec before
+changing an existing one.
+
+**The CLI is `pnpm openspec`, never bare `openspec`.** It is a pinned root devDependency, not a
+global install. Wherever an OpenSpec skill says to run `openspec <args>`, run
+`pnpm openspec <args>` from the repo root instead.
+
+**Generated files are never edited by hand:** `.claude/skills/openspec-*`,
+`.claude/commands/opsx/`, `.github/skills/openspec-*`, `.github/prompts/opsx-*`.
+`pnpm openspec:update` regenerates them. Project-specific guidance goes in
+`openspec/config.yaml`. Updating the OpenSpec version is the owner's manual step — never bump
+it or run `openspec:update` unprompted.
+
+---
+
 ## Hard Constraints
 
 - **`dist/` is read-only** — never suggest edits to `dist/`. Regenerate with `pnpm build`.
