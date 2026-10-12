@@ -7,9 +7,11 @@
   "packageManager": "pnpm@9.15.6+sha512.139cab068fdf0b751268179ac5f909b5be72afb4a75c513d1905d151befc8977b593d3cf8671ed83d4d6637c5c94b98ffbce108125de4a5a27a31233601a99de",
   "scripts": {
     "build": "pnpm --filter @ametie/vue-muza-use build",
-    "test": "pnpm --filter @ametie/vue-muza-use test"
+    "test": "pnpm --filter @ametie/vue-muza-use test",
+    "openspec:update": "OPENSPEC_TELEMETRY=0 openspec update"
   },
   "devDependencies": {
+    "@fission-ai/openspec": "1.14.1",
     "happy-dom": "^20.5.0"
   }
 }

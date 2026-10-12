@@ -33,6 +33,39 @@ cd packages/playground && pnpm dev
 
 ---
 
+## OpenSpec
+
+Planning and specs live in OpenSpec; the trigger rule is in `.agents/claude/behavior.md`.
+
+The CLI is a root devDependency (`@fission-ai/openspec`, exact version) — `pnpm install` is the
+whole installation. No global install; always call it through pnpm.
+
+```bash
+pnpm openspec list       # active changes
+pnpm openspec show       # show a change or spec
+pnpm openspec validate   # validate changes and specs (--all for everything)
+pnpm openspec view       # interactive dashboard
+pnpm openspec:update     # regenerate skills/commands/prompts for the installed version
+```
+
+- **Updating is manual, on purpose.** Check what is new with
+  `pnpm outdated -w @fission-ai/openspec`, then in one PR:
+  `pnpm add -Dw --save-exact @fission-ai/openspec@<version>` → `pnpm openspec:update` → review
+  the diff of the generated files. Commit as `chore(deps): update openspec to <version>`.
+- **Telemetry off:** `OPENSPEC_TELEMETRY=0` — set inside the `openspec:update` script. For
+  ad-hoc terminal use run `pnpm openspec config set telemetry.enabled false` once
+  (`.claude/settings.json` is gitignored here, so the env cannot be shared through it).
+- **Layout:** `openspec/config.yaml`, `openspec/specs/<package>-<capability>/spec.md` (living
+  specs), `openspec/changes/<change>/` (proposal, design, delta specs, tasks),
+  `openspec/changes/archive/`.
+- **Generated, never hand-edited:** `.claude/skills/openspec-*`, `.claude/commands/opsx/`,
+  `.github/skills/openspec-*`, `.github/prompts/opsx-*`.
+- **Commits:** a spec-only change uses `docs(openspec): <description>` (no release);
+  implementation commits keep their `feat(<scope>)` / `fix(<scope>)` type, which is what
+  semantic-release reads.
+
+---
+
 ## Local Linking
 
 Three shell scripts at repo root for linking the built library into consuming projects:
