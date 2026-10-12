@@ -2167,6 +2167,29 @@ const fresh = await session.refresh()      // single-flight: concurrent callers 
 
 The existing `createApiClient({ authOptions })` keeps working exactly as before — a session only affects code that uses it.
 
+#### Several backends, one session
+
+Pass the session to every `createApiClient` with `authSession`. Each instance sends the session's token; a 401 on any of them refreshes once, through the session's own transport, and each request is retried against its own `baseURL`:
+
+```typescript
+import { createApi, createApiClient, createAuthSession } from '@ametie/vue-muza-use'
+
+const session = createAuthSession({
+  refresh: { url: '/auth/refresh', baseURL: 'https://insights.example.com', withCredentials: true },
+})
+
+const insightsApi = createApiClient({ baseURL: 'https://insights.example.com', authSession: session })
+const toolsApi = createApiClient({ baseURL: 'https://tools.example.com', authSession: session })
+
+app.use(createApi({ axios: insightsApi }))
+
+// Both get a 401 at once → one POST https://insights.example.com/auth/refresh,
+// then GET https://insights.example.com/brands and GET https://tools.example.com/brands are retried
+await Promise.all([insightsApi.get('/brands'), toolsApi.get('/brands')])
+```
+
+`authSession` replaces `withAuth` / `authOptions` (a development warning points out a leftover `authOptions`), and unlike `authOptions` it does not reconfigure token storage. The 401 rules are those of `authOptions`: `authMode: 'public'` sends no token and never refreshes, `'optional'` sends the token if there is one and never refreshes, and a request is retried at most once. To attach an instance you created yourself, call `session.attach(instance)`.
+
 #### Refresh transport
 
 Two forms:
@@ -2610,13 +2633,15 @@ Factory function that creates a configured Axios instance with built-in JWT auth
 | `authOptions.onTokenRefreshed` | `(response: AxiosResponse) => void \| Promise<void>` | `undefined` | Called after a successful refresh — use to sync user state |
 | `authOptions.extractTokens` | `(response: AxiosResponse) => { accessToken: string, refreshToken?: string }` | `undefined` | Override token field names from the refresh response |
 | `authOptions.refreshPayload` | `Record<string, unknown> \| (() => Record<string, unknown>)` | `undefined` | Extra data to send with the refresh request (device ID, etc.) |
+| `authSession` | `AuthSession` | `undefined` | Use a shared [auth session](#auth-session-multiple-clients-apollo-websocket) instead of `withAuth` / `authOptions`. The instance sends the session's token and refreshes through it; the global token storage is not reconfigured. *(1.9+)* |
+
+All other [axios options](https://axios-http.com/docs/req_config) pass through — including axios' own `auth` (HTTP Basic credentials), which is unrelated to `authSession`.
 
 > [!WARNING]
-> If you create two `createApiClient()` instances in the same app, they share the
-> module-level `isRefreshing` flag and `failedQueue`. This can cause unexpected
-> behaviour when both instances handle 401 refresh at the same time. Use a single
-> `createApiClient` per app, and route different API domains through it using
-> interceptors or `baseURL` overrides on individual requests.
+> Two `createApiClient({ authOptions })` instances each have their **own** refresh logic.
+> When both get a 401 at the same time, both refresh — and with a one-time-use refresh
+> token the second refresh fails and logs the user out. For more than one instance,
+> give them one [`authSession`](#several-backends-one-session) instead.
 
 ---
 
@@ -2781,6 +2806,7 @@ See the full [Auth session section](#auth-session-multiple-clients-apollo-websoc
 | `isRefreshing` | `boolean` (read-only) | A refresh is in flight |
 | `on(event, fn)` | `() => void` (unsubscribe) | Subscribe to `refreshStart` / `refreshed` / `refreshFailed` / `cleared` |
 | `clear()` | `() => void` | Clear tokens and emit `cleared` |
+| `attach(instance)` | `(instance: AxiosInstance) => void` | Advanced: install the session's interceptors on an axios instance you created yourself (`createApiClient({ authSession })` does this for you) |
 
 ---
 

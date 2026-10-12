@@ -569,6 +569,14 @@ export interface AuthSession {
     on<E extends AuthSessionEvent>(event: E, listener: (payload: AuthSessionEventMap[E]) => void): () => void;
     /** Clear the tokens (e.g. on logout) and emit `cleared`. Does not abort an in-flight refresh. */
     clear(): void;
+    /**
+     * Advanced — install the session's request/response interceptors on an axios
+     * instance: the current token is sent with every non-public request, and a 401
+     * refreshes through this session and retries the request once. Every attached
+     * instance shares the session's single refresh. `createApiClient({ authSession })`
+     * calls this for you; use it directly only for an instance you create yourself.
+     */
+    attach(instance: AxiosInstance): void;
 }
 
 // ============================================================================

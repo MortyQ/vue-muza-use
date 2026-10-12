@@ -1,5 +1,12 @@
-import axios, { isAxiosError, type AxiosInstance, type AxiosResponse } from "axios";
+import axios, {
+    isAxiosError,
+    type AxiosError,
+    type AxiosInstance,
+    type AxiosResponse,
+    type InternalAxiosRequestConfig,
+} from "axios";
 import type {
+    AuthMode,
     AuthSession,
     AuthSessionEvent,
     AuthSessionEventMap,
@@ -14,6 +21,33 @@ import { parseApiError } from "../utils/errorParser";
 import { normalizeHeaders } from "../utils/headerUtils";
 
 export const DEFAULT_REFRESH_LOCK_NAME = "vue-muza-use:auth-refresh";
+
+const AUTH_HEADER = "Authorization";
+
+/** Same request extensions the legacy interceptor reads (see interceptors.ts). */
+interface SessionRequestConfig extends InternalAxiosRequestConfig {
+    authMode?: AuthMode;
+    _retry?: boolean;
+    /** Devtools record id of the originating request; set by useApi so the 401→refresh retry can be flagged. */
+    _devtoolsRequestId?: string;
+}
+
+// Copy of the legacy interceptor's flagAuthRetry — kept private there on purpose
+// (interceptors.ts is not edited by the session). Marks the originating request's
+// devtools record as "401 → token refreshed & retried".
+function flagAuthRetry(request: SessionRequestConfig): void {
+    if (request._devtoolsRequestId && isDevtoolsExpected()) {
+        devtoolsBridge.onRequestAuthRetry(request._devtoolsRequestId);
+    }
+}
+
+/** The bearer token a request was sent with, or null. */
+function tokenFromHeader(request: SessionRequestConfig): string | null {
+    const value = request.headers?.get?.(AUTH_HEADER);
+    if (typeof value !== "string") return null;
+    const prefix = `${TOKEN_TYPE} `;
+    return value.startsWith(prefix) ? value.slice(prefix.length) : null;
+}
 
 /** A transport result plus the raw response the declarative form hands to events and hooks. */
 interface TransportOutcome {
@@ -180,7 +214,62 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
             tokens.clearTokens();
             emit("cleared", {});
         },
+        attach: (instance) => attachInstance(instance),
     };
+
+    /**
+     * The legacy 401 contract (interceptors.ts), with the refresh routed to the
+     * session: same authMode rules, same guard order, one retry per request.
+     * Unlike the legacy queue, every waiting request is marked `_retry`, so a
+     * request that is still 401 after the refresh is never refreshed again.
+     */
+    function attachInstance(instance: AxiosInstance): void {
+        instance.interceptors.request.use(
+            (config: InternalAxiosRequestConfig) => {
+                if ((config as SessionRequestConfig).authMode === "public") return config;
+
+                const header = session.getAuthHeader();
+                if (header) {
+                    config.headers.set(AUTH_HEADER, header);
+                } else {
+                    config.headers.delete(AUTH_HEADER);
+                }
+                return config;
+            },
+            (error) => Promise.reject(error),
+        );
+
+        instance.interceptors.response.use(
+            (response) => response,
+            async (error: AxiosError) => {
+                const originalRequest = error.config as SessionRequestConfig | undefined;
+
+                if (!originalRequest || error.response?.status !== 401 || originalRequest._retry) {
+                    return Promise.reject(error);
+                }
+
+                if (originalRequest.authMode === "public" || originalRequest.authMode === "optional") {
+                    return Promise.reject(error);
+                }
+
+                originalRequest._retry = true;
+                if (inflight) {
+                    trackAuthEvent(AuthEventType.REQUEST_QUEUED, { url: originalRequest.url });
+                }
+
+                // Rejects with the refresh error — tokens are already cleared and
+                // refreshFailed already emitted by the session
+                const token = await refreshInternal({
+                    staleAccessToken: tokenFromHeader(originalRequest),
+                    url: originalRequest.url,
+                });
+
+                originalRequest.headers.set(AUTH_HEADER, `${TOKEN_TYPE} ${token}`);
+                flagAuthRetry(originalRequest);
+                return instance(originalRequest);
+            },
+        );
+    }
 
     return session;
 }

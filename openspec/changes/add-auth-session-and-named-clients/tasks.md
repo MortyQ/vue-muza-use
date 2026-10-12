@@ -28,12 +28,12 @@ Test command: `pnpm --filter @ametie/vue-muza-use exec vitest run`.
 
 ## 3. Attaching instances — `feat(auth): let createApiClient share an AuthSession across instances`
 
-- [ ] 3.1 Add `auth?: AuthSession` to `CreateApiClientOptions` with JSDoc; verify tsc passes
-- [ ] 3.2 Implement `attach(instance)` in `authSession.ts` per D4 and the `if (auth)` branch in `createInstance.ts` (the existing body stays byte-identical in the `else` path; `auth` not spread into `axios.create`; dev-only warning when `authOptions`/`withAuth:false` are also passed; no `tokenManager.setStorage` call); verify the existing suite is green
-- [ ] 3.3 Write `tests/features/authSession.attach.test.ts`: (a) every scenario of "Attaching an axios instance"; (b) a parity table — the 401 scenarios already covered in `tests/features/interceptors.test.ts` re-expressed as data and run once against a legacy client and once against `createApiClient({ auth })`, asserting identical observable outcomes (requests sent, headers, retries, rejections, monitor events); (c) two instances, one session, concurrent 401 → one refresh; (d) refresh routed to the session transport, retry routed to the instance `baseURL`; verify all pass
-- [ ] 3.4 Add to `tests/features/createInstance.test.ts`'s neighbour (new file `tests/features/createInstance.auth.test.ts`, do **not** edit the existing file): without `auth` the global token storage is configured as before; with `auth` it is not; verify pass
-- [ ] 3.5 README: `createApiClient` reference gains `auth`; a two-backend example (insights + tools sharing one session); verify snippets type-check as in 2.8
-- [ ] 3.6 Full suite, `pnpm build`; verify counts
+- [x] 3.1 Add `authSession?: AuthSession` to `CreateApiClientOptions` with JSDoc; verify tsc passes
+- [x] 3.2 Implement `attach(instance)` in `authSession.ts` per D4 and the `if (authSession)` branch in `createInstance.ts` (the existing body stays byte-identical in the `else` path; `authSession` not spread into `axios.create`; dev-only warning when `authOptions`/`withAuth:false` are also passed; no `tokenManager.setStorage` call); verify the existing suite is green
+- [x] 3.3 Write `tests/features/authSession.attach.test.ts`: (a) every scenario of "Attaching an axios instance"; (b) a parity table — the 401 scenarios already covered in `tests/features/interceptors.test.ts` re-expressed as data and run once against a legacy client and once against `createApiClient({ authSession })`, asserting identical observable outcomes (requests sent, headers, retries, rejections, monitor events); (c) two instances, one session, concurrent 401 → one refresh; (d) refresh routed to the session transport, retry routed to the instance `baseURL`; verify all pass
+- [x] 3.4 Add to `tests/features/createInstance.test.ts`'s neighbour (new file `tests/features/createInstance.auth.test.ts`, do **not** edit the existing file): without `authSession` the global token storage is configured as before; with `authSession` it is not; verify pass
+- [x] 3.5 README: `createApiClient` reference gains `authSession`; a two-backend example (insights + tools sharing one session); verify snippets type-check as in 2.8
+- [x] 3.6 Full suite, `pnpm build`; verify counts
 
 ## 4. Auth-aware fetch — `feat(auth): add session.fetch for fetch-based consumers`
 

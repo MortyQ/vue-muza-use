@@ -9,7 +9,7 @@ interested parties when the token changes or the session ends.
 ## ADDED Requirements
 
 ### Requirement: Legacy client auth is unchanged
-A client created with `createApiClient()` without the `auth` option SHALL behave exactly as in
+A client created with `createApiClient()` without the `authSession` option SHALL behave exactly as in
 1.8.x: same interceptors, same refresh request, same queueing, same `tokenManager` storage
 configuration, same callbacks.
 
@@ -18,7 +18,7 @@ configuration, same callbacks.
 - **THEN** every test passes with the same counts as on 1.8.x (39 files, 672 passed, 22 todo at the time of writing, plus only newly added files)
 
 #### Scenario: Legacy client still configures global token storage
-- **WHEN** `createApiClient({ authOptions: { refreshWithCredentials: true } })` is called without `auth`
+- **WHEN** `createApiClient({ authOptions: { refreshWithCredentials: true } })` is called without `authSession`
 - **THEN** `tokenManager` stores only the access token, as in 1.8.x
 
 ### Requirement: Session exposes the current token
@@ -100,7 +100,7 @@ Session refreshes SHALL report to the existing auth monitor (`setAuthMonitor`) w
 - **THEN** the monitor receives start, queued and success events
 
 ### Requirement: Attaching an axios instance
-`createApiClient({ auth: session })` SHALL make the instance send the session's token and, on a 401, refresh through the session and retry the original request once — with the same `authMode` rules (`public`: no token, no refresh; `optional`: token if present, no refresh) and the same no-retry-loop guarantee as the legacy interceptor.
+`createApiClient({ authSession: session })` SHALL make the instance send the session's token and, on a 401, refresh through the session and retry the original request once — with the same `authMode` rules (`public`: no token, no refresh; `optional`: token if present, no refresh) and the same no-retry-loop guarantee as the legacy interceptor.
 
 #### Scenario: Token attached
 - **WHEN** a token is stored and a default-auth request is sent through an attached instance
@@ -119,11 +119,11 @@ Session refreshes SHALL report to the existing auth monitor (`setAuthMonitor`) w
 - **THEN** the refresh request goes to `https://insights.example/auth/refresh` and the retry goes to `https://tools.example`
 
 #### Scenario: auth takes precedence over legacy options
-- **WHEN** both `auth` and `authOptions` are passed
+- **WHEN** both `authSession` and `authOptions` are passed
 - **THEN** the session is used, `authOptions` is ignored, and a development-only warning is logged
 
 #### Scenario: No global storage side effect
-- **WHEN** `createApiClient({ auth: session })` is called
+- **WHEN** `createApiClient({ authSession: session })` is called
 - **THEN** the `tokenManager` storage configuration is not changed
 
 ### Requirement: Auth-aware fetch

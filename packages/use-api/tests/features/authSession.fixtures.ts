@@ -16,7 +16,9 @@ export type FakeHandler = (config: InternalAxiosRequestConfig) => FakeReply | Pr
 export function fakeAdapter(handler: FakeHandler): AxiosAdapter & { calls: InternalAxiosRequestConfig[] } {
     const calls: InternalAxiosRequestConfig[] = []
     const adapter = (async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
-        calls.push(config)
+        // Snapshot: a retried request reuses (and mutates) the same config object,
+        // so recording the live object would rewrite the history of earlier calls
+        calls.push({ ...config, headers: new AxiosHeaders(config.headers.toJSON()) })
         const reply = await handler(config)
         const response: AxiosResponse = {
             data: reply.data ?? null,
