@@ -108,6 +108,7 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 - [Advanced Configuration](#️-advanced-configuration)
 - [DevTools Panel](#-devtools-panel)
 - [Authentication & Token Management](#-authentication--token-management)
+  - [Auth session (multiple clients, Apollo, WebSocket)](#auth-session-multiple-clients-apollo-websocket)
 - [Error Handling Reference](#-error-handling-reference)
 - [Utilities & Standalone Composables](#-utilities--standalone-composables)
 - [API Reference](#-api-reference)
@@ -2145,6 +2146,113 @@ setAuthMonitor((type, payload) => {
 > the browser console via `console.debug`. You only need to call `setAuthMonitor`
 > if you want custom behavior (e.g., sending events to Sentry).
 
+### Auth session (multiple clients, Apollo, WebSocket)
+
+**TL;DR: one object owns the token and the refresh. Every consumer of the token — several axios instances, an Apollo link, a WebSocket, `fetch` — goes through it, so a token expiry causes exactly one refresh.**
+
+`createApiClient({ authOptions })` gives each axios instance its own refresh logic. That is fine for one backend. With two instances (or axios + GraphQL), each one refreshes on its own — and with a one-time-use refresh token the second refresh fails and logs the user out. `createAuthSession` fixes that by making the refresh a shared, single-flight operation.
+
+```typescript
+import { createAuthSession } from '@ametie/vue-muza-use'
+
+export const session = createAuthSession({
+  // Declarative: the same request authOptions sends, aimed at any backend
+  refresh: { url: '/auth/refresh', baseURL: 'https://insights.example.com', withCredentials: true },
+})
+
+const token = session.getAccessToken()     // string | null
+const header = session.getAuthHeader()     // "Bearer …" | null
+const fresh = await session.refresh()      // single-flight: concurrent callers share one refresh
+```
+
+The existing `createApiClient({ authOptions })` keeps working exactly as before — a session only affects code that uses it.
+
+#### Refresh transport
+
+Two forms:
+
+```typescript
+// 1. Declarative — mirrors authOptions
+createAuthSession({
+  refresh: {
+    url: '/auth/refresh',
+    baseURL: '/api',                       // backend that issues tokens
+    withCredentials: true,                 // = authOptions.refreshWithCredentials
+    payload: () => ({ deviceId: getDeviceId() }),
+    extractTokens: (res) => ({ accessToken: res.data.jwt, refreshToken: res.data.rt }),
+    onTokenRefreshed: async (res) => { await loadPermissions(res.data) }, // awaited before waiting requests resume
+  },
+})
+
+// 2. Function — anything else (GraphQL mutation, SDK call, …)
+import axios from 'axios'
+
+createAuthSession({
+  refresh: async ({ refreshToken, staleAccessToken }) => {
+    // Plain axios — not attached to this session, so a 401 here cannot wait on itself
+    const { data } = await axios.post('https://tools.example.com/graphql', {
+      query: REFRESH_MUTATION,
+      variables: { refreshToken },
+    })
+    return { accessToken: data.data.refresh.accessToken, refreshToken: data.data.refresh.refreshToken }
+  },
+})
+```
+
+The declarative form sends its request through a private axios instance with no interceptors, so a 401 from the refresh endpoint fails the refresh instead of looping. Like `authOptions`, it sends cookies automatically when no refresh token is stored, and accepts `accessToken` / `access_token` in the response.
+
+> [!WARNING]
+> A **function** transport should send its request through a client that is **not** attached to the same session (plain `axios`, `fetch`). If it does use an attached instance, the request **must** carry `authMode: 'public'` — otherwise a 401 from the refresh endpoint waits for the refresh that sent it. (Axios' own config type does not know `authMode`, so a raw `instance.post()` needs a type assertion for it; a plain client avoids the issue.)
+
+A refresh that throws, or resolves without an `accessToken`, fails: the tokens are cleared, every waiting caller rejects with the error, and `refreshFailed` fires once.
+
+#### Events and logout
+
+```typescript
+const off = session.on('refreshed', ({ accessToken, response }) => {
+  wsClient.terminate()                     // reconnect with the new token
+})
+session.on('refreshFailed', ({ error }) => router.push('/login'))
+session.on('refreshStart', ({ staleAccessToken }) => {})
+session.on('cleared', () => apollo.clearStore())
+
+off()                                      // unsubscribe
+
+// Logout
+session.clear()                            // clears tokens, emits "cleared"
+```
+
+| Event | Payload | When |
+|-------|---------|------|
+| `refreshStart` | `{ staleAccessToken }` | A refresh begins |
+| `refreshed` | `{ accessToken, response }` | New token stored. `response` is the raw refresh response for the declarative form, `null` otherwise |
+| `refreshFailed` | `{ error }` | Refresh failed, tokens already cleared |
+| `cleared` | `{}` | `session.clear()` was called |
+
+Listeners run after the token store has been updated. A listener that throws is logged and never breaks the refresh. The session also reports to [`setAuthMonitor`](#advanced-authmonitor--observing-token-lifecycle-events) with the same event types as `authOptions`.
+
+#### Token storage
+
+By default the session reads and writes the exported `tokenManager`, so `tokenManager.setTokens()` after login is all it needs. Unlike `createApiClient`, creating a session does **not** reconfigure token storage — pass `storeRefreshToken` to do it explicitly:
+
+```typescript
+createAuthSession({ refresh: { url: '/auth/refresh' }, storeRefreshToken: false }) // refresh token lives in an httpOnly cookie
+```
+
+A custom store goes in `tokens` (a `TokenManager` instance).
+
+#### Cross-tab refresh — `crossTab`
+
+```typescript
+createAuthSession({ refresh: { url: '/auth/refresh' }, crossTab: true })
+// or: crossTab: { lockName: 'my-app:auth-refresh' }   (default "vue-muza-use:auth-refresh")
+```
+
+With `crossTab` on, tabs of the same origin take turns through the [Web Locks API](https://developer.mozilla.org/docs/Web/API/Web_Locks_API). A tab that gets the lock after another tab already stored a new token takes that token instead of refreshing again. Without `navigator.locks` the option does nothing (in-tab single-flight still applies).
+
+> [!IMPORTANT]
+> Taking over another tab's token only works when the token store is **shared between tabs** — the default `tokenManager` (localStorage). With a per-tab store (in-memory or a custom `TokenStorage`), refreshes are only serialised: every tab still refreshes on its own, and with a one-time-use refresh token the later tab's refresh fails and ends its session.
+
 ---
 
 ## 🛑 Error Handling Reference
@@ -2645,6 +2753,34 @@ tokenManager.setTokens({ accessToken: '...', expiresIn: 3600 })
 tokenManager.clearTokens()
 const isLoggedIn = tokenManager.hasTokens()
 ```
+
+---
+
+### `createAuthSession(options)`
+
+See the full [Auth session section](#auth-session-multiple-clients-apollo-websocket) above.
+
+**Options (`AuthSessionOptions`):**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `refresh` | `DeclarativeRefreshOptions \| (ctx: RefreshContext) => Promise<RefreshResult>` | — | How to obtain new tokens |
+| `tokens` | `TokenManager` | `tokenManager` | Token store |
+| `storeRefreshToken` | `boolean` | — (storage untouched) | Configure the token store once at creation |
+| `crossTab` | `boolean \| { lockName?: string }` | `false` | Coordinate refreshes between tabs (needs a shared token store) |
+
+**`DeclarativeRefreshOptions`:** `url` (required), `baseURL`, `withCredentials`, `payload`, `extractTokens`, `onTokenRefreshed`, `timeout` (default `60000`).
+
+**Returns (`AuthSession`):**
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `getAccessToken()` | `() => string \| null` | Current access token |
+| `getAuthHeader()` | `() => string \| null` | `"Bearer <token>"` or `null` |
+| `refresh(opts?)` | `(opts?: { staleAccessToken?: string \| null }) => Promise<string>` | Single-flight refresh; resolves with the new token |
+| `isRefreshing` | `boolean` (read-only) | A refresh is in flight |
+| `on(event, fn)` | `() => void` (unsubscribe) | Subscribe to `refreshStart` / `refreshed` / `refreshFailed` / `cleared` |
+| `clear()` | `() => void` | Clear tokens and emit `cleared` |
 
 ---
 

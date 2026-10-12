@@ -1,5 +1,6 @@
 import type { AxiosRequestConfig, AxiosResponse, AxiosInstance } from "axios";
 import type {MaybeRefOrGetter, Ref} from "vue";
+import type { TokenManager } from "./features/tokenManager";
 
 export interface ApiError {
     message: string;
@@ -416,6 +417,158 @@ export interface AuthTokens {
     accessToken: string
     refreshToken?: string
     expiresIn?: number
+}
+
+// ============================================================================
+// Auth Session Types
+// ============================================================================
+
+/**
+ * What a function refresh transport receives from the session.
+ */
+export interface RefreshContext {
+    /** Refresh token from the token store, or `null` (cookie-based refresh). */
+    refreshToken: string | null;
+    /** The access token the failed request was sent with, or the token at `refresh()` call time. */
+    staleAccessToken: string | null;
+}
+
+/**
+ * What a function refresh transport must resolve with. Stored in the session's
+ * token store as-is (`expiresIn` in seconds, like {@link AuthTokens}).
+ */
+export interface RefreshResult {
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn?: number;
+}
+
+/**
+ * Declarative refresh transport — the same request the legacy
+ * `createApiClient({ authOptions })` interceptor sends, but through a private,
+ * interceptor-free axios instance that can point at any backend.
+ *
+ * @example
+ * ```ts
+ * createAuthSession({
+ *     refresh: { url: "/auth/refresh", baseURL: "https://insights.example", withCredentials: true },
+ * })
+ * ```
+ */
+export interface DeclarativeRefreshOptions {
+    /** Refresh endpoint, e.g. `"/auth/refresh"`. Sent as a POST. */
+    url: string;
+    /** Base URL of the backend that issues tokens, e.g. `"/api"` or `"https://insights.example"`. */
+    baseURL?: string;
+    /**
+     * Send cookies with the refresh request. Same meaning as
+     * `authOptions.refreshWithCredentials`: when no refresh token is stored,
+     * credentials are sent anyway.
+     */
+    withCredentials?: boolean;
+    /** Request body — a static object or a (possibly async) function returning one. */
+    payload?: Record<string, unknown> | (() => Record<string, unknown> | Promise<Record<string, unknown>>);
+    /**
+     * Read tokens from a non-standard response. Default: `accessToken || access_token`
+     * and `refreshToken || refresh_token` from the response body.
+     */
+    extractTokens?: (response: AxiosResponse) => { accessToken: string; refreshToken?: string };
+    /**
+     * Awaited after the new tokens are stored and **before** waiting requests are
+     * released — same semantics as `authOptions.onTokenRefreshed`. Throwing fails the refresh.
+     */
+    onTokenRefreshed?: (response: AxiosResponse) => void | Promise<void>;
+    /** Refresh request timeout in ms. Default: 60000. */
+    timeout?: number;
+}
+
+/**
+ * Options for {@link createAuthSession}.
+ */
+export interface AuthSessionOptions {
+    /**
+     * How to obtain new tokens: a {@link DeclarativeRefreshOptions} object, or a
+     * function that performs the refresh and resolves with a {@link RefreshResult}.
+     *
+     * **Function contract:** if the function sends its request through an axios
+     * instance attached to this session, it must pass `authMode: "public"` —
+     * otherwise a 401 from the refresh endpoint waits on the refresh that sent it.
+     */
+    refresh: DeclarativeRefreshOptions | ((context: RefreshContext) => Promise<RefreshResult>);
+    /** Token store. Default: the exported `tokenManager` singleton. */
+    tokens?: TokenManager;
+    /**
+     * When set, the session configures its token store once at creation:
+     * `true` keeps both tokens in localStorage, `false` keeps only the access
+     * token (refresh token in an httpOnly cookie). When omitted, the store is
+     * left exactly as it is.
+     */
+    storeRefreshToken?: boolean;
+    /**
+     * Coordinate refreshes between tabs of the same origin through the Web Locks
+     * API (`lockName` default: `"vue-muza-use:auth-refresh"`). A tab that gets the
+     * lock after another tab already replaced the token adopts that token instead
+     * of refreshing again. Ignored when `navigator.locks` is unavailable.
+     *
+     * **Requires a token store shared between tabs** — the default `tokenManager`
+     * (localStorage). With a per-tab store (in-memory or a custom `TokenStorage`)
+     * refreshes are only serialised and every tab still refreshes on its own; with
+     * a one-time-use refresh token the later tab's refresh fails and ends its session.
+     *
+     * Default: `false`.
+     */
+    crossTab?: boolean | { lockName?: string };
+}
+
+/**
+ * Payload of each {@link AuthSession} event.
+ */
+export interface AuthSessionEventMap {
+    /** A refresh is starting. */
+    refreshStart: { staleAccessToken: string | null };
+    /**
+     * New access token is stored. `response` is the raw refresh response for the
+     * declarative transport, `null` for a function transport or an adopted token.
+     */
+    refreshed: { accessToken: string; response: AxiosResponse | null };
+    /** The refresh failed; tokens have already been cleared. */
+    refreshFailed: { error: unknown };
+    /** `session.clear()` was called; tokens have already been cleared. */
+    cleared: Record<string, never>;
+}
+
+/** Name of an {@link AuthSession} event. */
+export type AuthSessionEvent = keyof AuthSessionEventMap;
+
+/**
+ * A shared authentication session: one owner of the access token and of the
+ * token refresh, for any number of axios instances and non-axios consumers.
+ * Created with {@link createAuthSession}.
+ */
+export interface AuthSession {
+    /** Current access token from the token store, or `null`. */
+    getAccessToken(): string | null;
+    /** `"Bearer <token>"`, or `null` when no token is stored. */
+    getAuthHeader(): string | null;
+    /**
+     * Refresh the access token and resolve with the new one. Single-flight: while
+     * a refresh is in flight every call awaits that same refresh. On failure the
+     * tokens are cleared, `refreshFailed` is emitted once, and every caller rejects.
+     *
+     * `staleAccessToken` — the token the failed request was sent with (default:
+     * the token stored at call time); used by `crossTab` adoption.
+     */
+    refresh(options?: { staleAccessToken?: string | null }): Promise<string>;
+    /** `true` while a refresh is in flight. */
+    readonly isRefreshing: boolean;
+    /**
+     * Subscribe to a session event. Listeners run synchronously after the token
+     * store has been updated; a throwing listener is logged and never breaks the
+     * refresh. Returns an unsubscribe function.
+     */
+    on<E extends AuthSessionEvent>(event: E, listener: (payload: AuthSessionEventMap[E]) => void): () => void;
+    /** Clear the tokens (e.g. on logout) and emit `cleared`. Does not abort an in-flight refresh. */
+    clear(): void;
 }
 
 // ============================================================================
