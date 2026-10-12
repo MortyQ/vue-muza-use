@@ -518,6 +518,11 @@ export interface AuthSessionOptions {
      * Default: `false`.
      */
     crossTab?: boolean | { lockName?: string };
+    /**
+     * `fetch` implementation behind `session.fetch`. Default: `globalThis.fetch`,
+     * looked up on every call (so a later polyfill or test stub is picked up).
+     */
+    fetch?: typeof fetch;
 }
 
 /**
@@ -569,6 +574,18 @@ export interface AuthSession {
     on<E extends AuthSessionEvent>(event: E, listener: (payload: AuthSessionEventMap[E]) => void): () => void;
     /** Clear the tokens (e.g. on logout) and emit `cleared`. Does not abort an in-flight refresh. */
     clear(): void;
+    /**
+     * Drop-in `fetch` that sends the session's token and, on a 401, refreshes
+     * through the session and repeats the request once. Never throws for an HTTP
+     * status: if the refresh fails, the original 401 response is returned.
+     *
+     * - A request that already carries an `Authorization` header is passed through untouched.
+     * - The repeat needs a replayable body (string, `URLSearchParams`, `FormData`,
+     *   `Blob`, `ArrayBuffer`/view, none, or a `Request`); with a `ReadableStream`
+     *   body the session still refreshes but returns the original 401.
+     * - Bound — pass it as-is, e.g. `new HttpLink({ uri, fetch: session.fetch })`.
+     */
+    fetch: typeof fetch;
     /**
      * Advanced — install the session's request/response interceptors on an axios
      * instance: the current token is sent with every non-public request, and a 401

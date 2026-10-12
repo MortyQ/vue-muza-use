@@ -41,6 +41,24 @@ function flagAuthRetry(request: SessionRequestConfig): void {
     }
 }
 
+/** A body `fetch` can send twice — everything except a one-shot stream. */
+function isReplayableBody(body: BodyInit | null | undefined): boolean {
+    if (body === undefined || body === null || typeof body === "string") return true;
+    if (typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams) return true;
+    if (typeof FormData !== "undefined" && body instanceof FormData) return true;
+    if (typeof Blob !== "undefined" && body instanceof Blob) return true;
+    return body instanceof ArrayBuffer || ArrayBuffer.isView(body);
+}
+
+function isRequest(input: RequestInfo | URL): input is Request {
+    return typeof Request !== "undefined" && input instanceof Request;
+}
+
+function requestUrl(input: RequestInfo | URL): string {
+    if (typeof input === "string") return input;
+    return isRequest(input) ? input.url : input.toString();
+}
+
 /** The bearer token a request was sent with, or null. */
 function tokenFromHeader(request: SessionRequestConfig): string | null {
     const value = request.headers?.get?.(AUTH_HEADER);
@@ -215,6 +233,39 @@ export function createAuthSession(options: AuthSessionOptions): AuthSession {
             emit("cleared", {});
         },
         attach: (instance) => attachInstance(instance),
+        // Arrow property: stays bound when handed to Apollo/graphql clients as-is
+        fetch: async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+            const impl = options.fetch ?? globalThis.fetch;
+
+            // init.headers replaces a Request's own headers, exactly as fetch does
+            const callerHeaders = new Headers(init?.headers ?? (isRequest(input) ? input.headers : undefined));
+            if (callerHeaders.has(AUTH_HEADER)) return impl(input, init);
+
+            const withToken = (token: string | null): RequestInit => {
+                const headers = new Headers(callerHeaders);
+                if (token) headers.set(AUTH_HEADER, `${TOKEN_TYPE} ${token}`);
+                return { ...init, headers };
+            };
+
+            // A Request's body can be read once — keep a copy for the repeat
+            const replayInput = isRequest(input) ? input.clone() : input;
+            const replayable = isRequest(input) || isReplayableBody(init?.body);
+
+            const token = tokens.getAccessToken();
+            const response = await impl(input, withToken(token));
+            if (response.status !== 401 || !token) return response;
+
+            let freshToken: string;
+            try {
+                freshToken = await refreshInternal({ staleAccessToken: token, url: requestUrl(input) });
+            } catch {
+                // refreshFailed is already emitted; the caller sees the real 401
+                return response;
+            }
+
+            if (!replayable) return response;
+            return impl(replayInput, withToken(freshToken));
+        },
     };
 
     /**

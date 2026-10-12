@@ -2254,6 +2254,82 @@ session.clear()                            // clears tokens, emits "cleared"
 
 Listeners run after the token store has been updated. A listener that throws is logged and never breaks the refresh. The session also reports to [`setAuthMonitor`](#advanced-authmonitor--observing-token-lifecycle-events) with the same event types as `authOptions`.
 
+#### Outside axios — `session.fetch`, Apollo, WebSocket, SSE
+
+`session.fetch` is a drop-in `fetch`: it sends the session's token and, on a 401, refreshes through the session (sharing the refresh with every attached axios instance) and repeats the request once. It never throws for an HTTP status — if the refresh fails you get the original 401 back. A request that already has an `Authorization` header is passed through untouched. The repeat needs a body that can be sent twice: a `ReadableStream` body still triggers the refresh, but returns the original 401.
+
+The library has no dependency on Apollo or graphql-ws — these are recipes, checked against Apollo Client 4.3 and graphql-ws 6.3.
+
+**Apollo Client 4 — HTTP 401 and GraphQL `UNAUTHENTICATED`:**
+
+```typescript
+import { ApolloClient, ApolloLink, CombinedGraphQLErrors, HttpLink, InMemoryCache } from '@apollo/client'
+import { SetContextLink } from '@apollo/client/link/context'
+import { ErrorLink } from '@apollo/client/link/error'
+import { from, switchMap } from 'rxjs'
+
+// Remember which token the operation went out with (session.fetch adds the header itself)
+const tokenContext = new SetContextLink(() => ({ sentToken: session.getAccessToken() }))
+
+// GraphQL servers often answer 200 + UNAUTHENTICATED instead of 401 — refresh and retry once
+const refreshOnUnauthenticated = new ErrorLink(({ error, operation, forward }) => {
+  const unauthenticated =
+    CombinedGraphQLErrors.is(error) && error.errors.some((e) => e.extensions?.code === 'UNAUTHENTICATED')
+  if (!unauthenticated || operation.getContext().authRetried) return
+
+  operation.setContext({ authRetried: true })
+  const staleAccessToken = operation.getContext().sentToken ?? null
+  return from(session.refresh({ staleAccessToken })).pipe(switchMap(() => forward(operation)))
+})
+
+export const apollo = new ApolloClient({
+  link: ApolloLink.from([
+    tokenContext,
+    refreshOnUnauthenticated,
+    new HttpLink({ uri: 'https://tools.example.com/graphql', fetch: session.fetch }), // HTTP 401 → refresh → retry
+  ]),
+  cache: new InMemoryCache(),
+})
+
+session.on('cleared', () => { void apollo.clearStore() })
+```
+
+**graphql-ws — fresh token on every (re)connect:**
+
+```typescript
+import { createClient } from 'graphql-ws'
+
+export const wsClient = createClient({
+  url: 'wss://tools.example.com/graphql',
+  connectionParams: () => ({ Authorization: session.getAuthHeader() }), // read on each connect
+  on: {
+    closed: (event) => {
+      // 4403 Forbidden: the server's onConnect rejected the token — refresh; the client then reconnects
+      if ((event as { code?: number }).code === 4403) void session.refresh().catch(() => {})
+    },
+  },
+})
+
+session.on('refreshed', () => wsClient.terminate()) // reconnect right away with the new token
+session.on('cleared', () => wsClient.dispose())
+```
+
+**Server-Sent Events over `fetch`:**
+
+```typescript
+const res = await session.fetch('https://tools.example.com/events', { headers: { Accept: 'text/event-stream' } })
+if (res.ok && res.body) {
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+  for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+    handleEvents(chunk.value)
+  }
+}
+// A 401 when opening the stream refreshes and reconnects once; a failed refresh returns the 401
+// (and fires refreshFailed) instead of logging the user out on the spot.
+```
+
+`crossTab` note: the Apollo recipe passes the token the operation was sent with as `staleAccessToken`, so a tab that finds a newer token (stored by another tab) adopts it instead of refreshing again.
+
 #### Token storage
 
 By default the session reads and writes the exported `tokenManager`, so `tokenManager.setTokens()` after login is all it needs. Unlike `createApiClient`, creating a session does **not** reconfigure token storage — pass `storeRefreshToken` to do it explicitly:
@@ -2793,6 +2869,7 @@ See the full [Auth session section](#auth-session-multiple-clients-apollo-websoc
 | `tokens` | `TokenManager` | `tokenManager` | Token store |
 | `storeRefreshToken` | `boolean` | — (storage untouched) | Configure the token store once at creation |
 | `crossTab` | `boolean \| { lockName?: string }` | `false` | Coordinate refreshes between tabs (needs a shared token store) |
+| `fetch` | `typeof fetch` | `globalThis.fetch` (looked up per call) | Implementation behind `session.fetch` |
 
 **`DeclarativeRefreshOptions`:** `url` (required), `baseURL`, `withCredentials`, `payload`, `extractTokens`, `onTokenRefreshed`, `timeout` (default `60000`).
 
@@ -2806,6 +2883,7 @@ See the full [Auth session section](#auth-session-multiple-clients-apollo-websoc
 | `isRefreshing` | `boolean` (read-only) | A refresh is in flight |
 | `on(event, fn)` | `() => void` (unsubscribe) | Subscribe to `refreshStart` / `refreshed` / `refreshFailed` / `cleared` |
 | `clear()` | `() => void` | Clear tokens and emit `cleared` |
+| `fetch` | `typeof fetch` (bound) | Auth-aware `fetch`: token + one refresh-and-repeat on 401, never throws for a status |
 | `attach(instance)` | `(instance: AxiosInstance) => void` | Advanced: install the session's interceptors on an axios instance you created yourself (`createApiClient({ authSession })` does this for you) |
 
 ---

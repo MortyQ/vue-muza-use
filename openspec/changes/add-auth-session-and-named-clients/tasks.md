@@ -37,10 +37,10 @@ Test command: `pnpm --filter @ametie/vue-muza-use exec vitest run`.
 
 ## 4. Auth-aware fetch — `feat(auth): add session.fetch for fetch-based consumers`
 
-- [ ] 4.1 Implement `session.fetch` per D5 (passthrough on caller-supplied Authorization, one retry, replayable-body rule, `Request` clone, never throws for HTTP status, `options.fetch` resolved at call time, bound property); verify existing suite green
-- [ ] 4.2 Write `tests/features/authSession.fetch.test.ts` covering every "Auth-aware fetch" scenario plus: caller-supplied Authorization → no refresh; `Request` input is replayed; concurrent 401 from fetch and from an attached axios instance → one refresh; verify all pass
-- [ ] 4.3 README recipes (docs only, no dependency added): Apollo `HttpLink({ fetch: session.fetch })`; Apollo `ErrorLink` that on `UNAUTHENTICATED` awaits `session.refresh({ staleAccessToken })` and retries; graphql-ws `connectionParams: () => ({ Authorization: session.getAuthHeader() })` + `session.on("refreshed", () => client.terminate())`; fetch-based SSE; verify `package.json` dependencies are unchanged
-- [ ] 4.4 Full suite, `pnpm build`; verify counts
+- [x] 4.1 Implement `session.fetch` per D5 (passthrough on caller-supplied Authorization, one retry, replayable-body rule, `Request` clone, never throws for HTTP status, `options.fetch` resolved at call time, bound property); verify existing suite green
+- [x] 4.2 Write `tests/features/authSession.fetch.test.ts` covering every "Auth-aware fetch" scenario plus: caller-supplied Authorization → no refresh; `Request` input is replayed; concurrent 401 from fetch and from an attached axios instance → one refresh; verify all pass
+- [x] 4.3 README recipes (docs only, no dependency added): Apollo `HttpLink({ fetch: session.fetch })`; Apollo `ErrorLink` that on `UNAUTHENTICATED` awaits `session.refresh({ staleAccessToken })` and retries; graphql-ws `connectionParams: () => ({ Authorization: session.getAuthHeader() })` + `session.on("refreshed", () => client.terminate())`; fetch-based SSE; verify `package.json` dependencies are unchanged
+- [x] 4.4 Full suite, `pnpm build`; verify counts
 
 ## 5. Named clients — `feat(clients): route useApi and useApiBatch requests to named axios clients`
 
