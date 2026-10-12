@@ -1,6 +1,7 @@
 import type { CacheOptions, InvalidateInput } from "../types";
 import { parseDuration } from "../utils/time";
 import { stableStringify } from "../utils/stableStringify";
+import { DEFAULT_CLIENT } from "./clientRegistry";
 
 export const DEFAULT_STALE_TIME = 300_000; // 5 minutes
 
@@ -102,6 +103,10 @@ function normalizeCacheOptions(
  * otherwise an auto key derived from method + url + params + data so that each
  * distinct params/body combination gets its own cache entry. The `auto:METHOD:url`
  * prefix supports bulk invalidation via `invalidateCache({ prefix })`.
+ *
+ * A named client scopes the auto key as `auto@<client>:METHOD:url:...`, so the same
+ * path on two backends never shares an entry. The default client (undefined or
+ * `"default"`) keeps the unscoped key; a manual `id` is used verbatim for any client.
  */
 function resolveCacheKey(
     normalized: NormalizedCache,
@@ -109,9 +114,11 @@ function resolveCacheKey(
     url: string,
     params: unknown,
     data: unknown,
+    client?: string,
 ): string {
     if (normalized.id !== undefined) return normalized.id;
-    return `auto:${method.toUpperCase()}:${url}:${stableStringify(params)}:${stableStringify(data)}`;
+    const scope = client === undefined || client === DEFAULT_CLIENT ? "auto" : `auto@${client}`;
+    return `${scope}:${method.toUpperCase()}:${url}:${stableStringify(params)}:${stableStringify(data)}`;
 }
 
 /**

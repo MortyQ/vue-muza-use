@@ -120,7 +120,7 @@ export interface AuthSession {
     on<E extends AuthSessionEvent>(event: E, listener: (payload: AuthSessionEventMap[E]) => void): () => void;
     clear(): void;
     fetch: typeof fetch;
-    /** @internal used by createApiClient({ auth }); exported on the object, documented as advanced. */
+    /** @internal used by createApiClient({ authSession }); exported on the object, documented as advanced. */
     attach(instance: AxiosInstance): void;
 }
 ```
@@ -196,6 +196,13 @@ Response interceptor (same guards, same order as `interceptors.ts:133-147`):
 5. Set the new `Authorization`, `flagAuthRetry`-equivalent devtools marking, `return instance(originalRequest)`.
 6. Refresh rejected → reject with the refresh error (tokens already cleared, event already emitted).
 
+**Deliberate difference (decided during apply):** the legacy queue marks only the request that
+*started* the refresh with `_retry`; requests queued behind it are retried unmarked, so a queued
+request that is still 401 after the refresh starts a second refresh. `attach` marks every waiting
+request, so no request ever triggers more than one refresh. This only changes the
+"still 401 after a successful refresh, while queued" case and only for session clients; the parity
+table in `authSession.attach.test.ts` covers every scenario where both paths must agree.
+
 `flagAuthRetry` and `isRefreshRequest` are module-private in `interceptors.ts`. Copy the ~10 lines
 of `flagAuthRetry` into `authSession.ts` rather than exporting them (no diff to `interceptors.ts`).
 
@@ -206,13 +213,18 @@ export interface CreateApiClientOptions extends CreateAxiosDefaults {
     withAuth?: boolean;
     authOptions?: InterceptorOptions;
     /** New in 1.9. When set, withAuth/authOptions are ignored and no global storage is configured. */
-    auth?: AuthSession;
+    authSession?: AuthSession;
 }
 ```
 
-`if (auth)` branch at the top: create the axios instance with the same defaults, `auth.attach(instance)`,
+**Naming (decided during apply):** the option was planned as `auth`, but `CreateAxiosDefaults`
+already has `auth?: AxiosBasicCredentials` (HTTP Basic). Re-typing it would break every caller that
+passes Basic credentials (a major), so the option is `authSession`; axios' `auth` keeps passing
+through to `axios.create` untouched.
+
+`if (authSession)` branch at the top: create the axios instance with the same defaults, `authSession.attach(instance)`,
 warn in development if `authOptions` or `withAuth === false` was also passed, return. The `else`
-branch is the current function body, unchanged line for line. The `auth` key must be removed from
+branch is the current function body, unchanged line for line. The `authSession` key must be removed from
 the object spread into `axios.create`.
 
 ### D5 — `session.fetch`
@@ -275,7 +287,7 @@ export interface ApiErrorContext { client: string }
 
 // ApiPluginOptions — additive:
 clients?: Record<string, AxiosInstance | ApiClientConfig>;
-onError?: (error: ApiError, originalError: unknown, context: ApiErrorContext) => void;
+onError?: (error: ApiError, originalError: unknown, context?: ApiErrorContext) => void;
 // UseApiOptions — additive:
 client?: ApiClientName;
 // UseApiBatchOptions and BatchRequestConfig — additive:
@@ -295,7 +307,10 @@ untyped caller cannot leak it to axios.
    synchronously on an unknown name;
 3. `toApiError` uses `resolved.errorParser ?? parseApiError`;
 4. `axios.request` → `resolved.axios.request`;
-5. `globalErrorHandler(apiError, err, { client: resolved.name })`;
+5. default client → `globalErrorHandler(apiError, err)` (unchanged); named client →
+   `globalErrorHandler(apiError, err, { client: resolved.name })`. **Decided during apply:** the
+   existing `useApi.core.test.ts` asserts the global handler is called with exactly two arguments,
+   so passing `{ client: "default" }` would be an observable change; `context` is optional in the type;
 6. `resolveCacheKey(..., resolved.name)`.
 
 `cacheManager.ts`: `resolveCacheKey` gets an optional 6th parameter `client?: string`. Undefined or
@@ -326,9 +341,9 @@ Every item below must be identical to 1.8.3; the "proof" column is what the task
 |---|---|
 | All existing tests, unedited | full suite: 39 files / 672 passed / 22 todo before; same files still pass after (task 1.1 baseline, every group's final step) |
 | Legacy 401 path | `git diff --exit-code origin/main -- packages/use-api/src/features/interceptors.ts packages/use-api/src/features/tokenManager.ts` (task 6.3) |
-| `createApiClient` without `auth` | existing `tests/features/createInstance.test.ts` + new "no auth → unchanged" test |
+| `createApiClient` without `authSession` | existing `tests/features/createInstance.test.ts` + new "no authSession → unchanged" test |
 | Default cache keys | existing `tests/useApi.autoCache.test.ts` asserts the literal `auto:GET:/users:{"page":1}:` |
-| `onError` callers with two params | additive third param; existing global-error-handler tests |
+| `onError` called with exactly two args for default-client requests | `tests/useApi.core.test.ts` asserts `toHaveBeenCalledWith(error, anything)` — arity-exact |
 | Public type surface | `.d.ts` diff of `dist/index.d.ts` built from `origin/main` vs branch contains only additions (task 6.2) |
 | Bundle | no new dependency; `navigator.locks` touched only behind `crossTab` |
 

@@ -106,8 +106,10 @@ A production-ready composable that eliminates boilerplate and solves the hard pr
 
 **Advanced:**
 - [Advanced Configuration](#️-advanced-configuration)
+  - [Multiple Backends (Named Clients)](#multiple-backends-named-clients)
 - [DevTools Panel](#-devtools-panel)
 - [Authentication & Token Management](#-authentication--token-management)
+  - [Auth session (multiple clients, Apollo, WebSocket)](#auth-session-multiple-clients-apollo-websocket)
 - [Error Handling Reference](#-error-handling-reference)
 - [Utilities & Standalone Composables](#-utilities--standalone-composables)
 - [API Reference](#-api-reference)
@@ -1499,6 +1501,7 @@ interface BatchRequestConfig {
   data?: unknown
   params?: unknown
   headers?: Record<string, string>
+  client?: string  // named client for this item — overrides the batch-level `client` (1.9+)
 }
 ```
 
@@ -1724,6 +1727,91 @@ customAxios.interceptors.request.use((config) => {
 })
 
 app.use(createApi({ axios: customAxios }))
+```
+
+---
+
+### Multiple Backends (Named Clients)
+
+**TL;DR: register extra axios instances under names and pick one per request with `client`. Each backend keeps its own `baseURL`, headers, timeout and error parser, and cache entries never mix.** *(1.9+)*
+
+```typescript
+import { createApi, createApiClient, createAuthSession } from '@ametie/vue-muza-use'
+
+const session = createAuthSession({ refresh: { url: '/auth/refresh', baseURL: INSIGHTS_URL } })
+
+app.use(createApi({
+  axios: createApiClient({ baseURL: INSIGHTS_URL, authSession: session }), // the "default" client
+  clients: {
+    tools: createApiClient({ baseURL: TOOLS_URL, authSession: session }),   // shorthand
+    mcp: { axios: mcpApi, errorParser: parseMcpError },                     // full form
+  },
+}))
+```
+
+```typescript
+// api/useBrands.ts
+export function useToolsBrands() {
+  return useApiGet<Brand[]>('/brands', { client: 'tools', immediate: true })
+}
+
+// Batch: batch-level client, overridable per item
+useApiBatch(['/brands', { url: '/me', client: 'default' }], { client: 'tools' })
+```
+
+- **Routing.** A request without `client` (or with `client: 'default'`) goes through `axios`, exactly as before. With `client: 'tools'` the request, its retries and its 401 refresh-retry go through the `tools` instance, resolved against that instance's `baseURL`. `client` is fixed per composable — it is not reactive and cannot be changed per `execute()`.
+- **Unknown names fail loudly.** `client: 'nope'` throws when the composable is created: `Unknown API client "nope". Registered: default, tools, mcp`. In a batch, an unknown item-level client fails that item only. The name `default` is reserved — `clients: { default: … }` throws in `createApi`.
+- **Auth.** Each instance brings its own auth. Give them one [auth session](#several-backends-one-session) so a token expiry triggers a single refresh.
+- **Global options** (`retry`, `cacheDefaults`, global abort, devtools) apply to every client.
+
+#### Type-checked client names
+
+Out of the box `client` accepts any string. Declare your clients once to get autocomplete and typo errors:
+
+```typescript
+// src/types/vue-muza-use.d.ts
+import '@ametie/vue-muza-use'
+
+declare module '@ametie/vue-muza-use' {
+  interface ApiClientRegistry {
+    tools: true
+    mcp: true
+  }
+}
+```
+
+```typescript
+useApiGet('/brands', { client: 'tools' })  // ✅
+useApiGet('/brands', { client: 'tool' })   // ❌ Type '"tool"' is not assignable to type … Did you mean '"tools"'?
+```
+
+#### Cache keys per client
+
+Auto cache keys of a named client carry its name, so `GET /brands` on two backends are two entries:
+
+| Request | Auto cache key |
+|---------|----------------|
+| `useApi('/brands', { cache: true })` | `auto:GET:/brands::` *(unchanged)* |
+| `useApi('/brands', { cache: true, client: 'tools' })` | `auto@tools:GET:/brands::` |
+| `useApi('/brands', { cache: { id: 'brands' }, client: 'tools' })` | `brands` *(manual ids are used verbatim)* |
+
+```typescript
+invalidateCache({ prefix: 'auto@tools:GET:/brands' }) // only the tools entries
+invalidateCache({ prefix: 'auto:GET:/brands' })       // only the default-client entries
+```
+
+#### Errors per client
+
+A client's `errorParser` wins; without one the global `errorParser` is used, then the built-in parser. The global `onError` gets a third argument naming the client — for named clients only, so existing two-argument handlers see no change:
+
+```typescript
+createApi({
+  axios: insightsApi,
+  clients: { tools: { axios: toolsApi, errorParser: parseToolsError } },
+  onError: (error, original, context) => {
+    toast.error(`[${context?.client ?? 'default'}] ${error.message}`)
+  },
+})
 ```
 
 ---
@@ -2145,6 +2233,212 @@ setAuthMonitor((type, payload) => {
 > the browser console via `console.debug`. You only need to call `setAuthMonitor`
 > if you want custom behavior (e.g., sending events to Sentry).
 
+### Auth session (multiple clients, Apollo, WebSocket)
+
+**TL;DR: one object owns the token and the refresh. Every consumer of the token — several axios instances, an Apollo link, a WebSocket, `fetch` — goes through it, so a token expiry causes exactly one refresh.**
+
+`createApiClient({ authOptions })` gives each axios instance its own refresh logic. That is fine for one backend. With two instances (or axios + GraphQL), each one refreshes on its own — and with a one-time-use refresh token the second refresh fails and logs the user out. `createAuthSession` fixes that by making the refresh a shared, single-flight operation.
+
+```typescript
+import { createAuthSession } from '@ametie/vue-muza-use'
+
+export const session = createAuthSession({
+  // Declarative: the same request authOptions sends, aimed at any backend
+  refresh: { url: '/auth/refresh', baseURL: 'https://insights.example.com', withCredentials: true },
+})
+
+const token = session.getAccessToken()     // string | null
+const header = session.getAuthHeader()     // "Bearer …" | null
+const fresh = await session.refresh()      // single-flight: concurrent callers share one refresh
+```
+
+The existing `createApiClient({ authOptions })` keeps working exactly as before — a session only affects code that uses it.
+
+#### Several backends, one session
+
+Pass the session to every `createApiClient` with `authSession`. Each instance sends the session's token; a 401 on any of them refreshes once, through the session's own transport, and each request is retried against its own `baseURL`:
+
+```typescript
+import { createApi, createApiClient, createAuthSession } from '@ametie/vue-muza-use'
+
+const session = createAuthSession({
+  refresh: { url: '/auth/refresh', baseURL: 'https://insights.example.com', withCredentials: true },
+})
+
+const insightsApi = createApiClient({ baseURL: 'https://insights.example.com', authSession: session })
+const toolsApi = createApiClient({ baseURL: 'https://tools.example.com', authSession: session })
+
+app.use(createApi({ axios: insightsApi }))
+
+// Both get a 401 at once → one POST https://insights.example.com/auth/refresh,
+// then GET https://insights.example.com/brands and GET https://tools.example.com/brands are retried
+await Promise.all([insightsApi.get('/brands'), toolsApi.get('/brands')])
+```
+
+`authSession` replaces `withAuth` / `authOptions` (a development warning points out a leftover `authOptions`), and unlike `authOptions` it does not reconfigure token storage. The 401 rules are those of `authOptions`: `authMode: 'public'` sends no token and never refreshes, `'optional'` sends the token if there is one and never refreshes, and a request is retried at most once. To attach an instance you created yourself, call `session.attach(instance)`.
+
+#### Refresh transport
+
+Two forms:
+
+```typescript
+// 1. Declarative — mirrors authOptions
+createAuthSession({
+  refresh: {
+    url: '/auth/refresh',
+    baseURL: '/api',                       // backend that issues tokens
+    withCredentials: true,                 // = authOptions.refreshWithCredentials
+    payload: () => ({ deviceId: getDeviceId() }),
+    extractTokens: (res) => ({ accessToken: res.data.jwt, refreshToken: res.data.rt }),
+    onTokenRefreshed: async (res) => { await loadPermissions(res.data) }, // awaited before waiting requests resume
+  },
+})
+
+// 2. Function — anything else (GraphQL mutation, SDK call, …)
+import axios from 'axios'
+
+createAuthSession({
+  refresh: async ({ refreshToken, staleAccessToken }) => {
+    // Plain axios — not attached to this session, so a 401 here cannot wait on itself
+    const { data } = await axios.post('https://tools.example.com/graphql', {
+      query: REFRESH_MUTATION,
+      variables: { refreshToken },
+    })
+    return { accessToken: data.data.refresh.accessToken, refreshToken: data.data.refresh.refreshToken }
+  },
+})
+```
+
+The declarative form sends its request through a private axios instance with no interceptors, so a 401 from the refresh endpoint fails the refresh instead of looping. Like `authOptions`, it sends cookies automatically when no refresh token is stored, and accepts `accessToken` / `access_token` in the response.
+
+> [!WARNING]
+> A **function** transport should send its request through a client that is **not** attached to the same session (plain `axios`, `fetch`). If it does use an attached instance, the request **must** carry `authMode: 'public'` — otherwise a 401 from the refresh endpoint waits for the refresh that sent it. (Axios' own config type does not know `authMode`, so a raw `instance.post()` needs a type assertion for it; a plain client avoids the issue.)
+
+A refresh that throws, or resolves without an `accessToken`, fails: the tokens are cleared, every waiting caller rejects with the error, and `refreshFailed` fires once.
+
+#### Events and logout
+
+```typescript
+const off = session.on('refreshed', ({ accessToken, response }) => {
+  wsClient.terminate()                     // reconnect with the new token
+})
+session.on('refreshFailed', ({ error }) => router.push('/login'))
+session.on('refreshStart', ({ staleAccessToken }) => {})
+session.on('cleared', () => apollo.clearStore())
+
+off()                                      // unsubscribe
+
+// Logout
+session.clear()                            // clears tokens, emits "cleared"
+```
+
+| Event | Payload | When |
+|-------|---------|------|
+| `refreshStart` | `{ staleAccessToken }` | A refresh begins |
+| `refreshed` | `{ accessToken, response }` | New token stored. `response` is the raw refresh response for the declarative form, `null` otherwise |
+| `refreshFailed` | `{ error }` | Refresh failed, tokens already cleared |
+| `cleared` | `{}` | `session.clear()` was called |
+
+Listeners run after the token store has been updated. A listener that throws is logged and never breaks the refresh. The session also reports to [`setAuthMonitor`](#advanced-authmonitor--observing-token-lifecycle-events) with the same event types as `authOptions`.
+
+#### Outside axios — `session.fetch`, Apollo, WebSocket, SSE
+
+`session.fetch` is a drop-in `fetch`: it sends the session's token and, on a 401, refreshes through the session (sharing the refresh with every attached axios instance) and repeats the request once. It never throws for an HTTP status — if the refresh fails you get the original 401 back. A request that already has an `Authorization` header is passed through untouched. The repeat needs a body that can be sent twice: a `ReadableStream` body still triggers the refresh, but returns the original 401.
+
+The library has no dependency on Apollo or graphql-ws — these are recipes, checked against Apollo Client 4.3 and graphql-ws 6.3.
+
+**Apollo Client 4 — HTTP 401 and GraphQL `UNAUTHENTICATED`:**
+
+```typescript
+import { ApolloClient, ApolloLink, CombinedGraphQLErrors, HttpLink, InMemoryCache } from '@apollo/client'
+import { SetContextLink } from '@apollo/client/link/context'
+import { ErrorLink } from '@apollo/client/link/error'
+import { from, switchMap } from 'rxjs'
+
+// Remember which token the operation went out with (session.fetch adds the header itself)
+const tokenContext = new SetContextLink(() => ({ sentToken: session.getAccessToken() }))
+
+// GraphQL servers often answer 200 + UNAUTHENTICATED instead of 401 — refresh and retry once
+const refreshOnUnauthenticated = new ErrorLink(({ error, operation, forward }) => {
+  const unauthenticated =
+    CombinedGraphQLErrors.is(error) && error.errors.some((e) => e.extensions?.code === 'UNAUTHENTICATED')
+  if (!unauthenticated || operation.getContext().authRetried) return
+
+  operation.setContext({ authRetried: true })
+  const staleAccessToken = operation.getContext().sentToken ?? null
+  return from(session.refresh({ staleAccessToken })).pipe(switchMap(() => forward(operation)))
+})
+
+export const apollo = new ApolloClient({
+  link: ApolloLink.from([
+    tokenContext,
+    refreshOnUnauthenticated,
+    new HttpLink({ uri: 'https://tools.example.com/graphql', fetch: session.fetch }), // HTTP 401 → refresh → retry
+  ]),
+  cache: new InMemoryCache(),
+})
+
+session.on('cleared', () => { void apollo.clearStore() })
+```
+
+**graphql-ws — fresh token on every (re)connect:**
+
+```typescript
+import { createClient } from 'graphql-ws'
+
+export const wsClient = createClient({
+  url: 'wss://tools.example.com/graphql',
+  connectionParams: () => ({ Authorization: session.getAuthHeader() }), // read on each connect
+  on: {
+    closed: (event) => {
+      // 4403 Forbidden: the server's onConnect rejected the token — refresh; the client then reconnects
+      if ((event as { code?: number }).code === 4403) void session.refresh().catch(() => {})
+    },
+  },
+})
+
+session.on('refreshed', () => wsClient.terminate()) // reconnect right away with the new token
+session.on('cleared', () => wsClient.dispose())
+```
+
+**Server-Sent Events over `fetch`:**
+
+```typescript
+const res = await session.fetch('https://tools.example.com/events', { headers: { Accept: 'text/event-stream' } })
+if (res.ok && res.body) {
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+  for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+    handleEvents(chunk.value)
+  }
+}
+// A 401 when opening the stream refreshes and reconnects once; a failed refresh returns the 401
+// (and fires refreshFailed) instead of logging the user out on the spot.
+```
+
+`crossTab` note: the Apollo recipe passes the token the operation was sent with as `staleAccessToken`, so a tab that finds a newer token (stored by another tab) adopts it instead of refreshing again.
+
+#### Token storage
+
+By default the session reads and writes the exported `tokenManager`, so `tokenManager.setTokens()` after login is all it needs. Unlike `createApiClient`, creating a session does **not** reconfigure token storage — pass `storeRefreshToken` to do it explicitly:
+
+```typescript
+createAuthSession({ refresh: { url: '/auth/refresh' }, storeRefreshToken: false }) // refresh token lives in an httpOnly cookie
+```
+
+A custom store goes in `tokens` (a `TokenManager` instance).
+
+#### Cross-tab refresh — `crossTab`
+
+```typescript
+createAuthSession({ refresh: { url: '/auth/refresh' }, crossTab: true })
+// or: crossTab: { lockName: 'my-app:auth-refresh' }   (default "vue-muza-use:auth-refresh")
+```
+
+With `crossTab` on, tabs of the same origin take turns through the [Web Locks API](https://developer.mozilla.org/docs/Web/API/Web_Locks_API). A tab that gets the lock after another tab already stored a new token takes that token instead of refreshing again. Without `navigator.locks` the option does nothing (in-tab single-flight still applies).
+
+> [!IMPORTANT]
+> Taking over another tab's token only works when the token store is **shared between tabs** — the default `tokenManager` (localStorage). With a per-tab store (in-memory or a custom `TokenStorage`), refreshes are only serialised: every tab still refreshes on its own, and with a one-time-use refresh token the later tab's refresh fails and ends its session.
+
 ---
 
 ## 🛑 Error Handling Reference
@@ -2271,6 +2565,7 @@ Three type parameters — all optional with defaults:
 | `params` | `MaybeRefOrGetter<any>` | `undefined` | URL query parameters — automatically unwrapped if a ref |
 | `headers` | `Record<string, string>` | `undefined` | Custom request headers added on top of defaults |
 | `authMode` | `'default' \| 'public' \| 'optional'` | `'default'` | Controls token injection and 401 retry behaviour |
+| `client` | `ApiClientName` (`string` unless [declared](#type-checked-client-names)) | `'default'` | Named client to send through — see [Multiple Backends](#multiple-backends-named-clients). Fixed per composable *(1.9+)* |
 
 **Reactivity & Auto-Execution:**
 
@@ -2477,8 +2772,9 @@ createApp(App).use(createApi({
 
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
-| `axios` | `AxiosInstance` | ✅ Yes | The Axios instance to use for all requests |
-| `onError` | `(error: ApiError, original: unknown) => void` | No | Global error handler called for every failed request (unless `skipErrorNotification: true`) |
+| `axios` | `AxiosInstance` | ✅ Yes | The Axios instance to use for all requests (the `default` client) |
+| `clients` | `Record<string, AxiosInstance \| { axios, errorParser? }>` | No | Extra named clients selectable with the `client` option. `default` is reserved — see [Multiple Backends](#multiple-backends-named-clients) *(1.9+)* |
+| `onError` | `(error: ApiError, original: unknown, context?: { client: string }) => void` | No | Global error handler called for every failed request (unless `skipErrorNotification: true`). `context` is passed for named-client failures only |
 | `errorParser` | `(error: unknown) => ApiError` | No | Custom function to convert raw Axios errors into `ApiError` format |
 | `globalOptions` | `object` | No | Default options applied to every `useApi()` call (see globalOptions table above) |
 
@@ -2502,13 +2798,15 @@ Factory function that creates a configured Axios instance with built-in JWT auth
 | `authOptions.onTokenRefreshed` | `(response: AxiosResponse) => void \| Promise<void>` | `undefined` | Called after a successful refresh — use to sync user state |
 | `authOptions.extractTokens` | `(response: AxiosResponse) => { accessToken: string, refreshToken?: string }` | `undefined` | Override token field names from the refresh response |
 | `authOptions.refreshPayload` | `Record<string, unknown> \| (() => Record<string, unknown>)` | `undefined` | Extra data to send with the refresh request (device ID, etc.) |
+| `authSession` | `AuthSession` | `undefined` | Use a shared [auth session](#auth-session-multiple-clients-apollo-websocket) instead of `withAuth` / `authOptions`. The instance sends the session's token and refreshes through it; the global token storage is not reconfigured. *(1.9+)* |
+
+All other [axios options](https://axios-http.com/docs/req_config) pass through — including axios' own `auth` (HTTP Basic credentials), which is unrelated to `authSession`.
 
 > [!WARNING]
-> If you create two `createApiClient()` instances in the same app, they share the
-> module-level `isRefreshing` flag and `failedQueue`. This can cause unexpected
-> behaviour when both instances handle 401 refresh at the same time. Use a single
-> `createApiClient` per app, and route different API domains through it using
-> interceptors or `baseURL` overrides on individual requests.
+> Two `createApiClient({ authOptions })` instances each have their **own** refresh logic.
+> When both get a 401 at the same time, both refresh — and with a one-time-use refresh
+> token the second refresh fails and logs the user out. For more than one instance,
+> give them one [`authSession`](#several-backends-one-session) instead.
 
 ---
 
@@ -2541,6 +2839,7 @@ type BatchInput = string | BatchRequestConfig
 | `lazy` | `boolean` | `false` | Disable auto-tracking. When `false`, a getter passed as `requests` re-executes the batch automatically when its reactive deps change. Set `true` for full manual control via `execute()` |
 | `poll` | `number \| { interval: MaybeRefOrGetter<number>, whenHidden?: MaybeRefOrGetter<boolean> }` | `0` | Polling interval in ms. After each execution, schedules the next one after `interval` ms. `0` disables polling. `whenHidden: false` (default) pauses when the tab is hidden |
 | `skipErrorNotification` | `boolean` | `true` | Suppress global error handler for individual item failures |
+| `client` | `ApiClientName` | `'default'` | Named client for every item; an item's own `client` wins *(1.9+)* |
 | `onItemSuccess` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch succeeds |
 | `onItemError` | `(item: BatchResultItem<T>, index: number) => void` | `undefined` | Called each time a single request in the batch fails |
 | `onProgress` | `(progress: BatchProgress) => void` | `undefined` | Called after each request completes with updated progress |
@@ -2645,6 +2944,37 @@ tokenManager.setTokens({ accessToken: '...', expiresIn: 3600 })
 tokenManager.clearTokens()
 const isLoggedIn = tokenManager.hasTokens()
 ```
+
+---
+
+### `createAuthSession(options)`
+
+See the full [Auth session section](#auth-session-multiple-clients-apollo-websocket) above.
+
+**Options (`AuthSessionOptions`):**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `refresh` | `DeclarativeRefreshOptions \| (ctx: RefreshContext) => Promise<RefreshResult>` | — | How to obtain new tokens |
+| `tokens` | `TokenManager` | `tokenManager` | Token store |
+| `storeRefreshToken` | `boolean` | — (storage untouched) | Configure the token store once at creation |
+| `crossTab` | `boolean \| { lockName?: string }` | `false` | Coordinate refreshes between tabs (needs a shared token store) |
+| `fetch` | `typeof fetch` | `globalThis.fetch` (looked up per call) | Implementation behind `session.fetch` |
+
+**`DeclarativeRefreshOptions`:** `url` (required), `baseURL`, `withCredentials`, `payload`, `extractTokens`, `onTokenRefreshed`, `timeout` (default `60000`).
+
+**Returns (`AuthSession`):**
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `getAccessToken()` | `() => string \| null` | Current access token |
+| `getAuthHeader()` | `() => string \| null` | `"Bearer <token>"` or `null` |
+| `refresh(opts?)` | `(opts?: { staleAccessToken?: string \| null }) => Promise<string>` | Single-flight refresh; resolves with the new token |
+| `isRefreshing` | `boolean` (read-only) | A refresh is in flight |
+| `on(event, fn)` | `() => void` (unsubscribe) | Subscribe to `refreshStart` / `refreshed` / `refreshFailed` / `cleared` |
+| `clear()` | `() => void` | Clear tokens and emit `cleared` |
+| `fetch` | `typeof fetch` (bound) | Auth-aware `fetch`: token + one refresh-and-repeat on 401, never throws for a status |
+| `attach(instance)` | `(instance: AxiosInstance) => void` | Advanced: install the session's interceptors on an axios instance you created yourself (`createApiClient({ authSession })` does this for you) |
 
 ---
 

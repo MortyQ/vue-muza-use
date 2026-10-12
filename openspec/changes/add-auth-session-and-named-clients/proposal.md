@@ -43,9 +43,9 @@ once:
     at once perform one refresh and the other tab adopts the new token instead of failing.
     Adoption requires a token store shared between tabs (the default `localStorage`-backed
     `tokenManager`); with a per-tab store refreshes are only serialised. Documented, not detected.
-- **`createApiClient({ auth: session })`** — new option. When present, the instance is wired to
+- **`createApiClient({ authSession: session })`** — new option. When present, the instance is wired to
   the session instead of getting its own interceptor pair, and the global
-  `tokenManager.setStorage()` side effect is skipped. Without `auth`, `createApiClient` runs the
+  `tokenManager.setStorage()` side effect is skipped. Without `authSession`, `createApiClient` runs the
   exact code path it runs today.
 - **Named clients** — `createApi({ axios, clients: { tools: toolsAxios } })` registers extra axios
   instances (optionally with their own `errorParser`). `useApi`, the method helpers and
@@ -55,7 +55,8 @@ once:
   - Client names are type-checked through an augmentable `ApiClientRegistry` interface; without
     augmentation any string is accepted.
   - Unknown client name → a descriptive error at `useApi` call time.
-- Global `onError` receives a third, additive argument `{ client }`.
+- Global `onError` receives an optional third argument `{ client }` for named-client failures.
+  Default-client failures keep calling it with exactly the two arguments of 1.8.x.
 - README and the in-repo `use-api` skill gain sections for both features, including recipes for
   Apollo (`errorLink` → `session.refresh()`, `HttpLink({ fetch: session.fetch })`) and
   `graphql-ws` (`session.on("refreshed", ...)` → reconnect). The library takes **no** dependency
@@ -66,8 +67,8 @@ No **BREAKING** changes. No existing export is renamed, removed or re-typed.
 Public exports added: `createAuthSession`, types `AuthSession`, `AuthSessionOptions`,
 `AuthSessionEvent`, `AuthSessionEventMap`, `RefreshContext`, `RefreshResult`,
 `DeclarativeRefreshOptions`, `ApiClientRegistry`, `ApiClientName`, `ApiClientConfig`,
-`ApiErrorContext`. Changed (additive fields only): `CreateApiClientOptions.auth`,
-`ApiPluginOptions.clients`, `ApiPluginOptions.onError` (third arg), `UseApiOptions.client`,
+`ApiErrorContext`. Changed (additive fields only): `CreateApiClientOptions.authSession`,
+`ApiPluginOptions.clients`, `ApiPluginOptions.onError` (optional third arg), `UseApiOptions.client`,
 `UseApiBatchOptions.client`, `BatchRequestConfig.client`.
 
 ## Capabilities

@@ -1,5 +1,6 @@
 import type { AxiosRequestConfig, AxiosResponse, AxiosInstance } from "axios";
 import type {MaybeRefOrGetter, Ref} from "vue";
+import type { TokenManager } from "./features/tokenManager";
 
 export interface ApiError {
     message: string;
@@ -260,6 +261,14 @@ export interface UseApiOptions<T = unknown, D = unknown, TSelected = T> extends 
      * Properties inside the object can also be Refs.
      */
     poll?: MaybeRefOrGetter<number | { interval: MaybeRefOrGetter<number>; whenHidden?: MaybeRefOrGetter<boolean> }>;
+    /**
+     * Named client (registered with `createApi({ clients })`) the request goes
+     * through. Default: the main `axios`. Fixed for the composable — not
+     * reactive and not overridable per `execute()`. An unknown name throws when
+     * the composable is created. Auto cache keys are scoped by client
+     * (`auto@tools:GET:/brands:...`); the default client's keys are unchanged.
+     */
+    client?: ApiClientName;
 }
 
 /**
@@ -296,6 +305,7 @@ export type ExecuteConfig<D = unknown> = Omit<
     | "refetchOnReconnect"
     | "poll"
     | "select"
+    | "client"
 >;
 
 export interface UseApiReturn<T = unknown, D = unknown> {
@@ -367,9 +377,76 @@ export interface UseApiReturn<T = unknown, D = unknown> {
     mutate: (newData: T | null | ((prev: T | null) => T | null)) => void;
 }
 
+// ============================================================================
+// Named Clients
+// ============================================================================
+
+/**
+ * Registry of named API clients, empty by default. Augment it to type-check the
+ * `client` option — without augmentation any string is accepted.
+ *
+ * @example
+ * ```ts
+ * declare module "@ametie/vue-muza-use" {
+ *     interface ApiClientRegistry {
+ *         tools: true;
+ *     }
+ * }
+ * useApiGet("/brands", { client: "tools" }); // ✅
+ * useApiGet("/brands", { client: "tool" });  // ❌ type error
+ * ```
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-interface, @typescript-eslint/no-empty-object-type
+export interface ApiClientRegistry {}
+
+/**
+ * A client name accepted by the `client` option: `"default"` or a name declared in
+ * {@link ApiClientRegistry}; any string while the registry is not augmented.
+ */
+export type ApiClientName = [keyof ApiClientRegistry] extends [never]
+    ? string
+    : "default" | Extract<keyof ApiClientRegistry, string>;
+
+/**
+ * Full form of a named client registered through `createApi({ clients })`.
+ */
+export interface ApiClientConfig {
+    /** The axios instance requests for this client go through. */
+    axios: AxiosInstance;
+    /** Error parser for this client's failures. Default: the global `errorParser`, then the built-in one. */
+    errorParser?: (error: unknown) => ApiError;
+}
+
+/**
+ * Third argument of the global `onError` — passed for named-client failures only.
+ * Default-client failures call `onError(error, originalError)` exactly as before 1.9.
+ */
+export interface ApiErrorContext {
+    /** Name of the client the failed request used. */
+    client: string;
+}
+
 export interface ApiPluginOptions {
     axios: AxiosInstance;
-    onError?: (error: ApiError, originalError: unknown) => void;
+    /**
+     * Global error handler. For a request sent through a named client the third
+     * argument names that client; default-client requests pass two arguments.
+     */
+    onError?: (error: ApiError, originalError: unknown, context?: ApiErrorContext) => void;
+    /**
+     * Extra axios instances, addressable per request with the `client` option.
+     * Each value is an axios instance or `{ axios, errorParser? }`. The name
+     * `default` is reserved for `axios` above. New in 1.9.
+     *
+     * @example
+     * ```ts
+     * createApi({
+     *     axios: insightsApi,
+     *     clients: { tools: toolsApi, mcp: { axios: mcpApi, errorParser: parseMcpError } },
+     * })
+     * ```
+     */
+    clients?: Record<string, AxiosInstance | ApiClientConfig>;
     /**
      * Custom error parser to transform backend errors into ApiError format.
      * Useful if your backend has a different error structure.
@@ -419,6 +496,183 @@ export interface AuthTokens {
 }
 
 // ============================================================================
+// Auth Session Types
+// ============================================================================
+
+/**
+ * What a function refresh transport receives from the session.
+ */
+export interface RefreshContext {
+    /** Refresh token from the token store, or `null` (cookie-based refresh). */
+    refreshToken: string | null;
+    /** The access token the failed request was sent with, or the token at `refresh()` call time. */
+    staleAccessToken: string | null;
+}
+
+/**
+ * What a function refresh transport must resolve with. Stored in the session's
+ * token store as-is (`expiresIn` in seconds, like {@link AuthTokens}).
+ */
+export interface RefreshResult {
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn?: number;
+}
+
+/**
+ * Declarative refresh transport — the same request the legacy
+ * `createApiClient({ authOptions })` interceptor sends, but through a private,
+ * interceptor-free axios instance that can point at any backend.
+ *
+ * @example
+ * ```ts
+ * createAuthSession({
+ *     refresh: { url: "/auth/refresh", baseURL: "https://insights.example", withCredentials: true },
+ * })
+ * ```
+ */
+export interface DeclarativeRefreshOptions {
+    /** Refresh endpoint, e.g. `"/auth/refresh"`. Sent as a POST. */
+    url: string;
+    /** Base URL of the backend that issues tokens, e.g. `"/api"` or `"https://insights.example"`. */
+    baseURL?: string;
+    /**
+     * Send cookies with the refresh request. Same meaning as
+     * `authOptions.refreshWithCredentials`: when no refresh token is stored,
+     * credentials are sent anyway.
+     */
+    withCredentials?: boolean;
+    /** Request body — a static object or a (possibly async) function returning one. */
+    payload?: Record<string, unknown> | (() => Record<string, unknown> | Promise<Record<string, unknown>>);
+    /**
+     * Read tokens from a non-standard response. Default: `accessToken || access_token`
+     * and `refreshToken || refresh_token` from the response body.
+     */
+    extractTokens?: (response: AxiosResponse) => { accessToken: string; refreshToken?: string };
+    /**
+     * Awaited after the new tokens are stored and **before** waiting requests are
+     * released — same semantics as `authOptions.onTokenRefreshed`. Throwing fails the refresh.
+     */
+    onTokenRefreshed?: (response: AxiosResponse) => void | Promise<void>;
+    /** Refresh request timeout in ms. Default: 60000. */
+    timeout?: number;
+}
+
+/**
+ * Options for {@link createAuthSession}.
+ */
+export interface AuthSessionOptions {
+    /**
+     * How to obtain new tokens: a {@link DeclarativeRefreshOptions} object, or a
+     * function that performs the refresh and resolves with a {@link RefreshResult}.
+     *
+     * **Function contract:** if the function sends its request through an axios
+     * instance attached to this session, it must pass `authMode: "public"` —
+     * otherwise a 401 from the refresh endpoint waits on the refresh that sent it.
+     */
+    refresh: DeclarativeRefreshOptions | ((context: RefreshContext) => Promise<RefreshResult>);
+    /** Token store. Default: the exported `tokenManager` singleton. */
+    tokens?: TokenManager;
+    /**
+     * When set, the session configures its token store once at creation:
+     * `true` keeps both tokens in localStorage, `false` keeps only the access
+     * token (refresh token in an httpOnly cookie). When omitted, the store is
+     * left exactly as it is.
+     */
+    storeRefreshToken?: boolean;
+    /**
+     * Coordinate refreshes between tabs of the same origin through the Web Locks
+     * API (`lockName` default: `"vue-muza-use:auth-refresh"`). A tab that gets the
+     * lock after another tab already replaced the token adopts that token instead
+     * of refreshing again. Ignored when `navigator.locks` is unavailable.
+     *
+     * **Requires a token store shared between tabs** — the default `tokenManager`
+     * (localStorage). With a per-tab store (in-memory or a custom `TokenStorage`)
+     * refreshes are only serialised and every tab still refreshes on its own; with
+     * a one-time-use refresh token the later tab's refresh fails and ends its session.
+     *
+     * Default: `false`.
+     */
+    crossTab?: boolean | { lockName?: string };
+    /**
+     * `fetch` implementation behind `session.fetch`. Default: `globalThis.fetch`,
+     * looked up on every call (so a later polyfill or test stub is picked up).
+     */
+    fetch?: typeof fetch;
+}
+
+/**
+ * Payload of each {@link AuthSession} event.
+ */
+export interface AuthSessionEventMap {
+    /** A refresh is starting. */
+    refreshStart: { staleAccessToken: string | null };
+    /**
+     * New access token is stored. `response` is the raw refresh response for the
+     * declarative transport, `null` for a function transport or an adopted token.
+     */
+    refreshed: { accessToken: string; response: AxiosResponse | null };
+    /** The refresh failed; tokens have already been cleared. */
+    refreshFailed: { error: unknown };
+    /** `session.clear()` was called; tokens have already been cleared. */
+    cleared: Record<string, never>;
+}
+
+/** Name of an {@link AuthSession} event. */
+export type AuthSessionEvent = keyof AuthSessionEventMap;
+
+/**
+ * A shared authentication session: one owner of the access token and of the
+ * token refresh, for any number of axios instances and non-axios consumers.
+ * Created with {@link createAuthSession}.
+ */
+export interface AuthSession {
+    /** Current access token from the token store, or `null`. */
+    getAccessToken(): string | null;
+    /** `"Bearer <token>"`, or `null` when no token is stored. */
+    getAuthHeader(): string | null;
+    /**
+     * Refresh the access token and resolve with the new one. Single-flight: while
+     * a refresh is in flight every call awaits that same refresh. On failure the
+     * tokens are cleared, `refreshFailed` is emitted once, and every caller rejects.
+     *
+     * `staleAccessToken` — the token the failed request was sent with (default:
+     * the token stored at call time); used by `crossTab` adoption.
+     */
+    refresh(options?: { staleAccessToken?: string | null }): Promise<string>;
+    /** `true` while a refresh is in flight. */
+    readonly isRefreshing: boolean;
+    /**
+     * Subscribe to a session event. Listeners run synchronously after the token
+     * store has been updated; a throwing listener is logged and never breaks the
+     * refresh. Returns an unsubscribe function.
+     */
+    on<E extends AuthSessionEvent>(event: E, listener: (payload: AuthSessionEventMap[E]) => void): () => void;
+    /** Clear the tokens (e.g. on logout) and emit `cleared`. Does not abort an in-flight refresh. */
+    clear(): void;
+    /**
+     * Drop-in `fetch` that sends the session's token and, on a 401, refreshes
+     * through the session and repeats the request once. Never throws for an HTTP
+     * status: if the refresh fails, the original 401 response is returned.
+     *
+     * - A request that already carries an `Authorization` header is passed through untouched.
+     * - The repeat needs a replayable body (string, `URLSearchParams`, `FormData`,
+     *   `Blob`, `ArrayBuffer`/view, none, or a `Request`); with a `ReadableStream`
+     *   body the session still refreshes but returns the original 401.
+     * - Bound — pass it as-is, e.g. `new HttpLink({ uri, fetch: session.fetch })`.
+     */
+    fetch: typeof fetch;
+    /**
+     * Advanced — install the session's request/response interceptors on an axios
+     * instance: the current token is sent with every non-public request, and a 401
+     * refreshes through this session and retries the request once. Every attached
+     * instance shares the session's single refresh. `createApiClient({ authSession })`
+     * calls this for you; use it directly only for an instance you create yourself.
+     */
+    attach(instance: AxiosInstance): void;
+}
+
+// ============================================================================
 // Batch API Types
 // ============================================================================
 
@@ -438,6 +692,8 @@ export interface BatchRequestConfig<D = unknown> {
     params?: D;
     /** Per-request headers that override global defaults for this request only */
     headers?: Record<string, string>;
+    /** Named client for this request — overrides the batch-level `client`. */
+    client?: ApiClientName;
 }
 
 /**
@@ -546,6 +802,11 @@ export interface UseApiBatchOptions<T = unknown, D = unknown, TRaw = unknown> ex
     concurrency?: number;
     /** Execute immediately on mount */
     immediate?: boolean;
+    /**
+     * Named client for every request in the batch (see `UseApiOptions.client`).
+     * A request item's own `client` takes precedence.
+     */
+    client?: ApiClientName;
     /** Skip individual error notifications */
     skipErrorNotification?: boolean;
     /**

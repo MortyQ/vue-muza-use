@@ -94,3 +94,18 @@ const {data, loading, revalidating} = useApiBatch<User>(
   `onItemError`, item dropped from `successfulData` — but `data` keeps the cached value with
   `stale: true`, so the UI can show the old value next to the error. Render on `stale`, not
   on `error === null`.
+
+## Named clients (1.9+)
+
+`client` works at batch level and per item; the item's own `client` wins. Cache reads use the
+same client-scoped key the item's request writes.
+
+```ts
+useApiBatch(
+    ['/brands', {url: '/me', client: 'default'}],   // '/brands' → tools, '/me' → default
+    {client: 'tools', cache: true},
+);
+```
+
+An unknown item-level `client` fails that item (`status: 'error'`, `code: 'BATCH_ERROR'`),
+not the whole batch.

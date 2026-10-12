@@ -53,6 +53,10 @@ invalidateCache({ prefix: ['auto:GET:/products', 'auto:GET:/categories'] });   /
 
 Empty prefixes are ignored, so `{ prefix: '' }` and `{ prefix: [] }` can never wipe the whole cache by accident.
 
+Named clients (1.9+) scope auto keys by client: `auto@tools:GET:/products:...`. A prefix busts
+one client only — `{ prefix: 'auto@tools:GET:/products' }` leaves the default client's
+`auto:GET:/products` entries alone, and vice versa. Manual ids are used verbatim for any client.
+
 ## Duration format
 
 Duration fields (`staleTime`, `freshFor`) accept ms numbers or strings: `"30s"`, `"5m"`, `"1.5h"`, `"1d"`.

@@ -5,7 +5,7 @@ description: Use when creating or editing an api/use*.ts wrapper, calling useApi
 
 # Skill: Vue Muza Use API Layer
 
-Verified against `@ametie/vue-muza-use` 1.8.2.
+Verified against `@ametie/vue-muza-use` 1.9.0 (auth sessions, named clients).
 
 ---
 
@@ -72,6 +72,7 @@ const {loading: downloadLoading, execute: download} = downloadProducts({
 
 - Keep `useApi*` inside the feature API wrapper — never in components.
 - Keep URL and response typing inside the wrapper.
+- Keep the backend choice (`client`) inside the wrapper too — it is part of the URL, not a runtime option.
 - Keep runtime options in the component.
 - Do not duplicate request implementation across components.
 
@@ -86,6 +87,31 @@ const {loading: downloadLoading, execute: download} = downloadProducts({
 | upload             | `FormData` as `data` — see references/request-bodies.md                   |
 | polling            | `immediate: true` + `poll` — see §Gotchas to stop it                      |
 | batch              | `useApiBatch` — see references/batch.md                                   |
+| other backend      | `client: "tools"` in the wrapper — see §Multiple backends                 |
+
+### Multiple backends
+
+An app that talks to more than one backend registers each as a named client in `createApi`
+(`clients: { tools: toolsApi }`) and the wrapper picks one with `client`. Never hard-code an
+absolute URL or override `baseURL` per request to reach another backend: the auto cache key
+ignores `baseURL`, so the same path on two backends would share one entry.
+
+```ts
+// src/features/brands/api/useBrandsRequest.ts — every request of this domain lives on "tools"
+export default () => {
+    const fetchBrands = (options?: UseApiOptions<Brand[]>) =>
+        useApiGet<Brand[]>("/brands", {client: "tools", ...options});
+    return {fetchBrands};
+};
+```
+
+- `client` is fixed per composable — not reactive, not accepted by `execute()`.
+- An unknown name throws when the composable is created; `default` is reserved for `axios`.
+- Named-client cache keys are `auto@tools:GET:/brands:...`; default-client keys are unchanged.
+- If the app declares `ApiClientRegistry` (module augmentation), a typo in `client` is a type error.
+- Every instance must share ONE auth session (`createApiClient({ authSession })`) — see
+  references/security.md. Two `authOptions` clients refresh independently and, with a
+  one-time-use refresh token, log the user out.
 
 ---
 
@@ -149,6 +175,9 @@ const {data} = fetchGenerationPrompt(() => (id.value ? `/generations/${id.value}
 | Upload arrives as `{"file":{...}}`, HTTP 200      | Pre-1.8, or an explicit JSON `Content-Type` on a `FormData` body                              | Upgrade to 1.8, or set the header by hand — references/request-bodies.md |
 | A per-call override lost the auth/other headers   | Per-call `headers` REPLACES composable `headers` wholesale                                    | Repeat the headers still needed                                         |
 | Every filter combination returns the same page    | Manual `cache: "key"` instead of auto-keying                                                  | `cache: true`                                                           |
+| `Unknown API client "x". Registered: …`           | `client` names a client that `createApi({ clients })` does not register                       | Register it, or fix the name; declare `ApiClientRegistry` to catch it at compile time |
+| Two backends' `GET /same-path` share cached data  | Second backend reached via absolute URL / per-request `baseURL` — cache key has no backend    | Register a named client and use `client`                                |
+| Logged out when two APIs get 401 at once          | Two `createApiClient({ authOptions })` instances, each refreshing with a one-time refresh token | One `createAuthSession`, passed as `authSession` to every instance — references/security.md |
 
 ---
 
@@ -357,11 +386,17 @@ see references/advanced-options.md.
 - `references/request-bodies.md` — uploads, FormData, Content-Type precedence, raw Blob caveat; read before any non-JSON body.
 - `references/data-select-mutate.md` — `UseApiOptions` generics, `select`, `mutate` typing, optimistic updates.
 - `references/batch.md` — `useApiBatch`: concurrency, progress, settled, incremental `data` + per-item `status`/`stale`, and the `useApi` options a batch accepts (`cache` incl. `swr`, `select`, `invalidateCache`, `refetchOnFocus/Reconnect`).
-- `references/security.md` — token storage modes and `clearAllCache()` on logout.
+- `references/security.md` — token storage modes, the shared auth session (`createAuthSession`, `authSession`, `session.fetch`, `crossTab`), and logout.
 
 ---
 
 ## Version notes
+
+New in 1.9 (additive — nothing changes until an app opts in):
+
+- `createAuthSession` + `createApiClient({ authSession })` — one refresh shared by every axios
+  instance, Apollo/WebSocket/fetch consumers (`session.fetch`, events). See references/security.md.
+- Named clients: `createApi({ clients })` + `client` on `useApi*` / `useApiBatch`.
 
 Differences from 1.7.x, all behavioural rather than API-shape changes:
 

@@ -10,6 +10,7 @@ import type {
     ExecuteConfig,
 } from "./types";
 import { useApiConfig } from "./plugin";
+import { DEFAULT_CLIENT, resolveClient } from "./features/clientRegistry";
 import { parseApiError } from "./utils/errorParser";
 import { useApiState } from "./composables/useApiState";
 import { useAbortController } from "./composables/useAbortController";
@@ -32,7 +33,10 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
     url: MaybeRefOrGetter<string | undefined>,
     options: UseApiOptions<T, D, TSelected> = {},
 ): UseApiReturn<TSelected, D> {
-    const { axios, onError: globalErrorHandler, globalOptions, errorParser } = useApiConfig();
+    const apiConfig = useApiConfig();
+    const { onError: globalErrorHandler, globalOptions } = apiConfig;
+    // Throws synchronously on an unknown client name — a static misconfiguration
+    const client = resolveClient(apiConfig, options.client);
 
     const {
         method = "GET",
@@ -60,13 +64,14 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         refetchOnFocus: _refetchOnFocus,
         refetchOnReconnect: _refetchOnReconnect,
         select,
+        client: _client,
         ...axiosConfig
     } = options;
 
     const applySelect = (raw: T): TSelected =>
         select ? select(raw) : (raw as unknown as TSelected);
 
-    const toApiError = (err: unknown): ApiError => (errorParser ? errorParser(err) : parseApiError(err));
+    const toApiError = (err: unknown): ApiError => (client.errorParser ? client.errorParser(err) : parseApiError(err));
 
     const startLoading = initialLoading ?? immediate;
     const state = useApiState<TSelected>(initialData as TSelected | null, { initialLoading: startLoading });
@@ -147,8 +152,10 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             authMode: _cfgAuthMode,
             data: _cfgData,
             params: _cfgParams,
+            // Fixed per composable (not in ExecuteConfig) — stripped in case an untyped caller passes it
+            client: _cfgClient,
             ...configAxios
-        } = config ?? {};
+        } = (config ?? {}) as ExecuteConfig<D> & { client?: string };
 
         // Resolve request inputs up-front: the auto cache key is derived from
         // method + url + params + data, so all three must be known before the
@@ -171,7 +178,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
         // Concrete cache key: manual id (no url needed) or auto key (needs url).
         const key =
             cacheOpts && (cacheOpts.id !== undefined || requestUrl)
-                ? resolveCacheKey(cacheOpts, method, requestUrl ?? "", resolvedParams, resolvedData)
+                ? resolveCacheKey(cacheOpts, method, requestUrl ?? "", resolvedParams, resolvedData, client.name)
                 : null;
         cacheKey.value = key;
 
@@ -212,7 +219,9 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
          */
         const surfaceError = (apiError: ApiError, err: unknown): null => {
             if (!effectiveSkipErrorNotification && globalErrorHandler) {
-                globalErrorHandler(apiError, err);
+                // Default client: exactly the two arguments of 1.8.x; named client: + context
+                if (client.name === DEFAULT_CLIENT) globalErrorHandler(apiError, err);
+                else globalErrorHandler(apiError, err, { client: client.name });
             }
             state.setError(apiError);
             state.setStatusCode(apiError.status);
@@ -280,7 +289,7 @@ export function useApi<T = unknown, D = unknown, TSelected = T>(
             // eslint-disable-next-line no-constant-condition
             while (true) {
                 try {
-                    const response = await axios.request<T>({
+                    const response = await client.axios.request<T>({
                         url: requestUrl,
                         method,
                         ...axiosConfig,

@@ -87,7 +87,7 @@ Auto-generated cache keys for a named client SHALL be prefixed with `auto@<clien
 - **THEN** it is served from the `tools`-scoped cache entry without a request
 
 ### Requirement: Per-client error parsing and error context
-A request's error SHALL be parsed by its client's `errorParser` when one is registered, otherwise by the global `errorParser`, otherwise by the built-in parser. The global `onError` SHALL receive a third argument `{ client }` naming the client the request used.
+A request's error SHALL be parsed by its client's `errorParser` when one is registered, otherwise by the global `errorParser`, otherwise by the built-in parser. For a named-client request the global `onError` SHALL receive a third argument `{ client }` naming that client; a default-client request SHALL call it with exactly the two arguments of 1.8.x.
 
 #### Scenario: Client parser wins
 - **WHEN** the `tools` client has its own `errorParser` and a `tools` request fails
@@ -99,7 +99,11 @@ A request's error SHALL be parsed by its client's `errorParser` when one is regi
 
 #### Scenario: onError context
 - **WHEN** a `tools` request fails and error notification is not skipped
-- **THEN** the global `onError` is called with `(apiError, originalError, { client: "tools" })`, and a default-client failure passes `{ client: "default" }`
+- **THEN** the global `onError` is called with `(apiError, originalError, { client: "tools" })`
+
+#### Scenario: Default-client onError arguments unchanged
+- **WHEN** a request without `client` (or with `client: "default"`) fails and error notification is not skipped
+- **THEN** the global `onError` is called with exactly `(apiError, originalError)`, as in 1.8.x
 
 ### Requirement: Global behaviour applies to every client
 Global abort, global cache defaults, global retry options and devtools reporting SHALL apply to named-client requests exactly as to default-client requests.
