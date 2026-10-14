@@ -119,6 +119,16 @@ function getLockManager(): LockManagerLike | null {
 export function createAuthSession(options: AuthSessionOptions): AuthSession {
     const tokens = options.tokens ?? defaultTokenManager;
 
+    // Replacing a custom store's storage would drop its custom keys and point it
+    // at the default keys — i.e. at the main session's token.
+    if (options.storeRefreshToken !== undefined && tokens !== defaultTokenManager) {
+        throw new TypeError(
+            "createAuthSession: `storeRefreshToken` only configures the default `tokenManager`. " +
+            "For a custom `tokens` store, configure `storeRefreshToken` on the " +
+            "`LocalStorageTokenStorage` passed to this `TokenManager`.",
+        );
+    }
+
     // Explicit replacement for the implicit setStorage side effect of the
     // legacy createApiClient — applied only when the caller asks for it.
     if (options.storeRefreshToken !== undefined) {

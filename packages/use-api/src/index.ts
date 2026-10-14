@@ -9,6 +9,6 @@ export type { ApiError } from "./types";
 export { createApiClient } from "./features/createInstance";
 export { setupInterceptors } from "./features/interceptors";
 export { createAuthSession } from "./features/authSession";
-export { tokenManager } from "./features/tokenManager";
+export { tokenManager, TokenManager, LocalStorageTokenStorage } from "./features/tokenManager";
 export { setAuthMonitor, AuthEventType, type AuthEventPayload, type AuthMonitorFn } from "./features/monitor";
 export { invalidateCache, clearAllCache } from "./features/cacheManager";

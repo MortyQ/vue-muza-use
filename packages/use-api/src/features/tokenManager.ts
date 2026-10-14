@@ -170,13 +170,36 @@ class LocalStorageTokenStorage implements TokenStorage {
 }
 
 /**
- * Token Manager class
- * Singleton for token management
+ * A token store: reads, writes and clears one set of auth tokens through a
+ * `TokenStorage`.
+ *
+ * The exported `tokenManager` singleton is the default store of every auth
+ * session and legacy `createApiClient`. Build a second instance only for a
+ * second, independent token — for example for a backend that only accepts a
+ * token another backend mints — and pass it as `createAuthSession({ tokens })`.
+ *
+ * @example
+ * ```ts
+ * const partnerTokens = new TokenManager(new LocalStorageTokenStorage({
+ *     keys: {
+ *         accessToken: "partner:accessToken",
+ *         refreshToken: "partner:refreshToken",
+ *         expiresAt: "partner:expiresAt",
+ *     },
+ * }));
+ * const partnerSession = createAuthSession({ refresh: fetchPartnerToken, tokens: partnerTokens });
+ * ```
  */
 class TokenManager {
     private storage: TokenStorage;
     private refreshPromise: Promise<string | null> | null = null;
 
+    /**
+     * @param storage Where the tokens live. Default: a `LocalStorageTokenStorage`
+     * with the default keys — **the same keys as the `tokenManager` singleton**,
+     * so `new TokenManager()` is not a separate store. For a second store pass
+     * `new LocalStorageTokenStorage({ keys })` with key names of its own.
+     */
     constructor(storage: TokenStorage = new LocalStorageTokenStorage()) {
         this.storage = storage;
     }
