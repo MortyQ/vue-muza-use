@@ -386,7 +386,7 @@ see references/advanced-options.md.
 - `references/request-bodies.md` — uploads, FormData, Content-Type precedence, raw Blob caveat; read before any non-JSON body.
 - `references/data-select-mutate.md` — `UseApiOptions` generics, `select`, `mutate` typing, optimistic updates.
 - `references/batch.md` — `useApiBatch`: concurrency, progress, settled, incremental `data` + per-item `status`/`stale`, and the `useApi` options a batch accepts (`cache` incl. `swr`, `select`, `invalidateCache`, `refetchOnFocus/Reconnect`).
-- `references/security.md` — token storage modes, the shared auth session (`createAuthSession`, `authSession`, `session.fetch`, `crossTab`), and logout.
+- `references/security.md` — token storage modes, the shared auth session (`createAuthSession`, `authSession`, `session.fetch`, `crossTab`), a second token store for a backend with its own token (`TokenManager` + `LocalStorageTokenStorage({ keys })`), and logout.
 
 ---
 

@@ -2160,6 +2160,53 @@ router.beforeEach((to) => {
 })
 ```
 
+#### A second token store
+
+**TL;DR: When one backend only accepts a token that another backend mints, keep that token in its own store with its own localStorage keys.**
+
+`tokenManager` holds the app's main token under the keys `accessToken`, `refreshToken` and `tokenExpiresAt`. A second token needs a second store — otherwise saving it overwrites the main token, and every request to the main backend goes out with the wrong one:
+
+```typescript
+import { TokenManager, LocalStorageTokenStorage } from '@ametie/vue-muza-use'
+
+export const partnerTokens = new TokenManager(
+  new LocalStorageTokenStorage({
+    keys: {
+      accessToken: 'partner:accessToken',
+      refreshToken: 'partner:refreshToken',
+      expiresAt: 'partner:expiresAt',
+    },
+    // storeRefreshToken: false — set it here, on the storage, if needed
+  })
+)
+
+partnerTokens.setTokens({ accessToken: partnerAccessToken, expiresIn: 300 })
+partnerTokens.isTokenExpired() // own expiry, independent of tokenManager
+```
+
+The store persists in localStorage and is shared between tabs exactly like the main one.
+
+- **All three key names are required.** A partial set would silently fall back to a default key — for example the default `tokenExpiresAt` — and the two stores would overwrite each other's expiry. `refreshToken` must be named even with `storeRefreshToken: false` (it is then never read or written). The constructor throws a `TypeError` for an empty name or for two roles sharing one name.
+- **Never reuse key names across stores.** Two stores configured with the same names write over each other; the library cannot detect it.
+- **`new TokenManager()` without an argument is not a second store** — it uses the default keys, i.e. the same keys as `tokenManager`.
+- **Logout clears only the store you call.** Clear both:
+
+```typescript
+function logout() {
+  tokenManager.clearTokens()
+  partnerTokens.clearTokens()
+}
+```
+
+- **Absolute expiry?** `setTokens` takes `expiresIn` in seconds. Convert an absolute time at the call site:
+
+```typescript
+// expiresAt: Unix seconds from the backend
+partnerTokens.setTokens({ accessToken: token, expiresIn: expiresAt - Date.now() / 1000 })
+```
+
+To refresh the second token through the library, give it its own [auth session](#token-storage) with `tokens: partnerTokens`.
+
 ---
 
 ### Advanced: extractTokens
@@ -2425,7 +2472,64 @@ By default the session reads and writes the exported `tokenManager`, so `tokenMa
 createAuthSession({ refresh: { url: '/auth/refresh' }, storeRefreshToken: false }) // refresh token lives in an httpOnly cookie
 ```
 
-A custom store goes in `tokens` (a `TokenManager` instance).
+A custom store goes in `tokens` — for example a [second token store](#a-second-token-store) for a backend that only accepts a token another backend mints:
+
+```typescript
+import { createAuthSession, TokenManager, LocalStorageTokenStorage } from '@ametie/vue-muza-use'
+
+const partnerTokens = new TokenManager(
+  new LocalStorageTokenStorage({
+    keys: {
+      accessToken: 'partner:accessToken',
+      refreshToken: 'partner:refreshToken',
+      expiresAt: 'partner:expiresAt',
+    },
+  })
+)
+
+export const partnerSession = createAuthSession({
+  // mint a partner token with the main session's token
+  refresh: async () => {
+    const { data } = await mainApi.post('/partner-token')
+    return { accessToken: data.token, expiresIn: data.expiresIn }
+  },
+  tokens: partnerTokens,
+  crossTab: { lockName: 'my-app:partner-refresh' },
+})
+
+export const backendB = createApiClient({ baseURL: '/backend-b', authSession: partnerSession })
+```
+
+The session reads and writes only `partnerTokens`; the main `tokenManager` is never touched.
+
+> [!WARNING]
+> `storeRefreshToken` configures only the default `tokenManager`. Combined with any other `tokens` store, `createAuthSession` throws a `TypeError` — set `storeRefreshToken` on that store's `LocalStorageTokenStorage` instead.
+
+A token that must not persist (one tab, gone on reload) needs no localStorage at all — implement `TokenStorage` in memory:
+
+```typescript
+import { TokenManager, type AuthTokens, type TokenStorage } from '@ametie/vue-muza-use'
+
+let current: AuthTokens | null = null
+let expiresAt: number | null = null
+
+const memoryStorage: TokenStorage = {
+  getAccessToken: () => current?.accessToken ?? null,
+  getRefreshToken: () => current?.refreshToken ?? null,
+  setTokens: (tokens) => {
+    current = tokens
+    expiresAt = tokens.expiresIn ? Date.now() + tokens.expiresIn * 1000 : null
+  },
+  clearTokens: () => {
+    current = null
+    expiresAt = null
+  },
+  getTokenExpiresAt: () => expiresAt,
+  isTokenExpired: () => expiresAt !== null && Date.now() >= expiresAt - 5000,
+}
+
+export const memoryTokens = new TokenManager(memoryStorage)
+```
 
 #### Cross-tab refresh — `crossTab`
 
@@ -2437,7 +2541,9 @@ createAuthSession({ refresh: { url: '/auth/refresh' }, crossTab: true })
 With `crossTab` on, tabs of the same origin take turns through the [Web Locks API](https://developer.mozilla.org/docs/Web/API/Web_Locks_API). A tab that gets the lock after another tab already stored a new token takes that token instead of refreshing again. Without `navigator.locks` the option does nothing (in-tab single-flight still applies).
 
 > [!IMPORTANT]
-> Taking over another tab's token only works when the token store is **shared between tabs** — the default `tokenManager` (localStorage). With a per-tab store (in-memory or a custom `TokenStorage`), refreshes are only serialised: every tab still refreshes on its own, and with a one-time-use refresh token the later tab's refresh fails and ends its session.
+> Taking over another tab's token only works when the token store is **shared between tabs** — any store backed by `LocalStorageTokenStorage`: the default `tokenManager` or a [second store](#a-second-token-store) with its own `keys`. With a per-tab store (in-memory or another custom `TokenStorage`), refreshes are only serialised: every tab still refreshes on its own, and with a one-time-use refresh token the later tab's refresh fails and ends its session.
+
+With more than one session, give each its own `crossTab.lockName`. Sessions sharing the default lock name are not broken, but a refresh of one waits for a refresh of the other.
 
 ---
 
@@ -2945,6 +3051,31 @@ tokenManager.clearTokens()
 const isLoggedIn = tokenManager.hasTokens()
 ```
 
+`tokenManager` is an instance of the exported `TokenManager` class.
+
+---
+
+### `TokenManager` / `LocalStorageTokenStorage`
+
+See [A second token store](#a-second-token-store) above.
+
+**`new TokenManager(storage?: TokenStorage)`** — a token store. Same methods as [`tokenManager`](#tokenmanager--manual-token-control), plus `setStorage(storage)`. Default `storage`: `new LocalStorageTokenStorage()` with the default keys — the same keys as `tokenManager`, so it is **not** a separate store.
+
+**`new LocalStorageTokenStorage(options?: LocalStorageTokenStorageOptions)`** — storage in localStorage, shared between tabs. Throws a `TypeError` when a name in `keys` is empty or two roles share one name.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `storeRefreshToken` | `boolean` | `true` | Keep the refresh token in localStorage; `false` — it lives in an httpOnly cookie |
+| `keys` | `TokenStorageKeys` | `accessToken` / `refreshToken` / `tokenExpiresAt` | Custom key names — all three required, all distinct |
+
+**Types:**
+
+| Type | Shape |
+|------|-------|
+| `TokenStorageKeys` | `{ accessToken: string; refreshToken: string; expiresAt: string }` |
+| `LocalStorageTokenStorageOptions` | `{ storeRefreshToken?: boolean; keys?: TokenStorageKeys }` |
+| `TokenStorage` | `getAccessToken()`, `getRefreshToken()`, `setTokens(tokens)`, `clearTokens()`, `getTokenExpiresAt()`, `isTokenExpired()` — implement it for your own storage |
+
 ---
 
 ### `createAuthSession(options)`
@@ -2956,9 +3087,9 @@ See the full [Auth session section](#auth-session-multiple-clients-apollo-websoc
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `refresh` | `DeclarativeRefreshOptions \| (ctx: RefreshContext) => Promise<RefreshResult>` | — | How to obtain new tokens |
-| `tokens` | `TokenManager` | `tokenManager` | Token store |
-| `storeRefreshToken` | `boolean` | — (storage untouched) | Configure the token store once at creation |
-| `crossTab` | `boolean \| { lockName?: string }` | `false` | Coordinate refreshes between tabs (needs a shared token store) |
+| `tokens` | [`TokenManager`](#tokenmanager--localstoragetokenstorage) | `tokenManager` | Token store |
+| `storeRefreshToken` | `boolean` | — (storage untouched) | Configure the default `tokenManager` once at creation; throws with any other `tokens` store |
+| `crossTab` | `boolean \| { lockName?: string }` | `false` | Coordinate refreshes between tabs (needs a shared token store; one `lockName` per session) |
 | `fetch` | `typeof fetch` | `globalThis.fetch` (looked up per call) | Implementation behind `session.fetch` |
 
 **`DeclarativeRefreshOptions`:** `url` (required), `baseURL`, `withCredentials`, `payload`, `extractTokens`, `onTokenRefreshed`, `timeout` (default `60000`).

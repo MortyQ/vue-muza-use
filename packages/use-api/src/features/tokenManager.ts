@@ -8,18 +8,9 @@
  * - Single point of access to tokens
  */
 
-import type { AuthTokens } from "../types";
+import type { AuthTokens, LocalStorageTokenStorageOptions, TokenStorage, TokenStorageKeys } from "../types";
 
-export type { AuthTokens };
-
-export interface TokenStorage {
-    getAccessToken(): string | null;
-    getRefreshToken(): string | null;
-    setTokens(tokens: AuthTokens): void;
-    clearTokens(): void;
-    getTokenExpiresAt(): number | null
-    isTokenExpired(): boolean
-}
+export type { AuthTokens, TokenStorage };
 
 export const TOKEN_TYPE = "Bearer";
 export const ACCESS_TOKEN_KEY = "accessToken";
@@ -53,29 +44,88 @@ function safeRemoveItem(key: string): void {
     }
 }
 
+const DEFAULT_KEYS: TokenStorageKeys = {
+    accessToken: ACCESS_TOKEN_KEY,
+    refreshToken: REFRESH_TOKEN_KEY,
+    expiresAt: TOKEN_EXPIRES_KEY,
+};
+
+const KEY_ROLES = ["accessToken", "refreshToken", "expiresAt"] as const;
+
+// Reject a key set that would corrupt storage later: an empty name, or two
+// roles writing to one key. Runs once, before any localStorage access.
+function resolveKeys(keys: TokenStorageKeys | undefined): TokenStorageKeys {
+    if (keys === undefined) return DEFAULT_KEYS;
+
+    for (const role of KEY_ROLES) {
+        const name: unknown = keys[role];
+        if (typeof name !== "string" || name === "") {
+            throw new TypeError(
+                `LocalStorageTokenStorage: keys.${role} must be a non-empty string.`,
+            );
+        }
+    }
+
+    for (let i = 0; i < KEY_ROLES.length; i++) {
+        for (let j = i + 1; j < KEY_ROLES.length; j++) {
+            if (keys[KEY_ROLES[i]] === keys[KEY_ROLES[j]]) {
+                throw new TypeError(
+                    `LocalStorageTokenStorage: keys.${KEY_ROLES[i]} and keys.${KEY_ROLES[j]} ` +
+                    `must be different (both are "${keys[KEY_ROLES[i]]}").`,
+                );
+            }
+        }
+    }
+
+    return { accessToken: keys.accessToken, refreshToken: keys.refreshToken, expiresAt: keys.expiresAt };
+}
+
 /**
- * LocalStorage implementation of token storage
+ * Token storage backed by localStorage, shared by every tab of the origin.
+ * It is the storage of the `tokenManager` singleton.
  *
- * Supports two modes:
- * 1. storeRefreshToken: true (default) - Both tokens in localStorage
- * 2. storeRefreshToken: false - Only accessToken in localStorage, refreshToken via httpOnly cookies
+ * Two modes:
+ * 1. `storeRefreshToken: true` (default) — both tokens in localStorage
+ * 2. `storeRefreshToken: false` — only the access token in localStorage, the refresh token in an httpOnly cookie
+ *
+ * By default it uses the keys `accessToken`, `refreshToken` and `tokenExpiresAt`.
+ * Pass `keys` to keep a second, independent token (for example for a backend
+ * that only accepts a token another backend mints). Two storages must never
+ * share a key name: the library cannot detect it, and they would overwrite
+ * each other's tokens.
+ *
+ * @throws {TypeError} when a name in `keys` is empty or two roles share one name.
+ *
+ * @example
+ * ```ts
+ * const partnerTokens = new TokenManager(new LocalStorageTokenStorage({
+ *     keys: {
+ *         accessToken: "partner:accessToken",
+ *         refreshToken: "partner:refreshToken",
+ *         expiresAt: "partner:expiresAt",
+ *     },
+ * }));
+ * partnerTokens.setTokens({ accessToken: partnerAccessToken, expiresIn: 300 });
+ * ```
  */
 class LocalStorageTokenStorage implements TokenStorage {
     private storeRefreshToken: boolean;
+    private keys: TokenStorageKeys;
 
-    constructor(options: { storeRefreshToken?: boolean } = {}) {
+    constructor(options: LocalStorageTokenStorageOptions = {}) {
+        this.keys = resolveKeys(options.keys);
         this.storeRefreshToken = options.storeRefreshToken ?? true;  // Default: store in localStorage
     }
 
     getAccessToken(): string | null {
-        return safeGetItem(ACCESS_TOKEN_KEY);
+        return safeGetItem(this.keys.accessToken);
     }
 
     getRefreshToken(): string | null {
         if (!this.storeRefreshToken) {
             return null; // Refresh token is stored in httpOnly cookie
         }
-        return safeGetItem(REFRESH_TOKEN_KEY);
+        return safeGetItem(this.keys.refreshToken);
     }
 
     setTokens(tokens: AuthTokens): void {
@@ -83,30 +133,30 @@ class LocalStorageTokenStorage implements TokenStorage {
             return;
         }
 
-        safeSetItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+        safeSetItem(this.keys.accessToken, tokens.accessToken);
 
         if (this.storeRefreshToken) {
             if (tokens.refreshToken) {
-                safeSetItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+                safeSetItem(this.keys.refreshToken, tokens.refreshToken);
             }
         }
 
         if (tokens.expiresIn) {
             const expiresAt = Date.now() + tokens.expiresIn * 1000;
-            safeSetItem(TOKEN_EXPIRES_KEY, expiresAt.toString());
+            safeSetItem(this.keys.expiresAt, expiresAt.toString());
         }
     }
 
     clearTokens(): void {
-        safeRemoveItem(ACCESS_TOKEN_KEY);
+        safeRemoveItem(this.keys.accessToken);
         if (this.storeRefreshToken) {
-            safeRemoveItem(REFRESH_TOKEN_KEY);
+            safeRemoveItem(this.keys.refreshToken);
         }
-        safeRemoveItem(TOKEN_EXPIRES_KEY);
+        safeRemoveItem(this.keys.expiresAt);
     }
 
     getTokenExpiresAt(): number | null {
-        const expiresAt = safeGetItem(TOKEN_EXPIRES_KEY);
+        const expiresAt = safeGetItem(this.keys.expiresAt);
         return expiresAt ? parseInt(expiresAt, 10) : null;
     }
 
@@ -120,13 +170,36 @@ class LocalStorageTokenStorage implements TokenStorage {
 }
 
 /**
- * Token Manager class
- * Singleton for token management
+ * A token store: reads, writes and clears one set of auth tokens through a
+ * `TokenStorage`.
+ *
+ * The exported `tokenManager` singleton is the default store of every auth
+ * session and legacy `createApiClient`. Build a second instance only for a
+ * second, independent token — for example for a backend that only accepts a
+ * token another backend mints — and pass it as `createAuthSession({ tokens })`.
+ *
+ * @example
+ * ```ts
+ * const partnerTokens = new TokenManager(new LocalStorageTokenStorage({
+ *     keys: {
+ *         accessToken: "partner:accessToken",
+ *         refreshToken: "partner:refreshToken",
+ *         expiresAt: "partner:expiresAt",
+ *     },
+ * }));
+ * const partnerSession = createAuthSession({ refresh: fetchPartnerToken, tokens: partnerTokens });
+ * ```
  */
 class TokenManager {
     private storage: TokenStorage;
     private refreshPromise: Promise<string | null> | null = null;
 
+    /**
+     * @param storage Where the tokens live. Default: a `LocalStorageTokenStorage`
+     * with the default keys — **the same keys as the `tokenManager` singleton**,
+     * so `new TokenManager()` is not a separate store. For a second store pass
+     * `new LocalStorageTokenStorage({ keys })` with key names of its own.
+     */
     constructor(storage: TokenStorage = new LocalStorageTokenStorage()) {
         this.storage = storage;
     }

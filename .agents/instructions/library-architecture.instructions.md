@@ -8,7 +8,7 @@ Internal structure, layering constraints, and how to extend the library safely.
 
 ```
 packages/use-api/src/
-  types.ts                       ← ALL public TypeScript types and interfaces
+  types.ts                       ← ALL public TypeScript types and interfaces (incl. TokenStorage)
   plugin.ts                      ← Vue plugin factory (createApi) + useApiConfig() injection
   composables/
     useApiState.ts               ← reactive state (data, loading, error, statusCode, response)
@@ -18,7 +18,7 @@ packages/use-api/src/
   features/
     cacheManager.ts              ← in-memory TTL cache with SWR + option/key resolution
     retryPolicy.ts               ← retry attempt count + which statuses qualify
-    tokenManager.ts              ← JWT token lifecycle (get/set/clear/expiry check)
+    tokenManager.ts              ← TokenManager + LocalStorageTokenStorage (custom keys) + tokenManager singleton
     interceptors.ts              ← Axios request/response interceptors for token refresh
     createInstance.ts            ← Axios factory with auth defaults
     monitor.ts                   ← auth event monitoring (setAuthMonitor, AuthEventType)

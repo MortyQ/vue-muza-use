@@ -496,6 +496,69 @@ export interface AuthTokens {
 }
 
 // ============================================================================
+// Token Storage Types
+// ============================================================================
+
+/**
+ * Where a `TokenManager` keeps its tokens. The library ships
+ * `LocalStorageTokenStorage`; implement this interface for any other place
+ * (for example in memory, for a token that must not persist).
+ *
+ * @example
+ * ```ts
+ * let current: AuthTokens | null = null;
+ * const memoryStorage: TokenStorage = {
+ *     getAccessToken: () => current?.accessToken ?? null,
+ *     getRefreshToken: () => current?.refreshToken ?? null,
+ *     setTokens: (tokens) => { current = tokens; },
+ *     clearTokens: () => { current = null; },
+ *     getTokenExpiresAt: () => null,
+ *     isTokenExpired: () => false,
+ * };
+ * const store = new TokenManager(memoryStorage);
+ * ```
+ */
+export interface TokenStorage {
+    /** Current access token, or `null` when none is stored. */
+    getAccessToken(): string | null;
+    /** Current refresh token, or `null` when none is stored (or it lives in an httpOnly cookie). */
+    getRefreshToken(): string | null;
+    /** Store a token set. `expiresIn` is in seconds from now. */
+    setTokens(tokens: AuthTokens): void;
+    /** Remove every token this storage holds. */
+    clearTokens(): void;
+    /** Expiry of the access token in ms since epoch, or `null` when unknown. */
+    getTokenExpiresAt(): number | null;
+    /** `true` when the access token is known to be expired. */
+    isTokenExpired(): boolean;
+}
+
+/**
+ * localStorage key names used by one `LocalStorageTokenStorage`. All three are
+ * required and must be three different, non-empty strings — a partial set would
+ * silently share the remaining default keys with the main `tokenManager`.
+ */
+export interface TokenStorageKeys {
+    /** Key of the access token. Default store: `"accessToken"`. */
+    accessToken: string;
+    /**
+     * Key of the refresh token. Default store: `"refreshToken"`. Never read or
+     * written when `storeRefreshToken` is `false`, but must still be distinct.
+     */
+    refreshToken: string;
+    /** Key of the expiry timestamp (ms since epoch). Default store: `"tokenExpiresAt"`. */
+    expiresAt: string;
+}
+
+/** Options of the `LocalStorageTokenStorage` constructor. */
+export interface LocalStorageTokenStorageOptions {
+    /** Keep the refresh token in localStorage. `false`: it lives in an httpOnly cookie. Default: `true`. */
+    storeRefreshToken?: boolean;
+    /** Custom key names. Default: `accessToken` / `refreshToken` / `tokenExpiresAt`. */
+    keys?: TokenStorageKeys;
+}
+
+// ============================================================================
 // Auth Session Types
 // ============================================================================
 
@@ -571,13 +634,22 @@ export interface AuthSessionOptions {
      * otherwise a 401 from the refresh endpoint waits on the refresh that sent it.
      */
     refresh: DeclarativeRefreshOptions | ((context: RefreshContext) => Promise<RefreshResult>);
-    /** Token store. Default: the exported `tokenManager` singleton. */
+    /**
+     * Token store. Default: the exported `tokenManager` singleton.
+     *
+     * Pass a second store for a token kept apart from the main one, e.g.
+     * `new TokenManager(new LocalStorageTokenStorage({ keys }))` with its own key names.
+     */
     tokens?: TokenManager;
     /**
-     * When set, the session configures its token store once at creation:
+     * When set, the session configures the default `tokenManager` once at creation:
      * `true` keeps both tokens in localStorage, `false` keeps only the access
      * token (refresh token in an httpOnly cookie). When omitted, the store is
      * left exactly as it is.
+     *
+     * Applies only to the default store (`tokens` omitted or the `tokenManager`
+     * singleton). Combined with any other `tokens` store it throws a `TypeError` —
+     * set `storeRefreshToken` on that store's `LocalStorageTokenStorage` instead.
      */
     storeRefreshToken?: boolean;
     /**
@@ -586,10 +658,14 @@ export interface AuthSessionOptions {
      * lock after another tab already replaced the token adopts that token instead
      * of refreshing again. Ignored when `navigator.locks` is unavailable.
      *
-     * **Requires a token store shared between tabs** — the default `tokenManager`
-     * (localStorage). With a per-tab store (in-memory or a custom `TokenStorage`)
+     * **Requires a token store shared between tabs** — any store backed by a
+     * `LocalStorageTokenStorage` (the default `tokenManager`, or one with custom
+     * `keys`). With a per-tab store (in-memory or another custom `TokenStorage`)
      * refreshes are only serialised and every tab still refreshes on its own; with
      * a one-time-use refresh token the later tab's refresh fails and ends its session.
+     *
+     * Give each session its own `lockName` — otherwise refreshes of unrelated
+     * sessions wait behind one lock.
      *
      * Default: `false`.
      */
