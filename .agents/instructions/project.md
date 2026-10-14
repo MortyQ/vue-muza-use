@@ -54,6 +54,7 @@ useApi/
 | Export | Description |
 |--------|-------------|
 | `tokenManager` | JWT token lifecycle: get/set/clear/check expiry |
+| `TokenManager` / `LocalStorageTokenStorage` | Classes behind `tokenManager` — build a second token store with its own localStorage `keys` |
 | `invalidateCache(id \| id[])` | Imperatively bust specific cache entries |
 | `clearAllCache()` | Wipe the entire in-memory cache |
 
